@@ -50,7 +50,7 @@ export default async function ProgressPage({
               href={`/progress?profile=${p.id}`}
               className={`rounded-full px-3 py-1.5 text-sm font-medium ${
                 p.id === selected.id
-                  ? "bg-stone-900 text-white"
+                  ? "bg-brand text-white"
                   : "border border-stone-300 bg-white text-stone-700"
               }`}
             >

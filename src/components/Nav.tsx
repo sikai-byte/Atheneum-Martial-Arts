@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions";
 
@@ -23,8 +24,9 @@ export default function Nav({ name, role }: { name: string; role: string }) {
     <>
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <Link href={links[0].href} className="text-lg font-bold tracking-tight">
-            Atheneum
+          <Link href={links[0].href} className="flex items-center gap-2">
+            <Image src="/logo.png" alt="Atheneum Martial Arts" width={36} height={37} priority />
+            <span className="text-lg font-bold tracking-tight text-brand">Atheneum</span>
           </Link>
           <div className="flex items-center gap-4">
             <nav className="hidden gap-1 sm:flex" aria-label="Primary">
@@ -34,7 +36,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
                   href={l.href}
                   className={`rounded-md px-3 py-2 text-sm font-medium ${
                     pathname === l.href
-                      ? "bg-stone-900 text-white"
+                      ? "bg-brand text-white"
                       : "text-stone-600 hover:bg-stone-100"
                   }`}
                 >
@@ -65,7 +67,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
             key={l.href}
             href={l.href}
             className={`flex-1 py-4 text-center text-sm font-medium ${
-              pathname === l.href ? "text-stone-900" : "text-stone-500"
+              pathname === l.href ? "text-brand" : "text-stone-500"
             }`}
           >
             {l.label}

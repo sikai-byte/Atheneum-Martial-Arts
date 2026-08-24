@@ -66,7 +66,7 @@ export default async function HomePage() {
             <p className="text-stone-700">Nothing booked yet.</p>
             <Link
               href="/schedule"
-              className="mt-3 inline-block rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800"
+              className="mt-3 inline-block rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
             >
               Browse the schedule
             </Link>

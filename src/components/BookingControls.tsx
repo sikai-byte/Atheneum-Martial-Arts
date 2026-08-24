@@ -51,7 +51,7 @@ export default function BookingControls({
               <span className="text-sm text-stone-600">{label}</span>
               <button
                 type="submit"
-                className="rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-800"
+                className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark"
               >
                 {isFull ? "Join waitlist" : "Book"}
               </button>

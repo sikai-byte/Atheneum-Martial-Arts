@@ -58,7 +58,7 @@ export default async function SchedulePage({
         <Link
           href={filterLink({ program: undefined })}
           className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-            !searchParams.program ? "bg-stone-900 text-white" : "bg-white text-stone-700 border border-stone-300"
+            !searchParams.program ? "bg-brand text-white" : "bg-white text-stone-700 border border-stone-300"
           }`}
         >
           All programs
@@ -69,7 +69,7 @@ export default async function SchedulePage({
             href={filterLink({ program: p.id })}
             className={`rounded-full px-3 py-1.5 text-sm font-medium ${
               searchParams.program === p.id
-                ? "bg-stone-900 text-white"
+                ? "bg-brand text-white"
                 : "bg-white text-stone-700 border border-stone-300"
             }`}
           >
@@ -82,7 +82,7 @@ export default async function SchedulePage({
           href={filterLink({ level: searchParams.level === "BEGINNER" ? undefined : "BEGINNER" })}
           className={`rounded-full px-3 py-1.5 text-sm font-medium ${
             searchParams.level === "BEGINNER"
-              ? "bg-stone-900 text-white"
+              ? "bg-brand text-white"
               : "bg-white text-stone-700 border border-stone-300"
           }`}
         >
@@ -92,7 +92,7 @@ export default async function SchedulePage({
           href={filterLink({ age: searchParams.age === "KIDS" ? undefined : "KIDS" })}
           className={`rounded-full px-3 py-1.5 text-sm font-medium ${
             searchParams.age === "KIDS"
-              ? "bg-stone-900 text-white"
+              ? "bg-brand text-white"
               : "bg-white text-stone-700 border border-stone-300"
           }`}
         >

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useFormState, useFormStatus } from "react-dom";
 import { login, type LoginState } from "@/lib/actions";
 
@@ -9,7 +10,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-stone-900 px-4 py-3 font-semibold text-white hover:bg-stone-800 disabled:opacity-60"
+      className="w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
     >
       {pending ? "Signing in…" : "Sign in"}
     </button>
@@ -21,8 +22,18 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto mt-10 max-w-sm">
-      <h1 className="text-2xl font-bold tracking-tight">Atheneum Martial Arts</h1>
-      <p className="mt-1 text-stone-600">
+      <Image
+        src="/logo.png"
+        alt="Atheneum Martial Arts logo"
+        width={120}
+        height={122}
+        priority
+        className="mx-auto"
+      />
+      <h1 className="mt-4 text-center text-2xl font-bold tracking-tight text-brand">
+        Atheneum Martial Arts
+      </h1>
+      <p className="mt-1 text-center text-stone-600">
         Sign in to book classes and track your training. This is where you belong.
       </p>
       <form action={formAction} className="mt-6 space-y-4">
