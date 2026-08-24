@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   // MEMBER | PARENT | COACH | ADMIN
+  householdId  String?
+  household    Household? @relation(fields: [householdId], references: [id])
+  profile      MemberProfile?
+  createdAt    DateTime @default(now())
+}
+
+model Household {
+  id       String          @id @default(cuid())
+  name     String
+  users    User[]
+  profiles MemberProfile[]
+}
+
+model MemberProfile {
+  id              String   @id @default(cuid())
+  name            String
+  isChild         Boolean  @default(false)
+  birthYear       Int?
+  experienceLevel String   @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
+  weeklyGoal      Int      @default(3)
+  userId          String?  @unique
+  user            User?    @relation(fields: [userId], references: [id])
+  householdId     String
+  household       Household @relation(fields: [householdId], references: [id])
+  bookings        Booking[]
+  attendances     Attendance[]
+  milestones      Milestone[]
+}
+
+model Program {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String
+  color       String  @default("stone")
+  templates   ClassTemplate[]
+}
+
+model ClassTemplate {
+  id          String  @id @default(cuid())
+  name        String
+  description String
+  ageGroup    String  @default("ADULTS") // ADULTS | KIDS | ALL
+  level       String  @default("ALL")    // BEGINNER | ALL | COMPETITION
+  capacity    Int     @default(20)
+  durationMin Int     @default(60)
+  gearNotes   String  @default("")
+  programId   String
+  program     Program @relation(fields: [programId], references: [id])
+  sessions    ClassSession[]
+}
+
+model ClassSession {
+  id          String   @id @default(cuid())
+  startsAt    DateTime
+  instructor  String
+  status      String   @default("SCHEDULED") // SCHEDULED | CANCELLED
+  templateId  String
+  template    ClassTemplate @relation(fields: [templateId], references: [id])
+  bookings    Booking[]
+  attendances Attendance[]
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  status    String   @default("BOOKED") // BOOKED | WAITLISTED | CANCELLED
+  createdAt DateTime @default(now())
+  profileId String
+  profile   MemberProfile @relation(fields: [profileId], references: [id])
+  sessionId String
+  session   ClassSession @relation(fields: [sessionId], references: [id])
+
+  @@unique([profileId, sessionId])
+}
+
+model Attendance {
+  id         String   @id @default(cuid())
+  checkedInAt DateTime @default(now())
+  recordedBy String
+  profileId  String
+  profile    MemberProfile @relation(fields: [profileId], references: [id])
+  sessionId  String
+  session    ClassSession @relation(fields: [sessionId], references: [id])
+
+  @@unique([profileId, sessionId])
+}
+
+model Milestone {
+  id        String   @id @default(cuid())
+  title     String
+  notes     String   @default("")
+  awardedAt DateTime @default(now())
+  awardedBy String
+  profileId String
+  profile   MemberProfile @relation(fields: [profileId], references: [id])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  audience  String   @default("ALL") // ALL | ADULTS | KIDS | COMPETITION
+  createdAt DateTime @default(now())
+  author    String
+}

@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Atheneum Martial Arts — Member Portal
 
-## Getting Started
+A member-centered web app for Atheneum Martial Arts (Medina, MN). When a member opens the app, it immediately shows what they need for their next successful training session.
 
-First, run the development server:
+Built with Next.js (App Router), TypeScript, Tailwind CSS, Prisma, and SQLite.
+
+## Features (MVP vertical slice)
+
+- **Sign in** as a member, parent, or coach (sample accounts below)
+- **Member home** — next booked class, weekly training progress, recommended classes, announcements
+- **Schedule & booking** — filter by program, beginner-friendly, or kids; book or cancel for yourself or your children; automatic waitlist when a class is full (with promotion when a spot opens)
+- **Household profiles** — one parent account manages multiple child profiles; children are profiles under a guardian, never independent accounts
+- **Coach tools** — today's classes, rosters, one-tap attendance check-in
+- **Progress** — attendance history, weekly consistency vs. goal, coach-recorded milestones
+
+All data is clearly-labeled sample data until Atheneum supplies the real schedule, roster, and brand assets.
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env   # then set a real SESSION_SECRET
+npx prisma db push     # create the SQLite database
+npx prisma db seed     # load sample data
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Sample accounts (password: `atheneum123`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Email | Role |
+| --- | --- |
+| member@example.com | Adult member |
+| parent@example.com | Parent with two child profiles |
+| coach@example.com | Coach (Today / roster / check-in tools) |
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+- `npm run dev` — dev server
+- `npm run build` / `npm start` — production build
+- `npm run lint` — ESLint
+- `npm run typecheck` — TypeScript
+- `npm run db:push` / `npm run db:seed` — database setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Business rules (programs, class templates, capacities, age groups, weekly goals) live in the database, not in code, so the real schedule can replace the sample data without code changes.
+- No public rankings or leaderboards, per Atheneum's inclusive-culture guidance.
+- Billing, e-commerce, and external scheduling integrations are intentionally out of scope until the academy's current systems are known.
