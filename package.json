@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:prod": "prisma db push --skip-generate && prisma db seed && next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "postinstall": "prisma generate",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",

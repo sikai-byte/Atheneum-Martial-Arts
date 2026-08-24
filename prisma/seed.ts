@@ -13,6 +13,12 @@ function nextDateAt(dayOfWeek: number, hour: number, minute: number, weekOffset 
 }
 
 async function main() {
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0) {
+    console.log("Database already has users — skipping seed.");
+    return;
+  }
+
   const password = await bcrypt.hash("atheneum123", 10);
 
   const smithHousehold = await prisma.household.create({ data: { name: "Smith Household" } });

@@ -43,6 +43,14 @@ Open http://localhost:3000.
 - `npm run typecheck` — TypeScript
 - `npm run db:push` / `npm run db:seed` — database setup
 
+## Deploying (Railway)
+
+The repo includes `railway.json`. On Railway:
+
+1. Create a service from this repo and attach a **volume** mounted at `/data`.
+2. Set environment variables: `DATABASE_URL=file:/data/atheneum.db` and a random `SESSION_SECRET` (32+ chars).
+3. Deploy — the start command (`npm run start:prod`) pushes the Prisma schema and seeds sample data only if the database is empty.
+
 ## Notes
 
 - Business rules (programs, class templates, capacities, age groups, weekly goals) live in the database, not in code, so the real schedule can replace the sample data without code changes.
