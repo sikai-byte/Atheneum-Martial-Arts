@@ -9,11 +9,13 @@ const memberLinks = [
   { href: "/", label: "Home" },
   { href: "/schedule", label: "Schedule" },
   { href: "/progress", label: "Progress" },
+  { href: "/shop", label: "Shop" },
 ];
 
 const coachLinks = [
   { href: "/coach", label: "Today" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/coach/orders", label: "Orders" },
 ];
 
 export default function Nav({ name, role }: { name: string; role: string }) {

@@ -10,6 +10,10 @@ export function formatTime(date: Date) {
   return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+export function formatPrice(cents: number) {
+  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
+
 export function startOfWeek(date: Date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);

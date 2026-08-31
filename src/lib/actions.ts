@@ -122,3 +122,52 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
   revalidatePath("/progress");
   revalidatePath("/");
 }
+
+export async function placeOrder(productId: string, formData: FormData) {
+  const user = await requireUser();
+  const product = await prisma.product.findUniqueOrThrow({ where: { id: productId } });
+  if (!product.active) throw new Error("This item is not available right now.");
+
+  const sizeOptions = product.sizes ? product.sizes.split(",") : [];
+  const size = String(formData.get("size") ?? "");
+  if (sizeOptions.length > 0 && !sizeOptions.includes(size)) {
+    throw new Error("Please choose a size.");
+  }
+  const quantity = Math.min(Math.max(Number(formData.get("quantity") ?? 1) || 1, 1), 10);
+
+  await prisma.order.create({
+    data: {
+      userId: user.id,
+      productId: product.id,
+      size: sizeOptions.length > 0 ? size : "",
+      quantity,
+      priceCents: product.priceCents,
+    },
+  });
+
+  revalidatePath("/shop");
+  revalidatePath("/coach/orders");
+}
+
+export async function cancelOrder(orderId: string) {
+  const user = await requireUser();
+  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+  if (order.userId !== user.id) throw new Error("You can only cancel your own orders.");
+  if (order.status !== "PLACED") throw new Error("This order can no longer be cancelled.");
+
+  await prisma.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } });
+
+  revalidatePath("/shop");
+  revalidatePath("/coach/orders");
+}
+
+export async function updateOrderStatus(orderId: string, status: string) {
+  await requireCoach();
+  if (!["PLACED", "READY", "PICKED_UP", "CANCELLED"].includes(status)) {
+    throw new Error("Invalid order status.");
+  }
+  await prisma.order.update({ where: { id: orderId }, data: { status } });
+
+  revalidatePath("/shop");
+  revalidatePath("/coach/orders");
+}

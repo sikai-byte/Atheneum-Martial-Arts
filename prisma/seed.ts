@@ -34,12 +34,90 @@ async function resetIfOutdatedSchedule() {
   await prisma.milestone.deleteMany();
   await prisma.announcement.deleteMany();
   await prisma.memberProfile.deleteMany();
+  await prisma.order.deleteMany();
   await prisma.user.deleteMany();
   await prisma.household.deleteMany();
   return true;
 }
 
+async function seedProducts() {
+  const existing = await prisma.product.count();
+  if (existing > 0) return;
+  const products = [
+    {
+      name: "Atheneum Mouthguard",
+      description: "Team-branded mouthguard with case. Required for sparring.",
+      category: "MOUTHGUARD",
+      priceCents: 1500,
+      sizes: "Youth,Adult",
+      sortOrder: 1,
+    },
+    {
+      name: "Atheneum Rashguard",
+      description: "Long-sleeve team rashguard for no gi training.",
+      category: "RASHGUARD",
+      priceCents: 4500,
+      sizes: "Kids S,Kids M,Kids L,XS,S,M,L,XL,XXL",
+      sortOrder: 2,
+    },
+    {
+      name: "Atheneum T-Shirt",
+      description: "Soft cotton tee with the Atheneum lion logo.",
+      category: "TSHIRT",
+      priceCents: 2500,
+      sizes: "Kids S,Kids M,Kids L,XS,S,M,L,XL,XXL",
+      sortOrder: 3,
+    },
+    {
+      name: "Atheneum Training Shorts",
+      description: "Lightweight grappling shorts — no pockets or zippers.",
+      category: "SHORTS",
+      priceCents: 3500,
+      sizes: "Kids S,Kids M,Kids L,XS,S,M,L,XL,XXL",
+      sortOrder: 4,
+    },
+    {
+      name: "Atheneum Gi",
+      description: "Team gi with embroidered branding. Belt sold separately.",
+      category: "GI",
+      priceCents: 12000,
+      sizes: "K1,K2,K3,A0,A1,A2,A3,A4",
+      sortOrder: 5,
+    },
+    {
+      name: "Boxing Gloves (Team Edition)",
+      description: "Team-branded gloves for Muay Thai and kickboxing.",
+      category: "GLOVES",
+      priceCents: 6000,
+      sizes: "8oz,10oz,12oz,14oz,16oz",
+      sortOrder: 6,
+    },
+    {
+      name: "Shin Guards (Team Edition)",
+      description: "Padded shin guards for Muay Thai sparring.",
+      category: "SHINGUARDS",
+      priceCents: 5000,
+      sizes: "Kids,S,M,L,XL",
+      sortOrder: 7,
+    },
+    {
+      name: "Atheneum Gym Bag",
+      description: "Duffel bag with gear compartments and team logo.",
+      category: "OTHER",
+      priceCents: 4000,
+      sizes: "",
+      sortOrder: 8,
+    },
+  ];
+  for (const p of products) {
+    await prisma.product.create({ data: p });
+  }
+  console.log("Seeded shop products.");
+}
+
 async function main() {
+  await seedProducts();
+
   const existingUsers = await prisma.user.count();
   if (existingUsers > 0 && !(await resetIfOutdatedSchedule())) {
     console.log("Database already has users — skipping seed.");

@@ -16,6 +16,7 @@ model User {
   householdId  String?
   household    Household? @relation(fields: [householdId], references: [id])
   profile      MemberProfile?
+  orders       Order[]
   createdAt    DateTime @default(now())
 }
 
@@ -112,6 +113,31 @@ model Milestone {
   awardedBy String
   profileId String
   profile   MemberProfile @relation(fields: [profileId], references: [id])
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  description String  @default("")
+  category    String  // MOUTHGUARD | RASHGUARD | TSHIRT | SHORTS | GI | GLOVES | SHINGUARDS | OTHER
+  priceCents  Int
+  sizes       String  @default("") // comma-separated size options; empty = one size
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0)
+  orders      Order[]
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  status     String   @default("PLACED") // PLACED | READY | PICKED_UP | CANCELLED
+  size       String   @default("")
+  quantity   Int      @default(1)
+  priceCents Int      // unit price at time of order
+  createdAt  DateTime @default(now())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
 }
 
 model Announcement {
