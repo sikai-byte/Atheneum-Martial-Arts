@@ -226,7 +226,7 @@ export async function createMemberAccount(formData: FormData) {
   const role = String(formData.get("role") ?? "MEMBER");
   if (!name || !email.includes("@")) throw new Error("Please add a name and a valid email.");
   if (password.length < 8) throw new Error("Password must be at least 8 characters.");
-  if (!["MEMBER", "PARENT", "COACH"].includes(role)) throw new Error("Invalid role.");
+  if (!["MEMBER", "PARENT", "COACH", "ADMIN"].includes(role)) throw new Error("Invalid role.");
   if (await prisma.user.findUnique({ where: { email } })) {
     throw new Error("An account with that email already exists.");
   }
