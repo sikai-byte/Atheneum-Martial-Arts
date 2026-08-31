@@ -226,7 +226,7 @@ export async function createMemberAccount(formData: FormData) {
   const role = String(formData.get("role") ?? "MEMBER");
   if (!name || !email.includes("@")) throw new Error("Please add a name and a valid email.");
   if (password.length < 8) throw new Error("Password must be at least 8 characters.");
-  if (!["MEMBER", "PARENT", "COACH"].includes(role)) throw new Error("Invalid role.");
+  if (!["MEMBER", "PARENT", "COACH", "ADMIN"].includes(role)) throw new Error("Invalid role.");
   if (await prisma.user.findUnique({ where: { email } })) {
     throw new Error("An account with that email already exists.");
   }
@@ -288,6 +288,94 @@ export async function updateMembership(profileId: string, formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/");
   redirect("/admin");
+}
+
+export async function changeOwnPassword(formData: FormData) {
+  const user = await requireUser();
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  const newPassword = String(formData.get("newPassword") ?? "");
+
+  const account = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+  if (!(await bcrypt.compare(currentPassword, account.passwordHash))) {
+    throw new Error("Your current password doesn't match.");
+  }
+  if (newPassword.length < 8) throw new Error("New password must be at least 8 characters.");
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash(newPassword, 10) },
+  });
+
+  redirect("/account?updated=1");
+}
+
+export async function createPost(formData: FormData) {
+  const user = await requireUser();
+  const title = String(formData.get("title") ?? "").trim().slice(0, 120);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
+  const category = String(formData.get("category") ?? "GENERAL");
+  if (!body) throw new Error("Please write something to post.");
+  if (!["GENERAL", "QUESTION", "NEWS"].includes(category)) throw new Error("Invalid category.");
+
+  const photo = formData.get("photo");
+  let photoType = "";
+  let photoBuffer: Buffer | null = null;
+  if (photo instanceof Blob && photo.size > 0) {
+    if (photo.size > 8 * 1024 * 1024) throw new Error("Photo is too large — please use one under 8 MB.");
+    if (!PHOTO_TYPES.includes(photo.type)) throw new Error("Please use a JPEG, PNG, or WebP photo.");
+    photoType = photo.type;
+    photoBuffer = Buffer.from(await photo.arrayBuffer());
+  }
+
+  const post = await prisma.post.create({
+    data: { title, body, category, photoType, authorId: user.id },
+  });
+  if (photoBuffer) {
+    await ensureUploadsDir();
+    await fs.writeFile(path.join(uploadsDir(), `post-${post.id}`), photoBuffer);
+  }
+
+  revalidatePath("/community");
+}
+
+export async function deletePost(postId: string) {
+  const user = await requireUser();
+  const post = await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+  const isStaff = user.role === "COACH" || user.role === "ADMIN";
+  if (post.authorId !== user.id && !isStaff) {
+    throw new Error("You can only delete your own posts.");
+  }
+
+  await prisma.post.delete({ where: { id: postId } });
+  if (post.photoType) {
+    await fs.unlink(path.join(uploadsDir(), `post-${postId}`)).catch(() => {});
+  }
+
+  revalidatePath("/community");
+}
+
+export async function addComment(postId: string, formData: FormData) {
+  const user = await requireUser();
+  const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
+  if (!body) throw new Error("Please write a comment.");
+  await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+
+  await prisma.comment.create({ data: { body, postId, authorId: user.id } });
+
+  revalidatePath("/community");
+}
+
+export async function deleteComment(commentId: string) {
+  const user = await requireUser();
+  const comment = await prisma.comment.findUniqueOrThrow({ where: { id: commentId } });
+  const isStaff = user.role === "COACH" || user.role === "ADMIN";
+  if (comment.authorId !== user.id && !isStaff) {
+    throw new Error("You can only delete your own comments.");
+  }
+
+  await prisma.comment.delete({ where: { id: commentId } });
+
+  revalidatePath("/community");
 }
 
 export async function resetMemberPassword(userId: string, formData: FormData) {

@@ -17,6 +17,8 @@ model User {
   household    Household? @relation(fields: [householdId], references: [id])
   profile      MemberProfile?
   orders       Order[]
+  posts        Post[]
+  comments     Comment[]
   createdAt    DateTime @default(now())
 }
 
@@ -270,6 +272,28 @@ model BotConfig {
   autopilot        Boolean @default(true) // send automated follow-ups
   autoReplyEnabled Boolean @default(true) // acknowledge inbound replies instantly
   bookingLink      String  @default("https://atheneummartialarts.com/trial")
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  title     String    @default("")
+  body      String
+  category  String    @default("GENERAL") // GENERAL | QUESTION | NEWS
+  photoType String    @default("") // mime type of attached photo; empty = none
+  createdAt DateTime  @default(now())
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
 model Announcement {
