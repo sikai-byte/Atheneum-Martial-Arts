@@ -28,6 +28,12 @@ export async function requireCoach(): Promise<CurrentUser> {
   return user;
 }
 
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") redirect("/");
+  return user;
+}
+
 export function householdProfiles(user: CurrentUser) {
   return user.household?.profiles ?? (user.profile ? [user.profile] : []);
 }

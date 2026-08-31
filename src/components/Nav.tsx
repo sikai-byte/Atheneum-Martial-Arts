@@ -18,9 +18,16 @@ const coachLinks = [
   { href: "/coach/orders", label: "Orders" },
 ];
 
+const adminLinks = [
+  { href: "/admin", label: "Admin" },
+  { href: "/coach", label: "Today" },
+  { href: "/schedule", label: "Schedule" },
+  { href: "/coach/orders", label: "Orders" },
+];
+
 export default function Nav({ name, role }: { name: string; role: string }) {
   const pathname = usePathname();
-  const links = role === "COACH" || role === "ADMIN" ? coachLinks : memberLinks;
+  const links = role === "ADMIN" ? adminLinks : role === "COACH" ? coachLinks : memberLinks;
 
   return (
     <>

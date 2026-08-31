@@ -90,6 +90,7 @@ export default function LoginPage() {
           <li>member@example.com — adult member</li>
           <li>parent@example.com — parent with two kids</li>
           <li>coach@example.com — coach tools</li>
+          <li>admin@example.com — admin &amp; member management</li>
         </ul>
       </div>
     </div>
