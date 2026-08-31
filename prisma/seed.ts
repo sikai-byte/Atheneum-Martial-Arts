@@ -12,9 +12,26 @@ function nextDateAt(dayOfWeek: number, hour: number, minute: number, weekOffset 
   return d;
 }
 
+async function resetIfOutdatedSchedule() {
+  const judo = await prisma.program.findUnique({ where: { name: "Judo" } });
+  if (judo) return false;
+  console.log("Old sample schedule detected — resetting database for the real schedule.");
+  await prisma.attendance.deleteMany();
+  await prisma.booking.deleteMany();
+  await prisma.classSession.deleteMany();
+  await prisma.classTemplate.deleteMany();
+  await prisma.program.deleteMany();
+  await prisma.milestone.deleteMany();
+  await prisma.announcement.deleteMany();
+  await prisma.memberProfile.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.household.deleteMany();
+  return true;
+}
+
 async function main() {
   const existingUsers = await prisma.user.count();
-  if (existingUsers > 0) {
+  if (existingUsers > 0 && !(await resetIfOutdatedSchedule())) {
     console.log("Database already has users — skipping seed.");
     return;
   }
@@ -102,7 +119,7 @@ async function main() {
   const bjj = await prisma.program.create({
     data: {
       name: "Brazilian Jiu-Jitsu",
-      description: "Grappling and ground fighting for all levels.",
+      description: "Grappling and ground fighting for all levels, gi and no gi.",
       color: "blue",
     },
   });
@@ -113,55 +130,91 @@ async function main() {
       color: "red",
     },
   });
-  const mma = await prisma.program.create({
+  const judo = await prisma.program.create({
     data: {
-      name: "Mixed Martial Arts",
-      description: "Blended striking and grappling training.",
+      name: "Judo",
+      description: "Throws, takedowns, and pins in the gi.",
       color: "purple",
     },
   });
-  const kids = await prisma.program.create({
+  const privateTraining = await prisma.program.create({
     data: {
-      name: "Kids Martial Arts",
-      description: "Age-appropriate martial arts for young athletes.",
+      name: "Private Training",
+      description: "One-on-one and small-group sessions with a coach.",
       color: "green",
     },
   });
 
-  const bjjFundamentals = await prisma.classTemplate.create({
+  const kidsGiBjjFund = await prisma.classTemplate.create({
     data: {
-      name: "BJJ Fundamentals",
-      description: "Core positions, escapes, and submissions. Perfect for your first class.",
-      ageGroup: "ADULTS",
+      name: "Kids Gi BJJ (Fundamentals)",
+      description: "Core gi grappling fundamentals for young athletes.",
+      ageGroup: "KIDS",
       level: "BEGINNER",
-      capacity: 16,
+      capacity: 14,
       durationMin: 60,
       gearNotes: "Gi required. Loaner gis available — just ask at the front desk.",
       programId: bjj.id,
     },
   });
-  const bjjAllLevels = await prisma.classTemplate.create({
+  const kidsNoGiFund = await prisma.classTemplate.create({
     data: {
-      name: "BJJ All Levels",
-      description: "Technique, drilling, and situational rounds for every experience level.",
-      ageGroup: "ADULTS",
-      level: "ALL",
-      capacity: 20,
-      durationMin: 75,
-      gearNotes: "Gi required.",
+      name: "Kids No Gi BJJ (Fundamentals)",
+      description: "No gi grappling fundamentals for young athletes.",
+      ageGroup: "KIDS",
+      level: "BEGINNER",
+      capacity: 14,
+      durationMin: 60,
+      gearNotes: "Rash guard or fitted t-shirt and shorts. No pockets or zippers.",
       programId: bjj.id,
     },
   });
-  const muayThaiFund = await prisma.classTemplate.create({
+  const kidsNoGiAdv = await prisma.classTemplate.create({
     data: {
-      name: "Muay Thai Fundamentals",
-      description: "Stance, footwork, and basic strikes. Great starting point.",
-      ageGroup: "ADULTS",
-      level: "BEGINNER",
-      capacity: 18,
+      name: "Kids No Gi BJJ (Advanced)",
+      description: "Higher-intensity no gi training for experienced kids.",
+      ageGroup: "KIDS",
+      level: "ADVANCED",
+      capacity: 14,
       durationMin: 60,
-      gearNotes: "Hand wraps and gloves. Loaner gloves available.",
-      programId: muayThai.id,
+      gearNotes: "Rash guard or fitted t-shirt and shorts. Coach approval required.",
+      programId: bjj.id,
+    },
+  });
+  const curiousCubs = await prisma.classTemplate.create({
+    data: {
+      name: "Curious Cubs No Gi BJJ (Age 4-6)",
+      description: "Playful intro to grappling for our youngest athletes, ages 4-6.",
+      ageGroup: "KIDS",
+      level: "BEGINNER",
+      capacity: 10,
+      durationMin: 45,
+      gearNotes: "Comfortable athletic clothes and a water bottle.",
+      programId: bjj.id,
+    },
+  });
+  const noGiBjj = await prisma.classTemplate.create({
+    data: {
+      name: "No Gi BJJ",
+      description: "No gi technique, drilling, and live rounds for all levels.",
+      ageGroup: "ADULTS",
+      level: "ALL",
+      capacity: 20,
+      durationMin: 60,
+      gearNotes: "Rash guard or fitted t-shirt and shorts. No pockets or zippers.",
+      programId: bjj.id,
+    },
+  });
+  const giBjj = await prisma.classTemplate.create({
+    data: {
+      name: "Gi BJJ",
+      description: "Gi technique, drilling, and live rounds for all levels.",
+      ageGroup: "ADULTS",
+      level: "ALL",
+      capacity: 20,
+      durationMin: 60,
+      gearNotes: "Gi required. Loaner gis available — just ask at the front desk.",
+      programId: bjj.id,
     },
   });
   const muayThaiAll = await prisma.classTemplate.create({
@@ -172,46 +225,112 @@ async function main() {
       level: "ALL",
       capacity: 18,
       durationMin: 60,
-      gearNotes: "Hand wraps, gloves, and shin guards for sparring rounds.",
+      gearNotes: "Hand wraps and gloves. Loaner gloves available.",
       programId: muayThai.id,
     },
   });
-  const kidsBjj = await prisma.classTemplate.create({
+  const muayThaiSparring = await prisma.classTemplate.create({
     data: {
-      name: "Kids BJJ",
-      description: "Fun, safe grappling fundamentals for ages 6-12.",
+      name: "Muay Thai Sparring",
+      description: "Supervised sparring rounds for experienced members.",
+      ageGroup: "ADULTS",
+      level: "ADVANCED",
+      capacity: 16,
+      durationMin: 60,
+      gearNotes: "Full sparring gear: gloves, shin guards, and mouthguard. Coach approval required.",
+      programId: muayThai.id,
+    },
+  });
+  const kidsMuayThai = await prisma.classTemplate.create({
+    data: {
+      name: "Kids Muay Thai (Fundamentals)",
+      description: "Striking fundamentals for young athletes.",
+      ageGroup: "KIDS",
+      level: "BEGINNER",
+      capacity: 14,
+      durationMin: 60,
+      gearNotes: "Hand wraps and gloves. Loaner gloves available.",
+      programId: muayThai.id,
+    },
+  });
+  const cardioKickboxing = await prisma.classTemplate.create({
+    data: {
+      name: "Cardio Kickboxing",
+      description: "High-energy conditioning built around kickboxing combinations.",
+      ageGroup: "ADULTS",
+      level: "ALL",
+      capacity: 20,
+      durationMin: 60,
+      gearNotes: "Hand wraps and gloves recommended. Water bottle a must.",
+      programId: muayThai.id,
+    },
+  });
+  const kidsJudo = await prisma.classTemplate.create({
+    data: {
+      name: "Kids Judo (All Ages) (Gi)",
+      description: "Throws, breakfalls, and pins for kids of all ages.",
       ageGroup: "KIDS",
       level: "ALL",
       capacity: 14,
-      durationMin: 45,
-      gearNotes: "Gi required. Water bottle recommended.",
-      programId: kids.id,
+      durationMin: 60,
+      gearNotes: "Gi required. Loaner gis available — just ask at the front desk.",
+      programId: judo.id,
     },
   });
-  const compTraining = await prisma.classTemplate.create({
+  const judoAdults = await prisma.classTemplate.create({
     data: {
-      name: "Competition Training",
-      description: "Higher-intensity rounds for members preparing to compete.",
+      name: "Judo",
+      description: "Throws, takedowns, and groundwork in the gi for all levels.",
       ageGroup: "ADULTS",
-      level: "COMPETITION",
-      capacity: 12,
-      durationMin: 75,
-      gearNotes: "Full sparring gear.",
-      programId: mma.id,
+      level: "ALL",
+      capacity: 18,
+      durationMin: 60,
+      gearNotes: "Gi required.",
+      programId: judo.id,
+    },
+  });
+  const privateSessions = await prisma.classTemplate.create({
+    data: {
+      name: "Private Sessions",
+      description: "Book one-on-one time with a coach. Contact the front desk to schedule.",
+      ageGroup: "ALL",
+      level: "ALL",
+      capacity: 6,
+      durationMin: 60,
+      gearNotes: "Gear depends on your focus — your coach will confirm.",
+      programId: privateTraining.id,
     },
   });
 
-  const instructors = ["Coach Sam (Sample)", "Coach Alex (Sample)"];
+  const instructors = ["Atheneum Coaches"];
+  // Weekly schedule as of 08/01/2026 (day: 0=Sun ... 6=Sat)
   const sessions: { templateId: string; day: number; hour: number; minute: number; instructor: string }[] = [
-    { templateId: bjjFundamentals.id, day: 1, hour: 18, minute: 0, instructor: instructors[0] },
-    { templateId: bjjFundamentals.id, day: 3, hour: 18, minute: 0, instructor: instructors[0] },
-    { templateId: bjjAllLevels.id, day: 2, hour: 19, minute: 0, instructor: instructors[0] },
-    { templateId: bjjAllLevels.id, day: 6, hour: 10, minute: 0, instructor: instructors[1] },
-    { templateId: muayThaiFund.id, day: 1, hour: 19, minute: 15, instructor: instructors[1] },
-    { templateId: muayThaiAll.id, day: 4, hour: 18, minute: 30, instructor: instructors[1] },
-    { templateId: kidsBjj.id, day: 1, hour: 17, minute: 0, instructor: instructors[0] },
-    { templateId: kidsBjj.id, day: 4, hour: 17, minute: 0, instructor: instructors[0] },
-    { templateId: compTraining.id, day: 5, hour: 18, minute: 0, instructor: instructors[0] },
+    // Monday
+    { templateId: kidsGiBjjFund.id, day: 1, hour: 17, minute: 15, instructor: instructors[0] },
+    { templateId: muayThaiAll.id, day: 1, hour: 18, minute: 15, instructor: instructors[0] },
+    { templateId: noGiBjj.id, day: 1, hour: 19, minute: 15, instructor: instructors[0] },
+    // Tuesday
+    { templateId: kidsNoGiFund.id, day: 2, hour: 16, minute: 15, instructor: instructors[0] },
+    { templateId: kidsNoGiAdv.id, day: 2, hour: 17, minute: 15, instructor: instructors[0] },
+    { templateId: noGiBjj.id, day: 2, hour: 18, minute: 15, instructor: instructors[0] },
+    // Wednesday
+    { templateId: kidsJudo.id, day: 3, hour: 17, minute: 15, instructor: instructors[0] },
+    { templateId: judoAdults.id, day: 3, hour: 18, minute: 15, instructor: instructors[0] },
+    { templateId: privateSessions.id, day: 3, hour: 19, minute: 15, instructor: instructors[0] },
+    // Thursday
+    { templateId: kidsMuayThai.id, day: 4, hour: 18, minute: 15, instructor: instructors[0] },
+    { templateId: cardioKickboxing.id, day: 4, hour: 19, minute: 15, instructor: instructors[0] },
+    // Friday
+    { templateId: kidsNoGiFund.id, day: 5, hour: 17, minute: 15, instructor: instructors[0] },
+    { templateId: muayThaiAll.id, day: 5, hour: 18, minute: 15, instructor: instructors[0] },
+    { templateId: muayThaiSparring.id, day: 5, hour: 19, minute: 15, instructor: instructors[0] },
+    // Saturday
+    { templateId: giBjj.id, day: 6, hour: 11, minute: 0, instructor: instructors[0] },
+    { templateId: privateSessions.id, day: 6, hour: 12, minute: 0, instructor: instructors[0] },
+    // Sunday
+    { templateId: curiousCubs.id, day: 0, hour: 14, minute: 15, instructor: instructors[0] },
+    { templateId: kidsGiBjjFund.id, day: 0, hour: 15, minute: 0, instructor: instructors[0] },
+    { templateId: kidsNoGiAdv.id, day: 0, hour: 16, minute: 0, instructor: instructors[0] },
   ];
 
   const createdSessions: { id: string; templateId: string; startsAt: Date }[] = [];
@@ -232,14 +351,14 @@ async function main() {
     .filter((s) => s.startsAt > new Date())
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   const firstAdult = upcoming.find((s) =>
-    [bjjFundamentals.id, bjjAllLevels.id, muayThaiFund.id, muayThaiAll.id].includes(s.templateId)
+    [noGiBjj.id, giBjj.id, muayThaiAll.id, judoAdults.id].includes(s.templateId)
   );
   if (firstAdult) {
     await prisma.booking.create({
       data: { profileId: memberProfile.id, sessionId: firstAdult.id },
     });
   }
-  const firstKids = upcoming.find((s) => s.templateId === kidsBjj.id);
+  const firstKids = upcoming.find((s) => s.templateId === kidsGiBjjFund.id);
   if (firstKids) {
     await prisma.booking.create({
       data: { profileId: child1.id, sessionId: firstKids.id },
@@ -249,16 +368,16 @@ async function main() {
   // Past attendance for progress views
   const pastSession1 = await prisma.classSession.create({
     data: {
-      templateId: bjjFundamentals.id,
-      startsAt: nextDateAt(1, 18, 0, -1),
+      templateId: noGiBjj.id,
+      startsAt: nextDateAt(1, 19, 15, -1),
       instructor: instructors[0],
     },
   });
   const pastSession2 = await prisma.classSession.create({
     data: {
-      templateId: muayThaiFund.id,
-      startsAt: nextDateAt(3, 19, 15, -1),
-      instructor: instructors[1],
+      templateId: muayThaiAll.id,
+      startsAt: nextDateAt(5, 18, 15, -1),
+      instructor: instructors[0],
     },
   });
   for (const past of [pastSession1, pastSession2]) {
@@ -268,8 +387,8 @@ async function main() {
   }
   const pastKids = await prisma.classSession.create({
     data: {
-      templateId: kidsBjj.id,
-      startsAt: nextDateAt(4, 17, 0, -1),
+      templateId: kidsGiBjjFund.id,
+      startsAt: nextDateAt(1, 17, 15, -1),
       instructor: instructors[0],
     },
   });
@@ -296,18 +415,18 @@ async function main() {
 
   await prisma.announcement.create({
     data: {
-      title: "Welcome to the Atheneum member portal (sample data)",
-      body: "This portal uses clearly-labeled sample data until the real schedule and roster are loaded.",
+      title: "Welcome to the Atheneum member portal",
+      body: "The real weekly class schedule (as of 08/01/2026) is now live. Member accounts are still sample data until the roster is loaded.",
       audience: "ALL",
       author: "Atheneum Staff",
     },
   });
   await prisma.announcement.create({
     data: {
-      title: "Open mat this Saturday",
-      body: "Open mat after the 10:00 AM BJJ All Levels class. All members welcome.",
-      audience: "ADULTS",
-      author: "Coach Sam (Sample)",
+      title: "Private sessions",
+      body: "Private sessions run Wednesdays at 7:15 PM and Saturdays at 12 PM. Contact the front desk to book time with a coach.",
+      audience: "ALL",
+      author: "Atheneum Staff",
     },
   });
 
