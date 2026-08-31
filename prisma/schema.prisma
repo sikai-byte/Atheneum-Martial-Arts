@@ -140,6 +140,136 @@ model Order {
   product    Product  @relation(fields: [productId], references: [id])
 }
 
+model Lead {
+  id           String   @id @default(cuid())
+  fullName     String
+  phone        String   @unique // E.164
+  email        String?
+  source       String   @default("MANUAL") // FACEBOOK_ADS | MANUAL | IMPORT | WEBSITE
+  sourceRef    String?  // Facebook leadgen id, import batch, etc.
+  campaign     String?
+  formName     String?
+  interest     String?  // program or goal the lead described
+  ageGroup     String   @default("UNKNOWN") // ADULT | KID | UNKNOWN
+  childName    String?
+  answers      String   @default("{}") // raw intake answers as JSON
+  notes        String   @default("")
+  status       String   @default("NEW") // NEW | CONTACTED | ENGAGED | BOOKED | WON | LOST | UNSUBSCRIBED
+  submittedAt  DateTime @default(now()) // when the lead came in (old leads keep their original date)
+  firstContactedAt DateTime?
+  lastOutboundAt   DateTime?
+  lastInboundAt    DateTime?
+  optedOutAt       DateTime?
+  sequenceKey      String?
+  sequenceStep     Int      @default(0) // steps already delivered
+  pausedAt         DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  messages     LeadMessage[]
+  tasks        FollowUpTask[]
+  events       LeadEvent[]
+  insight      LeadInsight?
+
+  @@index([status])
+}
+
+model Sequence {
+  id        String         @id @default(cuid())
+  key       String         @unique // NEW_LEAD | REACTIVATION
+  name      String
+  purpose   String         @default("")
+  active    Boolean        @default(true)
+  steps     SequenceStep[]
+}
+
+model SequenceStep {
+  id           String   @id @default(cuid())
+  order        Int
+  delayMinutes Int      @default(0) // delay from the previous step (0 = send immediately on enrollment)
+  goal         String   @default("")
+  template     String
+  sequenceId   String
+  sequence     Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@unique([sequenceId, order])
+}
+
+model FollowUpTask {
+  id          String   @id @default(cuid())
+  sequenceKey String
+  stepOrder   Int
+  dueAt       DateTime
+  status      String   @default("PENDING") // PENDING | SENT | SKIPPED | CANCELLED | FAILED
+  attempts    Int      @default(0)
+  lastError   String?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([status, dueAt])
+}
+
+model LeadMessage {
+  id         String   @id @default(cuid())
+  direction  String   // OUTBOUND | INBOUND
+  body       String
+  status     String   @default("SENT") // SENT | FAILED | RECEIVED
+  provider   String   @default("MOCK") // TWILIO | MOCK
+  providerId String?
+  errorText  String?
+  automated  Boolean  @default(false)
+  stepOrder  Int?
+  sentBy     String?  // staff name for manual sends
+  createdAt  DateTime @default(now())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+}
+
+model LeadEvent {
+  id        String   @id @default(cuid())
+  type      String   // CREATED | SMS_SENT | SMS_RECEIVED | INVESTIGATED | STATUS_CHANGED | PAUSED | RESUMED | OPTED_OUT | SEND_FAILED
+  summary   String
+  detail    String   @default("")
+  createdAt DateTime @default(now())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+}
+
+model LeadInsight {
+  id                  String   @id @default(cuid())
+  score               Int      @default(0) // 0-100 likelihood to convert
+  temperature         String   @default("WARM") // HOT | WARM | COLD
+  summary             String
+  intent              String   @default("")
+  objections          String   @default("") // newline separated
+  talkingPoints       String   @default("") // newline separated
+  recommendedProgram  String   @default("")
+  suggestedFirstText  String   @default("")
+  generatedBy         String   @default("RULES") // AI | RULES
+  model               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  leadId              String   @unique
+  lead                Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model BotConfig {
+  id               String  @id @default("default")
+  studioName       String  @default("Atheneum Martial Arts")
+  signature        String  @default("— Atheneum Martial Arts")
+  timezone         String  @default("America/Chicago")
+  quietHoursStart  Int     @default(21) // no automated texts at/after this local hour
+  quietHoursEnd    Int     @default(8)  // ...until this local hour
+  autopilot        Boolean @default(true) // send automated follow-ups
+  autoReplyEnabled Boolean @default(true) // acknowledge inbound replies instantly
+  bookingLink      String  @default("https://atheneummartialarts.com/trial")
+}
+
 model Announcement {
   id        String   @id @default(cuid())
   title     String

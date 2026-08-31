@@ -115,8 +115,305 @@ async function seedProducts() {
   console.log("Seeded shop products.");
 }
 
+const NEW_LEAD_STEPS = [
+  {
+    order: 1,
+    delayMinutes: 0,
+    goal: "Reply within 5 minutes while they're still on their phone",
+    template:
+      "Hi {{firstName}}, this is {{studio}} in Medina — thanks for asking about {{program}}! I can get {{who}} into a free class this week. Does a weeknight or Saturday work better?",
+  },
+  {
+    order: 2,
+    delayMinutes: 60,
+    goal: "Nudge with a concrete option",
+    template:
+      "Hi {{firstName}}, still happy to hold a spot in {{program}} for {{who}}. Most people start with our beginner class — no experience or gear needed. Want me to book you in?",
+  },
+  {
+    order: 3,
+    delayMinutes: 1440,
+    goal: "Answer the unasked question (cost/commitment)",
+    template:
+      "{{firstName}}, one thing folks always ask: the first class is free and there's no contract to try it. Here's the schedule if you'd rather pick a time yourself: {{bookingLink}} {{signature}}",
+  },
+  {
+    order: 4,
+    delayMinutes: 4320,
+    goal: "Social proof",
+    template:
+      "Hi {{firstName}} — we just had a group of total beginners start {{program}} and they're loving it. Want me to save {{who}} a spot in the next beginner intake?",
+  },
+  {
+    order: 5,
+    delayMinutes: 10080,
+    goal: "Polite close-out that keeps the door open",
+    template:
+      "No worries if the timing isn't right, {{firstName}}. I'll stop texting — reply anytime and I'll get {{who}} started. {{signature}}",
+  },
+];
+
+const REACTIVATION_STEPS = [
+  {
+    order: 1,
+    delayMinutes: 0,
+    goal: "Re-introduce the studio without pretending they just enquired",
+    template:
+      "Hi {{firstName}}, it's {{studio}} in Medina. You asked about {{program}} a while back and we just opened new beginner spots. Want me to hold one for {{who}} this week?",
+  },
+  {
+    order: 2,
+    delayMinutes: 2880,
+    goal: "Give a reason to act now",
+    template:
+      "{{firstName}}, the next beginner intake for {{program}} starts soon and it's the easiest time to jump in — everyone starts together. First class is free. Interested?",
+  },
+  {
+    order: 3,
+    delayMinutes: 10080,
+    goal: "Low-pressure yes/no",
+    template:
+      "Hi {{firstName}} — simple question: is martial arts for {{who}} still something you'd like to try this year? Just reply Y or N and I'll take it from there.",
+  },
+  {
+    order: 4,
+    delayMinutes: 20160,
+    goal: "Close out and leave the door open",
+    template:
+      "Understood, {{firstName}} — I'll leave it there. The door's always open at {{studio}} if things change. {{signature}}",
+  },
+];
+
+async function seedFollowUpBot() {
+  await prisma.botConfig.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
+
+  const sequences = [
+    {
+      key: "NEW_LEAD",
+      name: "New lead (5 texts over a week)",
+      purpose: "Fresh Facebook or walk-in enquiry: first text immediately, then taper off.",
+      steps: NEW_LEAD_STEPS,
+    },
+    {
+      key: "REACTIVATION",
+      name: "Old lead reactivation (4 texts over 3 weeks)",
+      purpose: "Leads older than two weeks: re-introduce the studio and offer a new intake.",
+      steps: REACTIVATION_STEPS,
+    },
+  ];
+
+  for (const sequence of sequences) {
+    const existing = await prisma.sequence.findUnique({ where: { key: sequence.key } });
+    if (existing) continue;
+    await prisma.sequence.create({
+      data: {
+        key: sequence.key,
+        name: sequence.name,
+        purpose: sequence.purpose,
+        steps: { create: sequence.steps },
+      },
+    });
+  }
+
+  if ((await prisma.lead.count()) > 0) return;
+
+  const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+
+  // Sample leads showing the three states staff care about: waiting on the bot, replied and
+  // needing a human, and an old lead being reactivated.
+  const dana = await prisma.lead.create({
+    data: {
+      fullName: "Dana Whitaker (Sample)",
+      phone: "+16125550134",
+      email: "dana@example.com",
+      source: "FACEBOOK_ADS",
+      sourceRef: "sample-leadgen-1",
+      campaign: "Kids BJJ — Medina",
+      formName: "Free trial class",
+      interest: "Kids BJJ for my 8 year old, weeknights",
+      ageGroup: "KID",
+      childName: "Ellie",
+      answers: JSON.stringify({
+        which_program: "Kids Brazilian Jiu-Jitsu",
+        when_would_you_start: "As soon as possible",
+      }),
+      status: "CONTACTED",
+      submittedAt: minutesAgo(46),
+      firstContactedAt: minutesAgo(44),
+      lastOutboundAt: minutesAgo(44),
+      sequenceKey: "NEW_LEAD",
+      sequenceStep: 1,
+      insight: {
+        create: {
+          score: 82,
+          temperature: "HOT",
+          summary:
+            "HOT lead (82/100): submitted under an hour ago, wants to start as soon as possible, parent enquiring for a child.",
+          intent: "Kids BJJ for an 8-year-old on weeknights",
+          objections: "Parents want schedule fit and safety, not technique detail.",
+          talkingPoints:
+            "Offer a specific weeknight trial slot for Kids Brazilian Jiu-Jitsu.\nMention no gi or gear needed for the first class.\nConfirm Ellie's age group and experience.",
+          recommendedProgram: "Brazilian Jiu-Jitsu",
+          suggestedFirstText:
+            "Hi Dana, thanks for reaching out to Atheneum Martial Arts! I can get Ellie into a free Kids BJJ class this week. Does a weeknight or Saturday work better?",
+        },
+      },
+      messages: {
+        create: [
+          {
+            direction: "OUTBOUND",
+            body: "Hi Dana, thanks for reaching out to Atheneum Martial Arts! I can get Ellie into a free Kids BJJ class this week. Does a weeknight or Saturday work better?",
+            automated: true,
+            stepOrder: 1,
+            createdAt: minutesAgo(44),
+          },
+        ],
+      },
+      events: {
+        create: [
+          { type: "CREATED", summary: "Lead captured from FACEBOOK_ADS", createdAt: minutesAgo(46) },
+          {
+            type: "SMS_SENT",
+            summary: "First follow-up text sent 2 min after the lead came in",
+            createdAt: minutesAgo(44),
+          },
+        ],
+      },
+    },
+  });
+  await prisma.followUpTask.create({
+    data: {
+      leadId: dana.id,
+      sequenceKey: "NEW_LEAD",
+      stepOrder: 2,
+      dueAt: new Date(Date.now() + 16 * 60_000),
+    },
+  });
+
+  await prisma.lead.create({
+    data: {
+      fullName: "Marcus Cole (Sample)",
+      phone: "+17635550188",
+      source: "FACEBOOK_ADS",
+      campaign: "Adult Muay Thai — 30 day challenge",
+      interest: "Adult Muay Thai, asked about pricing",
+      ageGroup: "ADULT",
+      status: "ENGAGED",
+      submittedAt: minutesAgo(300),
+      firstContactedAt: minutesAgo(297),
+      lastOutboundAt: minutesAgo(120),
+      lastInboundAt: minutesAgo(121),
+      pausedAt: minutesAgo(121),
+      sequenceKey: "NEW_LEAD",
+      sequenceStep: 2,
+      insight: {
+        create: {
+          score: 88,
+          temperature: "HOT",
+          summary:
+            "HOT lead (88/100): replied by text, asked about pricing, wants to train evenings.",
+          intent: "Adult Muay Thai a few evenings a week",
+          objections: "Asked about price — lead with the free trial, not the rate.",
+          talkingPoints:
+            "Offer Tuesday 7pm Muay Thai beginners.\nQuote the trial as free before mentioning monthly rates.\nAsk about his training history for class placement.",
+          recommendedProgram: "Muay Thai",
+          suggestedFirstText:
+            "Hi Marcus, thanks for reaching out to Atheneum Martial Arts! I can get you into a free Muay Thai class this week — does a weeknight or Saturday work better?",
+        },
+      },
+      messages: {
+        create: [
+          {
+            direction: "OUTBOUND",
+            body: "Hi Marcus, thanks for reaching out to Atheneum Martial Arts! I can get you into a free Muay Thai class this week — does a weeknight or Saturday work better?",
+            automated: true,
+            stepOrder: 1,
+            createdAt: minutesAgo(297),
+          },
+          {
+            direction: "INBOUND",
+            body: "Weeknights are better. How much is it per month?",
+            status: "RECEIVED",
+            provider: "TWILIO",
+            createdAt: minutesAgo(121),
+          },
+          {
+            direction: "OUTBOUND",
+            body: "Awesome, Marcus! A coach will text you in a few minutes to lock in a class time.",
+            automated: true,
+            createdAt: minutesAgo(120),
+          },
+        ],
+      },
+      events: {
+        create: [
+          { type: "CREATED", summary: "Lead captured from FACEBOOK_ADS", createdAt: minutesAgo(300) },
+          {
+            type: "SMS_SENT",
+            summary: "First follow-up text sent 3 min after the lead came in",
+            createdAt: minutesAgo(297),
+          },
+          { type: "SMS_RECEIVED", summary: "Lead replied by text", createdAt: minutesAgo(121) },
+          {
+            type: "PAUSED",
+            summary: "Automated follow-up paused because the lead replied",
+            createdAt: minutesAgo(121),
+          },
+        ],
+      },
+    },
+  });
+
+  const priya = await prisma.lead.create({
+    data: {
+      fullName: "Priya Raman (Sample)",
+      phone: "+19525550117",
+      email: "priya@example.com",
+      source: "IMPORT",
+      sourceRef: "sample-import",
+      interest: "Self defense classes for myself",
+      ageGroup: "ADULT",
+      status: "NEW",
+      submittedAt: daysFromNow(-124),
+      insight: {
+        create: {
+          score: 34,
+          temperature: "COLD",
+          summary:
+            "COLD lead (34/100): 124 days old, likely forgot the original ad, never contacted.",
+          intent: "Self defense for herself",
+          objections: "Cold lead: re-introduce the studio before asking for anything.",
+          talkingPoints:
+            "Open with a new beginner intake, not a thank-you for enquiring.\nKeep the first text to one question.\nSelf Defense Fundamentals is the natural fit.",
+          recommendedProgram: "Self Defense",
+          suggestedFirstText:
+            "Hi Priya, it's Atheneum Martial Arts in Medina. You asked about self defense a while back — we just opened new beginner spots. Want me to hold one for you this week?",
+        },
+      },
+      events: {
+        create: [{ type: "CREATED", summary: "Lead captured from IMPORT" }],
+      },
+    },
+  });
+  await prisma.followUpTask.create({
+    data: {
+      leadId: priya.id,
+      sequenceKey: "REACTIVATION",
+      stepOrder: 1,
+      dueAt: new Date(Date.now() + 2 * 60_000),
+    },
+  });
+  await prisma.lead.update({
+    where: { id: priya.id },
+    data: { sequenceKey: "REACTIVATION" },
+  });
+
+  console.log("Seeded follow-up sequences and sample leads.");
+}
+
 async function main() {
   await seedProducts();
+  await seedFollowUpBot();
 
   const existingUsers = await prisma.user.count();
   if (existingUsers > 0 && !(await resetIfOutdatedSchedule())) {

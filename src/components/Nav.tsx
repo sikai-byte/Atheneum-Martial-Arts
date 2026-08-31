@@ -15,6 +15,7 @@ const memberLinks = [
 const coachLinks = [
   { href: "/coach", label: "Today" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/coach/leads", label: "Leads" },
   { href: "/coach/orders", label: "Orders" },
 ];
 

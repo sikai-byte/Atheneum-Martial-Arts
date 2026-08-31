@@ -11,7 +11,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "bot:tick": "tsx scripts/follow-up-tick.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
