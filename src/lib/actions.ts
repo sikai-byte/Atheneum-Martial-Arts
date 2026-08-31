@@ -182,7 +182,7 @@ export async function updateProfilePhoto(profileId: string, formData: FormData) 
   await assertProfileInHousehold(user.id, profileId);
 
   const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) throw new Error("Please choose a photo.");
+  if (!(file instanceof Blob) || file.size === 0) throw new Error("Please choose a photo.");
   if (file.size > 8 * 1024 * 1024) throw new Error("Photo is too large — please use one under 8 MB.");
   if (!PHOTO_TYPES.includes(file.type)) throw new Error("Please use a JPEG, PNG, or WebP photo.");
 
