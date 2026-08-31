@@ -100,6 +100,63 @@ export default async function HomePage() {
         )}
       </section>
 
+      <section aria-labelledby="membership">
+        <h2 id="membership" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Membership
+        </h2>
+        <div className="mt-2 space-y-3">
+          {profiles.map((p) => {
+            const remaining =
+              p.membershipType === "PUNCH_PASS" && p.punchPassTotal != null
+                ? Math.max(p.punchPassTotal - p.punchPassUsed, 0)
+                : null;
+            return (
+              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">{p.name}</p>
+                  <p className="text-sm font-medium text-stone-700">
+                    {p.membershipPlan ?? "No plan on file"}
+                  </p>
+                </div>
+                {p.membershipType === "MONTHLY" && p.membershipRenewsAt && (
+                  <p className="mt-1 text-sm text-stone-600">
+                    Renews {formatDay(p.membershipRenewsAt)}
+                  </p>
+                )}
+                {remaining != null && p.punchPassTotal != null && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={remaining <= 2 ? "font-medium text-amber-700" : "text-stone-600"}>
+                        {remaining} of {p.punchPassTotal} classes left
+                      </span>
+                      {remaining <= 2 && <span className="text-amber-700">Time to renew soon</span>}
+                    </div>
+                    <div
+                      className="mt-1.5 h-2 overflow-hidden rounded-full bg-stone-100"
+                      role="progressbar"
+                      aria-valuenow={remaining}
+                      aria-valuemin={0}
+                      aria-valuemax={p.punchPassTotal}
+                      aria-label={`${p.name} punch pass classes remaining`}
+                    >
+                      <div
+                        className={`h-full rounded-full ${remaining <= 2 ? "bg-amber-500" : "bg-brand"}`}
+                        style={{ width: `${(remaining / p.punchPassTotal) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {!p.membershipPlan && (
+                  <p className="mt-1 text-sm text-stone-500">
+                    Ask the front desk to set up your membership details.
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <section aria-labelledby="weekly-progress">
         <h2 id="weekly-progress" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
           This week

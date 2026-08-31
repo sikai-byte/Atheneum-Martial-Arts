@@ -96,14 +96,29 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
   const existing = await prisma.attendance.findUnique({
     where: { profileId_sessionId: { profileId, sessionId } },
   });
+  const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+  const isPunchPass = profile.membershipType === "PUNCH_PASS";
   if (existing) {
     await prisma.attendance.delete({ where: { id: existing.id } });
+    if (isPunchPass && profile.punchPassUsed > 0) {
+      await prisma.memberProfile.update({
+        where: { id: profileId },
+        data: { punchPassUsed: { decrement: 1 } },
+      });
+    }
   } else {
     await prisma.attendance.create({
       data: { profileId, sessionId, recordedBy: coach.name },
     });
+    if (isPunchPass) {
+      await prisma.memberProfile.update({
+        where: { id: profileId },
+        data: { punchPassUsed: { increment: 1 } },
+      });
+    }
   }
   revalidatePath(`/coach/session/${sessionId}`);
   revalidatePath("/coach");
   revalidatePath("/progress");
+  revalidatePath("/");
 }

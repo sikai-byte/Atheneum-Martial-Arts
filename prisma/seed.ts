@@ -3,6 +3,13 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+function daysFromNow(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function nextDateAt(dayOfWeek: number, hour: number, minute: number, weekOffset = 0) {
   const now = new Date();
   const d = new Date(now);
@@ -14,8 +21,11 @@ function nextDateAt(dayOfWeek: number, hour: number, minute: number, weekOffset 
 
 async function resetIfOutdatedSchedule() {
   const judo = await prisma.program.findUnique({ where: { name: "Judo" } });
-  if (judo) return false;
-  console.log("Old sample schedule detected — resetting database for the real schedule.");
+  const withMembership = await prisma.memberProfile.count({
+    where: { NOT: { membershipPlan: null } },
+  });
+  if (judo && withMembership > 0) return false;
+  console.log("Outdated sample data detected — resetting database.");
   await prisma.attendance.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.classSession.deleteMany();
@@ -57,6 +67,10 @@ async function main() {
       householdId: leeHousehold.id,
       experienceLevel: "BEGINNER",
       weeklyGoal: 3,
+      membershipPlan: "10-Class Punch Pass",
+      membershipType: "PUNCH_PASS",
+      punchPassTotal: 10,
+      punchPassUsed: 2,
     },
   });
 
@@ -76,6 +90,9 @@ async function main() {
       householdId: smithHousehold.id,
       experienceLevel: "INTERMEDIATE",
       weeklyGoal: 2,
+      membershipPlan: "Adult Unlimited",
+      membershipType: "MONTHLY",
+      membershipRenewsAt: daysFromNow(18),
     },
   });
   const child1 = await prisma.memberProfile.create({
@@ -85,6 +102,9 @@ async function main() {
       birthYear: 2017,
       householdId: smithHousehold.id,
       weeklyGoal: 2,
+      membershipPlan: "Kids Unlimited",
+      membershipType: "MONTHLY",
+      membershipRenewsAt: daysFromNow(9),
     },
   });
   const child2 = await prisma.memberProfile.create({
@@ -94,6 +114,10 @@ async function main() {
       birthYear: 2014,
       householdId: smithHousehold.id,
       weeklyGoal: 2,
+      membershipPlan: "10-Class Punch Pass",
+      membershipType: "PUNCH_PASS",
+      punchPassTotal: 10,
+      punchPassUsed: 6,
     },
   });
 

@@ -9,11 +9,25 @@ export const dynamic = "force-dynamic";
 export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams: { program?: string; age?: string; level?: string };
+  searchParams: { program?: string; age?: string; level?: string; view?: string };
 }) {
   const user = await requireUser();
   const profiles = householdProfiles(user);
   const isCoach = user.role === "COACH" || user.role === "ADMIN";
+
+  const hasKids = profiles.some((p) => p.isChild);
+  const hasAdults = profiles.some((p) => !p.isChild);
+  const canSwitchView = !isCoach && hasKids && hasAdults;
+  const view = isCoach
+    ? "all"
+    : canSwitchView
+      ? searchParams.view === "adults"
+        ? "adults"
+        : "kids"
+      : hasKids
+        ? "kids"
+        : "adults";
+  const ageGroups = view === "kids" ? ["KIDS", "ALL"] : view === "adults" ? ["ADULTS", "ALL"] : undefined;
 
   const programs = await prisma.program.findMany({ orderBy: { name: "asc" } });
   const sessions = await prisma.classSession.findMany({
@@ -22,7 +36,8 @@ export default async function SchedulePage({
       status: "SCHEDULED",
       template: {
         ...(searchParams.program ? { programId: searchParams.program } : {}),
-        ...(searchParams.age ? { ageGroup: searchParams.age } : {}),
+        ...(ageGroups ? { ageGroup: { in: ageGroups } } : {}),
+        ...(isCoach && searchParams.age ? { ageGroup: searchParams.age } : {}),
         ...(searchParams.level ? { level: searchParams.level } : {}),
       },
     },
@@ -53,6 +68,27 @@ export default async function SchedulePage({
     <div>
       <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
       <p className="mt-1 text-stone-600">Find your next class and book in seconds.</p>
+
+      {canSwitchView && (
+        <div className="mt-4 inline-flex rounded-lg border border-stone-300 bg-white p-1" aria-label="Schedule view">
+          <Link
+            href={filterLink({ view: undefined })}
+            className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
+              view === "kids" ? "bg-brand text-white" : "text-stone-600"
+            }`}
+          >
+            Kids classes
+          </Link>
+          <Link
+            href={filterLink({ view: "adults" })}
+            className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
+              view === "adults" ? "bg-brand text-white" : "text-stone-600"
+            }`}
+          >
+            Adult classes (for me)
+          </Link>
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-2" aria-label="Program filters">
         <Link
@@ -88,16 +124,18 @@ export default async function SchedulePage({
         >
           Beginner-friendly
         </Link>
-        <Link
-          href={filterLink({ age: searchParams.age === "KIDS" ? undefined : "KIDS" })}
-          className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-            searchParams.age === "KIDS"
-              ? "bg-brand text-white"
-              : "bg-white text-stone-700 border border-stone-300"
-          }`}
-        >
-          Kids
-        </Link>
+        {isCoach && (
+          <Link
+            href={filterLink({ age: searchParams.age === "KIDS" ? undefined : "KIDS" })}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+              searchParams.age === "KIDS"
+                ? "bg-brand text-white"
+                : "bg-white text-stone-700 border border-stone-300"
+            }`}
+          >
+            Kids
+          </Link>
+        )}
       </div>
 
       <div className="mt-6 space-y-8">
@@ -114,13 +152,11 @@ export default async function SchedulePage({
                 const booked = s.bookings.filter((b) => b.status === "BOOKED").length;
                 const isFull = booked >= s.template.capacity;
                 const spotsLeft = s.template.capacity - booked;
-                const eligible = profiles.filter((p) =>
-                  s.template.ageGroup === "KIDS"
-                    ? p.isChild
-                    : s.template.ageGroup === "ADULTS"
-                      ? !p.isChild
-                      : true
-                );
+                const eligible = profiles.filter((p) => {
+                  if (s.template.ageGroup === "KIDS") return p.isChild;
+                  if (s.template.ageGroup === "ADULTS") return !p.isChild;
+                  return view === "kids" ? p.isChild : view === "adults" ? !p.isChild : true;
+                });
                 return (
                   <article key={s.id} className="rounded-xl border border-stone-200 bg-white p-4">
                     <div className="flex items-start justify-between gap-3">

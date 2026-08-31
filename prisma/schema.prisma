@@ -33,6 +33,11 @@ model MemberProfile {
   birthYear       Int?
   experienceLevel String   @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
   weeklyGoal      Int      @default(3)
+  membershipPlan  String?  // e.g. "Adult Unlimited", "Kids Monthly", "10-Class Punch Pass"
+  membershipType  String?  // MONTHLY | PUNCH_PASS
+  membershipRenewsAt DateTime?
+  punchPassTotal  Int?
+  punchPassUsed   Int      @default(0)
   userId          String?  @unique
   user            User?    @relation(fields: [userId], references: [id])
   householdId     String
