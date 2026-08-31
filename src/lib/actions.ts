@@ -1,11 +1,14 @@
 "use server";
 
+import fs from "fs/promises";
+import path from "path";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getSession } from "./session";
-import { requireCoach, requireUser } from "./auth";
+import { requireAdmin, requireCoach, requireUser } from "./auth";
+import { ensureUploadsDir, uploadsDir } from "./uploads";
 
 export type LoginState = { error?: string };
 
@@ -19,7 +22,7 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   const session = await getSession();
   session.userId = user.id;
   await session.save();
-  redirect(user.role === "COACH" || user.role === "ADMIN" ? "/coach" : "/");
+  redirect(user.role === "ADMIN" ? "/admin" : user.role === "COACH" ? "/coach" : "/");
 }
 
 export async function logout() {
@@ -170,4 +173,132 @@ export async function updateOrderStatus(orderId: string, status: string) {
 
   revalidatePath("/shop");
   revalidatePath("/coach/orders");
+}
+
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+export async function updateProfilePhoto(profileId: string, formData: FormData) {
+  const user = await requireUser();
+  await assertProfileInHousehold(user.id, profileId);
+
+  const file = formData.get("photo");
+  if (!(file instanceof Blob) || file.size === 0) throw new Error("Please choose a photo.");
+  if (file.size > 8 * 1024 * 1024) throw new Error("Photo is too large — please use one under 8 MB.");
+  if (!PHOTO_TYPES.includes(file.type)) throw new Error("Please use a JPEG, PNG, or WebP photo.");
+
+  await ensureUploadsDir();
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await fs.writeFile(path.join(uploadsDir(), profileId), buffer);
+  await prisma.memberProfile.update({
+    where: { id: profileId },
+    data: { photoType: file.type, photoUpdatedAt: new Date() },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/progress");
+}
+
+export async function postAnnouncement(formData: FormData) {
+  const coach = await requireCoach();
+  const title = String(formData.get("title") ?? "").trim().slice(0, 120);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
+  if (!title || !body) throw new Error("Please add a title and a message.");
+
+  await prisma.announcement.create({ data: { title, body, author: coach.name } });
+
+  revalidatePath("/coach");
+  revalidatePath("/");
+}
+
+export async function deleteAnnouncement(announcementId: string) {
+  await requireCoach();
+  await prisma.announcement.delete({ where: { id: announcementId } });
+
+  revalidatePath("/coach");
+  revalidatePath("/");
+}
+
+export async function createMemberAccount(formData: FormData) {
+  await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim().slice(0, 80);
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const role = String(formData.get("role") ?? "MEMBER");
+  if (!name || !email.includes("@")) throw new Error("Please add a name and a valid email.");
+  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+  if (!["MEMBER", "PARENT", "COACH"].includes(role)) throw new Error("Invalid role.");
+  if (await prisma.user.findUnique({ where: { email } })) {
+    throw new Error("An account with that email already exists.");
+  }
+
+  const household = await prisma.household.create({ data: { name: `${name} Household` } });
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      name,
+      role,
+      householdId: household.id,
+    },
+  });
+  await prisma.memberProfile.create({
+    data: { name, userId: user.id, householdId: household.id },
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function addChildProfile(householdId: string, formData: FormData) {
+  await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim().slice(0, 80);
+  const birthYear = Number(formData.get("birthYear") ?? 0) || null;
+  if (!name) throw new Error("Please add the child's name.");
+  await prisma.household.findUniqueOrThrow({ where: { id: householdId } });
+
+  await prisma.memberProfile.create({
+    data: { name, isChild: true, birthYear, householdId },
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function updateMembership(profileId: string, formData: FormData) {
+  await requireAdmin();
+  const membershipPlan = String(formData.get("membershipPlan") ?? "").trim().slice(0, 80) || null;
+  const membershipType = String(formData.get("membershipType") ?? "");
+  if (!["", "MONTHLY", "PUNCH_PASS"].includes(membershipType)) {
+    throw new Error("Invalid membership type.");
+  }
+  const renewsAtRaw = String(formData.get("membershipRenewsAt") ?? "");
+  const membershipRenewsAt = renewsAtRaw ? new Date(`${renewsAtRaw}T00:00:00`) : null;
+  const punchPassTotal = Number(formData.get("punchPassTotal") ?? 0) || null;
+  const punchPassUsed = Math.max(Number(formData.get("punchPassUsed") ?? 0) || 0, 0);
+
+  await prisma.memberProfile.update({
+    where: { id: profileId },
+    data: {
+      membershipPlan,
+      membershipType: membershipType || null,
+      membershipRenewsAt: membershipType === "MONTHLY" ? membershipRenewsAt : null,
+      punchPassTotal: membershipType === "PUNCH_PASS" ? punchPassTotal ?? 10 : null,
+      punchPassUsed: membershipType === "PUNCH_PASS" ? punchPassUsed : 0,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  redirect("/admin");
+}
+
+export async function resetMemberPassword(userId: string, formData: FormData) {
+  await requireAdmin();
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: await bcrypt.hash(password, 10) },
+  });
+
+  revalidatePath("/admin");
 }

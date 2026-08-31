@@ -32,6 +32,9 @@ yarn-error.log*
 # local database
 prisma/dev.db*
 
+# uploaded member photos
+/uploads
+
 # vercel
 .vercel
 
