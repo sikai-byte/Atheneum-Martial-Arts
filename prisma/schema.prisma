@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -46,6 +46,71 @@ model MemberProfile {
   bookings        Booking[]
   attendances     Attendance[]
   milestones      Milestone[]
+  memberships     Membership[]
+  payments        Payment[]
+  joinedAt        DateTime @default(now())
+  leftAt          DateTime?
+  leadId          String?  @unique // the lead this member came from, so attribution survives conversion
+  lead            Lead?    @relation(fields: [leadId], references: [id])
+}
+
+/// A sellable membership (monthly dues or a punch pass). Prices are in cents.
+model MembershipPlan {
+  id            String       @id @default(cuid())
+  name          String       @unique
+  description   String       @default("")
+  priceCents    Int
+  billingPeriod String       @default("MONTHLY") // MONTHLY | ANNUAL | ONE_TIME
+  classesPerWeek Int?        // null = unlimited
+  punchPassClasses Int?      // set for punch passes instead of recurring dues
+  active        Boolean      @default(true)
+  sortOrder     Int          @default(0)
+  stripePriceId String?      // set once dues are collected through Stripe Billing
+  memberships   Membership[]
+}
+
+/// A member's enrolment on a plan. One active membership per profile at a time.
+model Membership {
+  id             String    @id @default(cuid())
+  status         String    @default("ACTIVE") // ACTIVE | PAST_DUE | FROZEN | CANCELLED
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  cancelReason   String?
+  priceCents     Int       // price at signup, so later plan changes don't rewrite history
+  billingDay     Int?      // day of month dues are collected
+  nextInvoiceAt  DateTime?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?  @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  profileId      String
+  profile        MemberProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  planId         String
+  plan           MembershipPlan @relation(fields: [planId], references: [id])
+  payments       Payment[]
+
+  @@index([status])
+}
+
+/// Every dollar collected, whatever the channel. This is the LTV ledger.
+model Payment {
+  id           String   @id @default(cuid())
+  amountCents  Int
+  kind         String   @default("DUES") // DUES | SIGNUP_FEE | PUNCH_PASS | RETAIL | PRIVATE_LESSON | OTHER
+  status       String   @default("PAID")  // PAID | FAILED | REFUNDED
+  method       String   @default("MANUAL") // MANUAL | STRIPE | CASH | CARD_TERMINAL
+  description  String   @default("")
+  paidAt       DateTime @default(now())
+  recordedBy   String   @default("system")
+  externalId   String?  @unique // Stripe invoice/charge id; also makes webhook ingestion idempotent
+  createdAt    DateTime @default(now())
+  profileId    String
+  profile      MemberProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  membershipId String?
+  membership   Membership?   @relation(fields: [membershipId], references: [id])
+
+  @@index([profileId, paidAt])
+  @@index([status, paidAt])
 }
 
 model Program {
@@ -169,6 +234,7 @@ model Lead {
   tasks        FollowUpTask[]
   events       LeadEvent[]
   insight      LeadInsight?
+  profile      MemberProfile?
 
   @@index([status])
 }
@@ -230,7 +296,7 @@ model LeadMessage {
 
 model LeadEvent {
   id        String   @id @default(cuid())
-  type      String   // CREATED | SMS_SENT | SMS_RECEIVED | INVESTIGATED | STATUS_CHANGED | PAUSED | RESUMED | OPTED_OUT | SEND_FAILED
+  type      String   // CREATED | SMS_SENT | SMS_RECEIVED | INVESTIGATED | STATUS_CHANGED | PAUSED | RESUMED | OPTED_OUT | SEND_FAILED | CONVERTED
   summary   String
   detail    String   @default("")
   createdAt DateTime @default(now())
