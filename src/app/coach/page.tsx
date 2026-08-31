@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireCoach } from "@/lib/auth";
+import { deleteAnnouncement, postAnnouncement } from "@/lib/actions";
 import { formatDay, formatTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export default async function CoachTodayPage() {
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const [todaySessions, upcomingSessions] = await Promise.all([
+  const [todaySessions, upcomingSessions, announcements] = await Promise.all([
     prisma.classSession.findMany({
       where: { startsAt: { gte: dayStart, lt: dayEnd } },
       include: {
@@ -33,6 +34,7 @@ export default async function CoachTodayPage() {
       orderBy: { startsAt: "asc" },
       take: 8,
     }),
+    prisma.announcement.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
 
   const renderSession = (s: (typeof todaySessions)[number], showDay = false) => (
@@ -84,6 +86,75 @@ export default async function CoachTodayPage() {
           Upcoming
         </h2>
         <div className="mt-2 space-y-3">{upcomingSessions.map((s) => renderSession(s, true))}</div>
+      </section>
+
+      <section aria-labelledby="post-update">
+        <h2 id="post-update" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Post an update
+        </h2>
+        <form action={postAnnouncement} className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4">
+          <p className="text-sm text-stone-600">
+            Updates appear on every member&apos;s home page right away.
+          </p>
+          <div>
+            <label htmlFor="announcement-title" className="mb-1 block text-sm font-medium">
+              Title
+            </label>
+            <input
+              id="announcement-title"
+              name="title"
+              required
+              maxLength={120}
+              placeholder="e.g. No gi classes this Friday"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="announcement-body" className="mb-1 block text-sm font-medium">
+              Message
+            </label>
+            <textarea
+              id="announcement-body"
+              name="body"
+              required
+              rows={3}
+              maxLength={2000}
+              placeholder="What do members need to know?"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+          >
+            Post to all members
+          </button>
+        </form>
+        {announcements.length > 0 && (
+          <div className="mt-3 space-y-3">
+            {announcements.map((a) => (
+              <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{a.title}</p>
+                    <p className="mt-1 text-sm text-stone-600">{a.body}</p>
+                    <p className="mt-2 text-xs text-stone-400">
+                      {a.author} · {formatDay(a.createdAt)}
+                    </p>
+                  </div>
+                  <form action={deleteAnnouncement.bind(null, a.id)}>
+                    <button
+                      type="submit"
+                      className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
+                    >
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

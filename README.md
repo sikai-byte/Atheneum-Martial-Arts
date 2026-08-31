@@ -94,6 +94,7 @@ Open http://localhost:3000.
 | member@example.com | Adult member |
 | parent@example.com | Parent with two child profiles |
 | coach@example.com | Coach (Today / roster / check-in tools) |
+| admin@example.com | Admin (member management + coach tools) |
 
 ## Scripts
 

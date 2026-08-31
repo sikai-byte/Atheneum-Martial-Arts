@@ -1,5 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
+import ProfilePhotoUploader from "@/components/ProfilePhotoUploader";
 import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
 import { formatDay, formatTime, startOfWeek } from "@/lib/format";
@@ -52,9 +54,24 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-8">
-      <section>
-        <h1 className="text-2xl font-bold tracking-tight">Welcome back, {firstName}</h1>
-        <p className="mt-1 text-stone-600">Here&apos;s what you need for your next session.</p>
+      <section className="relative -mx-4 -mt-6 overflow-hidden sm:mx-0 sm:mt-0 sm:rounded-2xl">
+        <Image
+          src="/team-photo.jpg"
+          alt="Atheneum Martial Arts team on the mats"
+          width={1600}
+          height={1067}
+          priority
+          className="h-44 w-full object-cover sm:h-56"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div className="absolute bottom-4 left-4 right-4 sm:left-6 sm:right-6">
+          <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow">
+            Welcome back, {firstName}
+          </h1>
+          <p className="mt-0.5 text-sm text-white/90 drop-shadow">
+            Your only limit is your tribe — here&apos;s what you need for your next session.
+          </p>
+        </div>
       </section>
 
       <section aria-labelledby="next-class">
@@ -112,8 +129,19 @@ export default async function HomePage() {
                 : null;
             return (
               <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium">{p.name}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <ProfilePhotoUploader
+                      profileId={p.id}
+                      name={p.name}
+                      photoUrl={
+                        p.photoType
+                          ? `/api/profile-photo/${p.id}?v=${p.photoUpdatedAt?.getTime() ?? 0}`
+                          : null
+                      }
+                    />
+                    <p className="font-medium">{p.name}</p>
+                  </div>
                   <p className="text-sm font-medium text-stone-700">
                     {p.membershipPlan ?? "No plan on file"}
                   </p>
@@ -224,6 +252,11 @@ export default async function HomePage() {
           Announcements
         </h2>
         <div className="mt-2 space-y-3">
+          {announcements.length === 0 && (
+            <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
+              No updates from the coaches right now.
+            </p>
+          )}
           {announcements.map((a) => (
             <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
               <p className="font-medium">{a.title}</p>

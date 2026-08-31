@@ -21,21 +21,35 @@ export default function LoginPage() {
   const [state, formAction] = useFormState<LoginState, FormData>(login, {});
 
   return (
-    <div className="mx-auto mt-10 max-w-sm">
+    <div className="mx-auto mt-6 max-w-md">
       <Image
         src="/logo.png"
         alt="Atheneum Martial Arts logo"
-        width={120}
-        height={122}
+        width={96}
+        height={98}
         priority
         className="mx-auto"
       />
-      <h1 className="mt-4 text-center text-2xl font-bold tracking-tight text-brand">
+      <h1 className="mt-3 text-center text-2xl font-bold tracking-tight text-brand">
         Atheneum Martial Arts
       </h1>
       <p className="mt-1 text-center text-stone-600">
-        Sign in to book classes and track your training. This is where you belong.
+        Sign in to book classes and track your training.
       </p>
+      <div className="relative mt-5 overflow-hidden rounded-2xl shadow-sm">
+        <Image
+          src="/team-photo.jpg"
+          alt="Atheneum Martial Arts team on the mats"
+          width={1600}
+          height={1067}
+          priority
+          className="h-44 w-full object-cover sm:h-52"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        <p className="absolute bottom-3 left-4 right-4 text-sm font-semibold text-white drop-shadow">
+          This is where you belong.
+        </p>
+      </div>
       <form action={formAction} className="mt-6 space-y-4">
         <div>
           <label htmlFor="email" className="mb-1 block text-sm font-medium">
@@ -76,6 +90,7 @@ export default function LoginPage() {
           <li>member@example.com — adult member</li>
           <li>parent@example.com — parent with two kids</li>
           <li>coach@example.com — coach tools</li>
+          <li>admin@example.com — admin &amp; member management</li>
         </ul>
       </div>
     </div>

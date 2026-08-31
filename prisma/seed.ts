@@ -630,6 +630,30 @@ async function seedMemberships(profiles: {
   console.log("Seeded membership plans, memberships and payment history.");
 }
 
+async function ensureAdmin() {
+  const existing = await prisma.user.findUnique({ where: { email: "admin@example.com" } });
+  if (existing) return;
+  const household = await prisma.household.create({ data: { name: "Admin Household" } });
+  const admin = await prisma.user.create({
+    data: {
+      email: "admin@example.com",
+      passwordHash: await bcrypt.hash("atheneum123", 10),
+      name: "Alex Admin (Sample)",
+      role: "ADMIN",
+      householdId: household.id,
+    },
+  });
+  await prisma.memberProfile.create({
+    data: {
+      name: "Alex Admin (Sample)",
+      userId: admin.id,
+      householdId: household.id,
+      experienceLevel: "ADVANCED",
+    },
+  });
+  console.log("Seeded admin account.");
+}
+
 async function main() {
   await seedProducts();
   await seedMembershipPlans();
@@ -637,6 +661,7 @@ async function main() {
 
   const existingUsers = await prisma.user.count();
   if (existingUsers > 0 && !(await resetIfOutdatedSchedule())) {
+    await ensureAdmin();
     console.log("Database already has users — skipping seed.");
     return;
   }
@@ -736,6 +761,7 @@ async function main() {
   });
 
   await seedMemberships({ memberProfile, parentProfile, child1, child2 });
+  await ensureAdmin();
 
   const bjj = await prisma.program.create({
     data: {
