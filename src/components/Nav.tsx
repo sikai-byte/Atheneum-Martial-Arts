@@ -8,6 +8,7 @@ import { logout } from "@/lib/actions";
 const memberLinks = [
   { href: "/", label: "Home" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/community", label: "Community" },
   { href: "/progress", label: "Progress" },
   { href: "/shop", label: "Shop" },
 ];
@@ -15,6 +16,7 @@ const memberLinks = [
 const coachLinks = [
   { href: "/coach", label: "Today" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/community", label: "Community" },
   { href: "/coach/orders", label: "Orders" },
 ];
 
@@ -22,6 +24,7 @@ const adminLinks = [
   { href: "/admin", label: "Admin" },
   { href: "/coach", label: "Today" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/community", label: "Community" },
   { href: "/coach/orders", label: "Orders" },
 ];
 
@@ -54,7 +57,14 @@ export default function Nav({ name, role }: { name: string; role: string }) {
               ))}
             </nav>
             <div className="flex items-center gap-2">
-              <span className="hidden text-sm text-stone-500 sm:inline">{name}</span>
+              <Link
+                href="/account"
+                className={`hidden text-sm sm:inline ${
+                  pathname === "/account" ? "font-medium text-brand" : "text-stone-500 hover:text-stone-700"
+                }`}
+              >
+                {name}
+              </Link>
               <form action={logout}>
                 <button
                   type="submit"
@@ -71,7 +81,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
         className="fixed inset-x-0 bottom-0 z-10 flex border-t border-stone-200 bg-white sm:hidden"
         aria-label="Primary mobile"
       >
-        {links.map((l) => (
+        {[...links, { href: "/account", label: "Me" }].map((l) => (
           <Link
             key={l.href}
             href={l.href}
