@@ -1,11 +1,14 @@
 "use server";
 
+import fs from "fs/promises";
+import path from "path";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getSession } from "./session";
 import { requireCoach, requireUser } from "./auth";
+import { ensureUploadsDir, uploadsDir } from "./uploads";
 
 export type LoginState = { error?: string };
 
@@ -170,4 +173,47 @@ export async function updateOrderStatus(orderId: string, status: string) {
 
   revalidatePath("/shop");
   revalidatePath("/coach/orders");
+}
+
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+export async function updateProfilePhoto(profileId: string, formData: FormData) {
+  const user = await requireUser();
+  await assertProfileInHousehold(user.id, profileId);
+
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Please choose a photo.");
+  if (file.size > 8 * 1024 * 1024) throw new Error("Photo is too large — please use one under 8 MB.");
+  if (!PHOTO_TYPES.includes(file.type)) throw new Error("Please use a JPEG, PNG, or WebP photo.");
+
+  await ensureUploadsDir();
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await fs.writeFile(path.join(uploadsDir(), profileId), buffer);
+  await prisma.memberProfile.update({
+    where: { id: profileId },
+    data: { photoType: file.type, photoUpdatedAt: new Date() },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/progress");
+}
+
+export async function postAnnouncement(formData: FormData) {
+  const coach = await requireCoach();
+  const title = String(formData.get("title") ?? "").trim().slice(0, 120);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
+  if (!title || !body) throw new Error("Please add a title and a message.");
+
+  await prisma.announcement.create({ data: { title, body, author: coach.name } });
+
+  revalidatePath("/coach");
+  revalidatePath("/");
+}
+
+export async function deleteAnnouncement(announcementId: string) {
+  await requireCoach();
+  await prisma.announcement.delete({ where: { id: announcementId } });
+
+  revalidatePath("/coach");
+  revalidatePath("/");
 }

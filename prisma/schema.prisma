@@ -39,6 +39,8 @@ model MemberProfile {
   membershipRenewsAt DateTime?
   punchPassTotal  Int?
   punchPassUsed   Int      @default(0)
+  photoType       String   @default("") // mime type of uploaded photo; empty = none
+  photoUpdatedAt  DateTime?
   userId          String?  @unique
   user            User?    @relation(fields: [userId], references: [id])
   householdId     String
