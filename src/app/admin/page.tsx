@@ -140,6 +140,7 @@ export default async function AdminPage() {
                 <option value="MEMBER">Member (trains themselves)</option>
                 <option value="PARENT">Parent (manages kids)</option>
                 <option value="COACH">Coach</option>
+                <option value="ADMIN">Admin (member management)</option>
               </select>
             </div>
           </div>
