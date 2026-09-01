@@ -46,20 +46,24 @@ export async function bookClass(profileId: string, sessionId: string) {
   const user = await requireUser();
   await assertProfileInHousehold(user.id, profileId);
 
-  const classSession = await prisma.classSession.findUniqueOrThrow({
-    where: { id: sessionId },
-    include: { template: true, bookings: { where: { status: "BOOKED" } } },
-  });
-  if (classSession.status === "CANCELLED") throw new Error("This class has been cancelled.");
-  if (classSession.startsAt < new Date()) throw new Error("This class has already started.");
+  await prisma.$transaction(async (tx) => {
+    // Take the write lock up front so the capacity check serializes.
+    await tx.$executeRaw`UPDATE ClassSession SET status = status WHERE id = ${sessionId}`;
+    const classSession = await tx.classSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: { template: true, bookings: { where: { status: "BOOKED" } } },
+    });
+    if (classSession.status === "CANCELLED") throw new Error("This class has been cancelled.");
+    if (classSession.startsAt < new Date()) throw new Error("This class has already started.");
 
-  const isFull = classSession.bookings.length >= classSession.template.capacity;
-  const status = isFull ? "WAITLISTED" : "BOOKED";
+    const isFull = classSession.bookings.length >= classSession.template.capacity;
+    const status = isFull ? "WAITLISTED" : "BOOKED";
 
-  await prisma.booking.upsert({
-    where: { profileId_sessionId: { profileId, sessionId } },
-    update: { status },
-    create: { profileId, sessionId, status },
+    await tx.booking.upsert({
+      where: { profileId_sessionId: { profileId, sessionId } },
+      update: { status },
+      create: { profileId, sessionId, status },
+    });
   });
 
   revalidatePath("/");
@@ -70,25 +74,27 @@ export async function cancelBooking(profileId: string, sessionId: string) {
   const user = await requireUser();
   await assertProfileInHousehold(user.id, profileId);
 
-  await prisma.booking.update({
-    where: { profileId_sessionId: { profileId, sessionId } },
-    data: { status: "CANCELLED" },
-  });
+  await prisma.$transaction(async (tx) => {
+    await tx.booking.update({
+      where: { profileId_sessionId: { profileId, sessionId } },
+      data: { status: "CANCELLED" },
+    });
 
-  // Promote the first waitlisted member, if any.
-  const classSession = await prisma.classSession.findUniqueOrThrow({
-    where: { id: sessionId },
-    include: { template: true, bookings: true },
-  });
-  const bookedCount = classSession.bookings.filter((b) => b.status === "BOOKED").length;
-  if (bookedCount < classSession.template.capacity) {
-    const nextInLine = classSession.bookings
-      .filter((b) => b.status === "WAITLISTED")
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
-    if (nextInLine) {
-      await prisma.booking.update({ where: { id: nextInLine.id }, data: { status: "BOOKED" } });
+    // Promote the first waitlisted member, if any.
+    const classSession = await tx.classSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: { template: true, bookings: true },
+    });
+    const bookedCount = classSession.bookings.filter((b) => b.status === "BOOKED").length;
+    if (bookedCount < classSession.template.capacity) {
+      const nextInLine = classSession.bookings
+        .filter((b) => b.status === "WAITLISTED")
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+      if (nextInLine) {
+        await tx.booking.update({ where: { id: nextInLine.id }, data: { status: "BOOKED" } });
+      }
     }
-  }
+  });
 
   revalidatePath("/");
   revalidatePath("/schedule");
@@ -96,30 +102,34 @@ export async function cancelBooking(profileId: string, sessionId: string) {
 
 export async function toggleAttendance(profileId: string, sessionId: string) {
   const coach = await requireCoach();
-  const existing = await prisma.attendance.findUnique({
-    where: { profileId_sessionId: { profileId, sessionId } },
-  });
-  const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
-  const isPunchPass = profile.membershipType === "PUNCH_PASS";
-  if (existing) {
-    await prisma.attendance.delete({ where: { id: existing.id } });
-    if (isPunchPass && profile.punchPassUsed > 0) {
-      await prisma.memberProfile.update({
-        where: { id: profileId },
-        data: { punchPassUsed: { decrement: 1 } },
-      });
-    }
-  } else {
-    await prisma.attendance.create({
-      data: { profileId, sessionId, recordedBy: coach.name },
+  await prisma.$transaction(async (tx) => {
+    // Take the write lock up front so the punch-pass update serializes.
+    await tx.$executeRaw`UPDATE MemberProfile SET id = id WHERE id = ${profileId}`;
+    const existing = await tx.attendance.findUnique({
+      where: { profileId_sessionId: { profileId, sessionId } },
     });
-    if (isPunchPass) {
-      await prisma.memberProfile.update({
-        where: { id: profileId },
-        data: { punchPassUsed: { increment: 1 } },
+    const profile = await tx.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+    const isPunchPass = profile.membershipType === "PUNCH_PASS";
+    if (existing) {
+      await tx.attendance.delete({ where: { id: existing.id } });
+      if (isPunchPass && profile.punchPassUsed > 0) {
+        await tx.memberProfile.update({
+          where: { id: profileId },
+          data: { punchPassUsed: { decrement: 1 } },
+        });
+      }
+    } else {
+      await tx.attendance.create({
+        data: { profileId, sessionId, recordedBy: coach.name },
       });
+      if (isPunchPass) {
+        await tx.memberProfile.update({
+          where: { id: profileId },
+          data: { punchPassUsed: { increment: 1 } },
+        });
+      }
     }
-  }
+  });
   revalidatePath(`/coach/session/${sessionId}`);
   revalidatePath("/coach");
   revalidatePath("/progress");
@@ -270,7 +280,11 @@ export async function updateMembership(profileId: string, formData: FormData) {
     throw new Error("Invalid membership type.");
   }
   const renewsAtRaw = String(formData.get("membershipRenewsAt") ?? "");
-  const membershipRenewsAt = renewsAtRaw ? new Date(`${renewsAtRaw}T00:00:00`) : null;
+  const parsedRenewsAt = renewsAtRaw ? new Date(`${renewsAtRaw}T00:00:00`) : null;
+  if (parsedRenewsAt && Number.isNaN(parsedRenewsAt.getTime())) {
+    throw new Error("Please enter the renewal date as YYYY-MM-DD.");
+  }
+  const membershipRenewsAt = parsedRenewsAt;
   const punchPassTotal = Number(formData.get("punchPassTotal") ?? 0) || null;
   const punchPassUsed = Math.max(Number(formData.get("punchPassUsed") ?? 0) || 0, 0);
 
