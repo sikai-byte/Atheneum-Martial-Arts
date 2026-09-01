@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
 import { formatDay, formatTime, programColors } from "@/lib/format";
+import { bookingLimit } from "@/lib/capacity";
 import BookingControls from "@/components/BookingControls";
 
 export const dynamic = "force-dynamic";
@@ -151,7 +152,8 @@ export default async function SchedulePage({
               {daySessions.map((s) => {
                 const booked = s.bookings.filter((b) => b.status === "BOOKED").length;
                 const isFull = booked >= s.template.capacity;
-                const spotsLeft = s.template.capacity - booked;
+                const spotsLeft = Math.max(0, s.template.capacity - booked);
+                const willWaitlist = booked >= bookingLimit(s.template.capacity);
                 const eligible = profiles.filter((p) => {
                   if (s.template.ageGroup === "KIDS") return p.isChild;
                   if (s.template.ageGroup === "ADULTS") return !p.isChild;
@@ -204,7 +206,7 @@ export default async function SchedulePage({
                           profileId: b.profileId,
                           status: b.status,
                         }))}
-                        isFull={isFull}
+                        isFull={willWaitlist}
                         inPast={s.startsAt < new Date()}
                       />
                     )}
