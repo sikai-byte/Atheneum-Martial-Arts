@@ -5,6 +5,7 @@ import ProfilePhotoUploader from "@/components/ProfilePhotoUploader";
 import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
 import { formatDay, formatTime, startOfWeek } from "@/lib/format";
+import { trialExpired } from "@/lib/trial";
 
 export const dynamic = "force-dynamic";
 
@@ -140,7 +141,14 @@ export default async function HomePage() {
                           : null
                       }
                     />
-                    <p className="font-medium">{p.name}</p>
+                    <p className="font-medium">
+                      {p.name}
+                      {p.membershipType === "TRIAL" && (
+                        <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                          Trial
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <p className="text-sm font-medium text-stone-700">
                     {p.membershipPlan ?? "No plan on file"}
@@ -149,6 +157,22 @@ export default async function HomePage() {
                 {p.membershipType === "MONTHLY" && p.membershipRenewsAt && (
                   <p className="mt-1 text-sm text-stone-600">
                     Renews {formatDay(p.membershipRenewsAt)}
+                  </p>
+                )}
+                {p.membershipType === "TRIAL" && (
+                  <p className="mt-1 text-sm text-stone-600">
+                    {p.membershipRenewsAt && !trialExpired(p.membershipRenewsAt) ? (
+                      <>
+                        Trial ends {formatDay(p.membershipRenewsAt)} — book any class that fits and
+                        come train with us. Ask the front desk about membership when you&apos;re
+                        ready to keep going.
+                      </>
+                    ) : (
+                      <>
+                        Your trial has ended — we&apos;d love to keep training with you! See the
+                        front desk to pick a membership.
+                      </>
+                    )}
                   </p>
                 )}
                 {remaining != null && p.punchPassTotal != null && (

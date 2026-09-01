@@ -10,7 +10,9 @@ import { prisma } from "./db";
 import { getSession } from "./session";
 import { requireAdmin, requireCoach, requireUser } from "./auth";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
+import { formatTime } from "./format";
 import { bookingLimit } from "./capacity";
+import { trialEndOfDay } from "./trial";
 import { appUrl, sendPasswordResetEmail } from "./email";
 
 export type LoginState = { error?: string };
@@ -103,6 +105,7 @@ async function assertProfileInHousehold(userId: string, profileId: string) {
     include: { household: { include: { profiles: true } }, profile: true },
   });
   const allowed =
+    user.role === "ADMIN" ||
     user.profile?.id === profileId ||
     user.household?.profiles.some((p) => p.id === profileId);
   if (!allowed) throw new Error("You can only manage bookings for your own household.");
@@ -121,6 +124,16 @@ export async function bookClass(profileId: string, sessionId: string) {
     });
     if (classSession.status === "CANCELLED") throw new Error("This class has been cancelled.");
     if (classSession.startsAt < new Date()) throw new Error("This class has already started.");
+
+    const profile = await tx.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+    if (profile.membershipType === "TRIAL") {
+      const trialEnd = trialEndOfDay(profile.membershipRenewsAt);
+      if (!trialEnd || classSession.startsAt > trialEnd || new Date() > trialEnd) {
+        throw new Error(
+          "That class is outside the trial period — see the front desk to start a membership."
+        );
+      }
+    }
 
     const isFull = classSession.bookings.length >= bookingLimit(classSession.template.capacity);
     const status = isFull ? "WAITLISTED" : "BOOKED";
@@ -307,6 +320,14 @@ export async function createMemberAccount(formData: FormData) {
     throw new Error("An account with that email already exists.");
   }
 
+  const isTrial = formData.get("trial") === "on" && (role === "MEMBER" || role === "PARENT");
+  const trialEndsRaw = String(formData.get("trialEndsAt") ?? "");
+  const parsedTrialEnd = trialEndsRaw ? new Date(`${trialEndsRaw}T00:00:00`) : null;
+  if (isTrial && parsedTrialEnd && Number.isNaN(parsedTrialEnd.getTime())) {
+    throw new Error("Please enter the trial end date as YYYY-MM-DD.");
+  }
+  const trialEndsAt = parsedTrialEnd ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
   const household = await prisma.household.create({ data: { name: `${name} Household` } });
   const user = await prisma.user.create({
     data: {
@@ -317,11 +338,123 @@ export async function createMemberAccount(formData: FormData) {
       householdId: household.id,
     },
   });
-  await prisma.memberProfile.create({
-    data: { name, userId: user.id, householdId: household.id },
+  const profile = await prisma.memberProfile.create({
+    data: {
+      name,
+      userId: user.id,
+      householdId: household.id,
+      ...(isTrial
+        ? { membershipPlan: "Trial", membershipType: "TRIAL", membershipRenewsAt: trialEndsAt }
+        : {}),
+    },
   });
 
   revalidatePath("/admin");
+  redirect(`/admin/member/${profile.id}`);
+}
+
+export async function adminBookClass(profileId: string, formData: FormData) {
+  await requireAdmin();
+  const sessionId = String(formData.get("sessionId") ?? "");
+  if (!sessionId) throw new Error("Please pick a class.");
+  await bookClass(profileId, sessionId);
+  revalidatePath(`/admin/member/${profileId}`);
+}
+
+export async function adminCancelBooking(profileId: string, sessionId: string) {
+  await requireAdmin();
+  await cancelBooking(profileId, sessionId);
+  revalidatePath(`/admin/member/${profileId}`);
+}
+
+const PRIVATE_TRIAL_DURATIONS = [30, 45, 60];
+const PRIVATE_TRIAL_OPEN_MIN = 8 * 60; // 8:00 AM
+const PRIVATE_TRIAL_CLOSE_MIN = 20 * 60; // 8:00 PM
+
+export async function adminBookPrivateTrial(profileId: string, formData: FormData) {
+  await requireAdmin();
+  const dateRaw = String(formData.get("date") ?? "");
+  const timeRaw = String(formData.get("time") ?? "");
+  const duration = Number(formData.get("duration") ?? 0);
+  const instructor =
+    String(formData.get("instructor") ?? "").trim().slice(0, 80) || "Atheneum Coach";
+
+  if (!PRIVATE_TRIAL_DURATIONS.includes(duration)) {
+    throw new Error("Pick a 30, 45, or 60 minute session.");
+  }
+  const startsAt = new Date(`${dateRaw}T${timeRaw}`);
+  if (!dateRaw || !timeRaw || Number.isNaN(startsAt.getTime())) {
+    throw new Error("Please pick a valid date and time.");
+  }
+  if (startsAt < new Date()) throw new Error("That time is in the past.");
+
+  const startMins = startsAt.getHours() * 60 + startsAt.getMinutes();
+  if (startMins < PRIVATE_TRIAL_OPEN_MIN || startMins + duration > PRIVATE_TRIAL_CLOSE_MIN) {
+    throw new Error("Private trials run between 8:00 AM and 8:00 PM.");
+  }
+
+  const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+  if (profile.membershipType === "TRIAL") {
+    const trialEnd = trialEndOfDay(profile.membershipRenewsAt);
+    if (!trialEnd || startsAt > trialEnd) {
+      throw new Error("That time is after the trial ends — extend the trial or pick an earlier slot.");
+    }
+  }
+
+  const endsAt = new Date(startsAt.getTime() + duration * 60000);
+  const dayLo = new Date(startsAt);
+  dayLo.setHours(0, 0, 0, 0);
+  const dayHi = new Date(startsAt);
+  dayHi.setHours(23, 59, 59, 999);
+  const sameDay = await prisma.classSession.findMany({
+    where: { status: { not: "CANCELLED" }, startsAt: { gte: dayLo, lte: dayHi } },
+    include: { template: true },
+  });
+  const conflict = sameDay.find((s) => {
+    const sEnd = new Date(s.startsAt.getTime() + s.template.durationMin * 60000);
+    return s.startsAt < endsAt && sEnd > startsAt;
+  });
+  if (conflict) {
+    throw new Error(
+      `That time overlaps ${conflict.template.name} at ${formatTime(conflict.startsAt)} — pick an open slot.`
+    );
+  }
+
+  const program = await prisma.program.upsert({
+    where: { name: "Private Training" },
+    update: {},
+    create: {
+      name: "Private Training",
+      description: "One-on-one and small-group sessions with a coach.",
+      color: "green",
+    },
+  });
+  const templateName = `Private Trial (${duration} min)`;
+  let template = await prisma.classTemplate.findFirst({ where: { name: templateName } });
+  if (!template) {
+    template = await prisma.classTemplate.create({
+      data: {
+        name: templateName,
+        description: "Introductory one-on-one session with a coach.",
+        ageGroup: "ALL",
+        level: "BEGINNER",
+        capacity: 1,
+        durationMin: duration,
+        programId: program.id,
+      },
+    });
+  }
+
+  const session = await prisma.classSession.create({
+    data: { startsAt, instructor, templateId: template.id },
+  });
+  await prisma.booking.create({
+    data: { profileId, sessionId: session.id, status: "BOOKED" },
+  });
+
+  revalidatePath(`/admin/member/${profileId}`);
+  revalidatePath("/");
+  revalidatePath("/schedule");
 }
 
 export async function addChildProfile(householdId: string, formData: FormData) {
@@ -331,8 +464,25 @@ export async function addChildProfile(householdId: string, formData: FormData) {
   if (!name) throw new Error("Please add the child's name.");
   await prisma.household.findUniqueOrThrow({ where: { id: householdId } });
 
+  // Kids in a trial household share the household's trial.
+  const trialProfile = await prisma.memberProfile.findFirst({
+    where: { householdId, membershipType: "TRIAL" },
+  });
+
   await prisma.memberProfile.create({
-    data: { name, isChild: true, birthYear, householdId },
+    data: {
+      name,
+      isChild: true,
+      birthYear,
+      householdId,
+      ...(trialProfile
+        ? {
+            membershipPlan: "Trial",
+            membershipType: "TRIAL",
+            membershipRenewsAt: trialProfile.membershipRenewsAt,
+          }
+        : {}),
+    },
   });
 
   revalidatePath("/admin");
@@ -342,7 +492,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
   await requireAdmin();
   const membershipPlan = String(formData.get("membershipPlan") ?? "").trim().slice(0, 80) || null;
   const membershipType = String(formData.get("membershipType") ?? "");
-  if (!["", "MONTHLY", "PUNCH_PASS"].includes(membershipType)) {
+  if (!["", "MONTHLY", "PUNCH_PASS", "TRIAL"].includes(membershipType)) {
     throw new Error("Invalid membership type.");
   }
   const renewsAtRaw = String(formData.get("membershipRenewsAt") ?? "");
@@ -359,7 +509,8 @@ export async function updateMembership(profileId: string, formData: FormData) {
     data: {
       membershipPlan,
       membershipType: membershipType || null,
-      membershipRenewsAt: membershipType === "MONTHLY" ? membershipRenewsAt : null,
+      membershipRenewsAt:
+        membershipType === "MONTHLY" || membershipType === "TRIAL" ? membershipRenewsAt : null,
       punchPassTotal: membershipType === "PUNCH_PASS" ? punchPassTotal ?? 10 : null,
       punchPassUsed: membershipType === "PUNCH_PASS" ? punchPassUsed : 0,
     },

@@ -2,7 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { resetMemberPassword, updateMembership } from "@/lib/actions";
+import {
+  adminBookClass,
+  adminBookPrivateTrial,
+  adminCancelBooking,
+  resetMemberPassword,
+  updateMembership,
+} from "@/lib/actions";
+import { formatDay, formatTime } from "@/lib/format";
+import { appUrl } from "@/lib/email";
+import CopyButton from "@/components/CopyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +27,43 @@ export default async function AdminMemberPage({ params }: { params: { id: string
   const renewsAtValue = profile.membershipRenewsAt
     ? profile.membershipRenewsAt.toISOString().slice(0, 10)
     : "";
+
+  const now = new Date();
+  const twoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const upcomingSessions = await prisma.classSession.findMany({
+    where: {
+      status: "SCHEDULED",
+      startsAt: { gt: now, lt: twoWeeks },
+      template: { name: { not: { startsWith: "Private Trial" } } },
+    },
+    include: { template: true },
+    orderBy: { startsAt: "asc" },
+  });
+  const upcomingBookings = await prisma.booking.findMany({
+    where: {
+      profileId: profile.id,
+      status: { in: ["BOOKED", "WAITLISTED"] },
+      session: { startsAt: { gt: now } },
+    },
+    include: { session: { include: { template: true } } },
+    orderBy: { session: { startsAt: "asc" } },
+  });
+
+  const nextBooking = upcomingBookings[0];
+  const firstName = profile.name.split(" ")[0];
+  const inviteText = [
+    `Hi ${firstName}! Your ${profile.membershipType === "TRIAL" ? "trial " : ""}class at Atheneum Martial Arts is ${
+      nextBooking
+        ? `booked: ${nextBooking.session.template.name} on ${formatDay(nextBooking.session.startsAt)} at ${formatTime(nextBooking.session.startsAt)}.`
+        : "ready to book."
+    }`,
+    `Sign in to see your class and everything else: ${appUrl()}`,
+    profile.user
+      ? `Login: ${profile.user.email} / password: <temp password you set>`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className="space-y-8">
@@ -71,11 +117,12 @@ export default async function AdminMemberPage({ params }: { params: { id: string
                 <option value="">None</option>
                 <option value="MONTHLY">Monthly (renews on a date)</option>
                 <option value="PUNCH_PASS">Punch pass (class count)</option>
+                <option value="TRIAL">Trial (ends on a date)</option>
               </select>
             </div>
             <div>
               <label htmlFor="membership-renews" className="mb-1 block text-sm font-medium">
-                Renews on (monthly plans)
+                Renews / trial ends on
               </label>
               <input
                 id="membership-renews"
@@ -128,6 +175,157 @@ export default async function AdminMemberPage({ params }: { params: { id: string
           </button>
         </form>
       </section>
+
+      <section aria-labelledby="book-class">
+        <h2 id="book-class" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Book a class for {firstName}
+        </h2>
+        <div className="mt-2 grid gap-4 lg:grid-cols-2">
+          <form
+            action={adminBookClass.bind(null, profile.id)}
+            className="space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+          >
+            <p className="text-sm font-semibold">Group class</p>
+            <p className="text-xs text-stone-500">
+              Any regular class on the schedule in the next two weeks.
+            </p>
+            <select
+              name="sessionId"
+              required
+              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+            >
+              <option value="">Pick a class…</option>
+              {upcomingSessions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.template.name} — {formatDay(s.startsAt)}, {formatTime(s.startsAt)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+            >
+              Book group class
+            </button>
+          </form>
+
+          <form
+            action={adminBookPrivateTrial.bind(null, profile.id)}
+            className="space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+          >
+            <p className="text-sm font-semibold">Private trial</p>
+            <p className="text-xs text-stone-500">
+              One-on-one intro session, 8:00 AM–8:00 PM, in any open slot with no group class.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="pt-date" className="mb-1 block text-sm font-medium">
+                  Date
+                </label>
+                <input
+                  id="pt-date"
+                  name="date"
+                  type="date"
+                  required
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="pt-time" className="mb-1 block text-sm font-medium">
+                  Start time
+                </label>
+                <input
+                  id="pt-time"
+                  name="time"
+                  type="time"
+                  min="08:00"
+                  max="19:30"
+                  step={900}
+                  required
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="pt-duration" className="mb-1 block text-sm font-medium">
+                  Length
+                </label>
+                <select
+                  id="pt-duration"
+                  name="duration"
+                  defaultValue="30"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                >
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">1 hour</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="pt-instructor" className="mb-1 block text-sm font-medium">
+                  Coach
+                </label>
+                <input
+                  id="pt-instructor"
+                  name="instructor"
+                  placeholder="Atheneum Coach"
+                  className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+            >
+              Book private trial
+            </button>
+          </form>
+        </div>
+
+        {upcomingBookings.length > 0 && (
+          <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+            <p className="text-sm font-semibold">Upcoming bookings</p>
+            <ul className="mt-2 divide-y divide-stone-100">
+              {upcomingBookings.map((b) => (
+                <li key={b.id} className="flex items-center justify-between gap-3 py-2">
+                  <span className="text-sm">
+                    {b.session.template.name} — {formatDay(b.session.startsAt)},{" "}
+                    {formatTime(b.session.startsAt)}
+                    {b.status === "WAITLISTED" && (
+                      <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-xs font-semibold text-stone-600">
+                        Waitlisted
+                      </span>
+                    )}
+                  </span>
+                  <form action={adminCancelBooking.bind(null, profile.id, b.sessionId)}>
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
+
+      {profile.user && (
+        <section aria-labelledby="invite-text">
+          <h2 id="invite-text" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Sign-in text for your lead bot
+          </h2>
+          <div className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4">
+            <p className="text-sm text-stone-600">
+              Paste this into your lead bot&apos;s text message. Replace the password placeholder
+              with the temp password you set.
+            </p>
+            <p className="rounded-lg bg-stone-50 p-3 text-sm text-stone-800">{inviteText}</p>
+            <CopyButton text={inviteText} />
+          </div>
+        </section>
+      )}
 
       {profile.user && (
         <section aria-labelledby="reset-password">

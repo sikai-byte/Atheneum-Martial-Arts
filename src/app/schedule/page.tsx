@@ -36,6 +36,8 @@ export default async function SchedulePage({
       startsAt: { gte: new Date() },
       status: "SCHEDULED",
       template: {
+        // Private trials are booked by the front desk, not from the schedule.
+        name: { not: { startsWith: "Private Trial" } },
         ...(searchParams.program ? { programId: searchParams.program } : {}),
         ...(ageGroups ? { ageGroup: { in: ageGroups } } : {}),
         ...(isCoach && searchParams.age ? { ageGroup: searchParams.age } : {}),

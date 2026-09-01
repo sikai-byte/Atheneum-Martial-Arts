@@ -17,6 +17,11 @@ function membershipSummary(p: {
   if (p.membershipType === "PUNCH_PASS" && p.punchPassTotal) {
     return `${p.membershipPlan} · ${Math.max(p.punchPassTotal - p.punchPassUsed, 0)} of ${p.punchPassTotal} left`;
   }
+  if (p.membershipType === "TRIAL") {
+    return p.membershipRenewsAt
+      ? `Trial · ends ${formatDay(p.membershipRenewsAt)}`
+      : "Trial";
+  }
   if (p.membershipRenewsAt) {
     return `${p.membershipPlan} · renews ${formatDay(p.membershipRenewsAt)}`;
   }
@@ -144,6 +149,33 @@ export default async function AdminPage() {
               </select>
             </div>
           </div>
+          <fieldset className="rounded-lg border border-stone-200 bg-stone-50 p-3">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-stone-500">
+              Trial account
+            </legend>
+            <div className="flex flex-wrap items-end gap-4">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input type="checkbox" name="trial" className="h-4 w-4 rounded border-stone-300" />
+                This is a trial (member or parent only)
+              </label>
+              <div>
+                <label htmlFor="trial-ends" className="mb-1 block text-xs font-medium">
+                  Trial ends (default: 1 week from today)
+                </label>
+                <input
+                  id="trial-ends"
+                  name="trialEndsAt"
+                  type="date"
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-stone-500">
+              Trial members can browse everything and book classes until their trial ends. After
+              creating the account you land on their page to book their first class (group or
+              private) and copy the sign-in text for your lead bot.
+            </p>
+          </fieldset>
           <button
             type="submit"
             className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
