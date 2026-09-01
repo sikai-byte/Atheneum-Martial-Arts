@@ -158,8 +158,8 @@ function investigateWithRules(
   const name = firstName(lead.fullName);
   const suggestedFirstText =
     age > 30
-      ? `Hi ${name}, it's ${studioName}. You reached out to us a while back and we just opened new beginner spots in ${recommendedProgram}. Want me to hold one for ${youOrChild} this week?`
-      : `Hi ${name}, thanks for reaching out to ${studioName}! I can get ${youOrChild} into a free ${recommendedProgram} class this week. Does a weeknight or Saturday work better?`;
+      ? `Hi ${name}, it's ${studioName}. You reached out to us a while back and we just opened new beginner spots in ${recommendedProgram}. Want me to hold one for ${youOrChild} this week? Reply STOP to opt out.`
+      : `Hi ${name}, thanks for reaching out to ${studioName}! I can get ${youOrChild} into a free ${recommendedProgram} class this week. Does a weeknight or Saturday work better? Reply STOP to opt out.`;
 
   return {
     score,
@@ -200,7 +200,8 @@ function buildPrompt(lead: LeadForInvestigation, programs: string[], studioName:
     '{"score": 0-100, "temperature": "HOT"|"WARM"|"COLD", "summary": string, "intent": string,',
     ' "objections": string[], "talkingPoints": string[], "recommendedProgram": string, "suggestedFirstText": string}',
     "",
-    "suggestedFirstText must be under 300 characters, friendly, name the program, and propose a concrete next step.",
+    "suggestedFirstText must be under 300 characters, friendly, name the program, propose a concrete next step,",
+    'and end with "Reply STOP to opt out." since it is the first message this lead receives.',
   ].join("\n");
 }
 
