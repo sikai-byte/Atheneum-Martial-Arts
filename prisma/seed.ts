@@ -139,8 +139,17 @@ async function ensureAdmin() {
   console.log("Seeded admin account.");
 }
 
+async function capCapacities() {
+  const { count } = await prisma.classTemplate.updateMany({
+    where: { capacity: { gt: 12 } },
+    data: { capacity: 12 },
+  });
+  if (count > 0) console.log(`Capped ${count} class capacities at 12.`);
+}
+
 async function main() {
   await seedProducts();
+  await capCapacities();
 
   const existingUsers = await prisma.user.count();
   if (existingUsers > 0 && !(await resetIfOutdatedSchedule())) {
@@ -280,7 +289,7 @@ async function main() {
       description: "Core gi grappling fundamentals for young athletes.",
       ageGroup: "KIDS",
       level: "BEGINNER",
-      capacity: 14,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Gi required. Loaner gis available — just ask at the front desk.",
       programId: bjj.id,
@@ -292,7 +301,7 @@ async function main() {
       description: "No gi grappling fundamentals for young athletes.",
       ageGroup: "KIDS",
       level: "BEGINNER",
-      capacity: 14,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Rash guard or fitted t-shirt and shorts. No pockets or zippers.",
       programId: bjj.id,
@@ -304,7 +313,7 @@ async function main() {
       description: "Higher-intensity no gi training for experienced kids.",
       ageGroup: "KIDS",
       level: "ADVANCED",
-      capacity: 14,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Rash guard or fitted t-shirt and shorts. Coach approval required.",
       programId: bjj.id,
@@ -328,7 +337,7 @@ async function main() {
       description: "No gi technique, drilling, and live rounds for all levels.",
       ageGroup: "ADULTS",
       level: "ALL",
-      capacity: 20,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Rash guard or fitted t-shirt and shorts. No pockets or zippers.",
       programId: bjj.id,
@@ -340,7 +349,7 @@ async function main() {
       description: "Gi technique, drilling, and live rounds for all levels.",
       ageGroup: "ADULTS",
       level: "ALL",
-      capacity: 20,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Gi required. Loaner gis available — just ask at the front desk.",
       programId: bjj.id,
@@ -352,7 +361,7 @@ async function main() {
       description: "Pad work, partner drills, and conditioning.",
       ageGroup: "ADULTS",
       level: "ALL",
-      capacity: 18,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Hand wraps and gloves. Loaner gloves available.",
       programId: muayThai.id,
@@ -364,7 +373,7 @@ async function main() {
       description: "Supervised sparring rounds for experienced members.",
       ageGroup: "ADULTS",
       level: "ADVANCED",
-      capacity: 16,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Full sparring gear: gloves, shin guards, and mouthguard. Coach approval required.",
       programId: muayThai.id,
@@ -376,7 +385,7 @@ async function main() {
       description: "Striking fundamentals for young athletes.",
       ageGroup: "KIDS",
       level: "BEGINNER",
-      capacity: 14,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Hand wraps and gloves. Loaner gloves available.",
       programId: muayThai.id,
@@ -388,7 +397,7 @@ async function main() {
       description: "High-energy conditioning built around kickboxing combinations.",
       ageGroup: "ADULTS",
       level: "ALL",
-      capacity: 20,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Hand wraps and gloves recommended. Water bottle a must.",
       programId: muayThai.id,
@@ -400,7 +409,7 @@ async function main() {
       description: "Throws, breakfalls, and pins for kids of all ages.",
       ageGroup: "KIDS",
       level: "ALL",
-      capacity: 14,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Gi required. Loaner gis available — just ask at the front desk.",
       programId: judo.id,
@@ -412,7 +421,7 @@ async function main() {
       description: "Throws, takedowns, and groundwork in the gi for all levels.",
       ageGroup: "ADULTS",
       level: "ALL",
-      capacity: 18,
+      capacity: 12,
       durationMin: 60,
       gearNotes: "Gi required.",
       programId: judo.id,

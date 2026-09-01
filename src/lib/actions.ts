@@ -9,6 +9,7 @@ import { prisma } from "./db";
 import { getSession } from "./session";
 import { requireAdmin, requireCoach, requireUser } from "./auth";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
+import { bookingLimit } from "./capacity";
 
 export type LoginState = { error?: string };
 
@@ -56,7 +57,7 @@ export async function bookClass(profileId: string, sessionId: string) {
     if (classSession.status === "CANCELLED") throw new Error("This class has been cancelled.");
     if (classSession.startsAt < new Date()) throw new Error("This class has already started.");
 
-    const isFull = classSession.bookings.length >= classSession.template.capacity;
+    const isFull = classSession.bookings.length >= bookingLimit(classSession.template.capacity);
     const status = isFull ? "WAITLISTED" : "BOOKED";
 
     await tx.booking.upsert({
@@ -86,7 +87,7 @@ export async function cancelBooking(profileId: string, sessionId: string) {
       include: { template: true, bookings: true },
     });
     const bookedCount = classSession.bookings.filter((b) => b.status === "BOOKED").length;
-    if (bookedCount < classSession.template.capacity) {
+    if (bookedCount < bookingLimit(classSession.template.capacity)) {
       const nextInLine = classSession.bookings
         .filter((b) => b.status === "WAITLISTED")
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
