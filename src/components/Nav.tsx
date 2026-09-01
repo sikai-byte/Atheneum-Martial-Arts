@@ -38,18 +38,18 @@ export default function Nav({ name, role }: { name: string; role: string }) {
   return (
     <>
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <Link href={links[0].href} className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+          <Link href={links[0].href} className="flex shrink-0 items-center gap-2">
             <Image src="/logo.png" alt="Atheneum Martial Arts" width={36} height={37} priority />
-            <span className="text-lg font-bold tracking-tight text-brand">Atheneum</span>
+            <span className="text-lg font-bold tracking-tight text-brand md:max-lg:hidden">Atheneum</span>
           </Link>
           <div className="flex items-center gap-4">
-            <nav className="hidden gap-1 sm:flex" aria-label="Primary">
+            <nav className="hidden gap-1 md:flex" aria-label="Primary">
               {links.map((l) => (
                 <Link
                   key={l.href}
                   href={l.href}
-                  className={`rounded-md px-3 py-2 text-sm font-medium ${
+                  className={`rounded-md px-2.5 py-2 text-sm font-medium lg:px-3 ${
                     pathname === l.href
                       ? "bg-brand text-white"
                       : "text-stone-600 hover:bg-stone-100"
@@ -62,7 +62,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
             <div className="flex items-center gap-2">
               <Link
                 href="/account"
-                className={`hidden text-sm sm:inline ${
+                className={`hidden whitespace-nowrap text-sm md:inline ${
                   pathname === "/account" ? "font-medium text-brand" : "text-stone-500 hover:text-stone-700"
                 }`}
               >
@@ -71,7 +71,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
               <form action={logout}>
                 <button
                   type="submit"
-                  className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
+                  className="whitespace-nowrap rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
                 >
                   Sign out
                 </button>
@@ -81,7 +81,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
         </div>
       </header>
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-stone-200 bg-white sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-stone-200 bg-white md:hidden"
         aria-label="Primary mobile"
       >
         {[...links, { href: "/account", label: "Me" }].map((l) => (
