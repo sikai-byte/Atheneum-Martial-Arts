@@ -46,7 +46,7 @@ export default function BookingControls({
         }
 
         return (
-          <form key={profile.id} action={bookClass.bind(null, profile.id, sessionId)}>
+          <form key={profile.id} action={bookClass.bind(null, profile.id, sessionId, "/schedule")}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm text-stone-600">{label}</span>
               <button

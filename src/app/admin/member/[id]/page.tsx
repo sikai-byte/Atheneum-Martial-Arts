@@ -15,7 +15,13 @@ import CopyButton from "@/components/CopyButton";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminMemberPage({ params }: { params: { id: string } }) {
+export default async function AdminMemberPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: { error?: string };
+}) {
   await requireAdmin();
 
   const profile = await prisma.memberProfile.findUnique({
@@ -72,6 +78,14 @@ export default async function AdminMemberPage({ params }: { params: { id: string
           &larr; Back to Admin
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">{profile.name}</h1>
+        {searchParams.error && (
+          <p
+            role="alert"
+            className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            {searchParams.error}
+          </p>
+        )}
         <p className="mt-1 text-stone-600">
           {profile.household.name}
           {profile.isChild

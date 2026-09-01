@@ -111,9 +111,29 @@ async function assertProfileInHousehold(userId: string, profileId: string) {
   if (!allowed) throw new Error("You can only manage bookings for your own household.");
 }
 
-export async function bookClass(profileId: string, sessionId: string) {
+function failTo(path: string, message: string): never {
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+export async function bookClass(
+  profileId: string,
+  sessionId: string,
+  errorPath: string = "/schedule"
+) {
   const user = await requireUser();
   await assertProfileInHousehold(user.id, profileId);
+
+  const target = await prisma.classSession.findUniqueOrThrow({ where: { id: sessionId } });
+  const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+  if (profile.membershipType === "TRIAL") {
+    const trialEnd = trialEndOfDay(profile.membershipRenewsAt);
+    if (!trialEnd || target.startsAt > trialEnd || new Date() > trialEnd) {
+      failTo(
+        errorPath,
+        "That class is outside the trial period — see the front desk to start a membership."
+      );
+    }
+  }
 
   await prisma.$transaction(async (tx) => {
     // Take the write lock up front so the capacity check serializes.
@@ -124,16 +144,6 @@ export async function bookClass(profileId: string, sessionId: string) {
     });
     if (classSession.status === "CANCELLED") throw new Error("This class has been cancelled.");
     if (classSession.startsAt < new Date()) throw new Error("This class has already started.");
-
-    const profile = await tx.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
-    if (profile.membershipType === "TRIAL") {
-      const trialEnd = trialEndOfDay(profile.membershipRenewsAt);
-      if (!trialEnd || classSession.startsAt > trialEnd || new Date() > trialEnd) {
-        throw new Error(
-          "That class is outside the trial period — see the front desk to start a membership."
-        );
-      }
-    }
 
     const isFull = classSession.bookings.length >= bookingLimit(classSession.template.capacity);
     const status = isFull ? "WAITLISTED" : "BOOKED";
@@ -355,10 +365,11 @@ export async function createMemberAccount(formData: FormData) {
 
 export async function adminBookClass(profileId: string, formData: FormData) {
   await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
   const sessionId = String(formData.get("sessionId") ?? "");
-  if (!sessionId) throw new Error("Please pick a class.");
-  await bookClass(profileId, sessionId);
-  revalidatePath(`/admin/member/${profileId}`);
+  if (!sessionId) failTo(memberPath, "Please pick a class.");
+  await bookClass(profileId, sessionId, memberPath);
+  revalidatePath(memberPath);
 }
 
 export async function adminCancelBooking(profileId: string, sessionId: string) {
@@ -373,6 +384,7 @@ const PRIVATE_TRIAL_CLOSE_MIN = 20 * 60; // 8:00 PM
 
 export async function adminBookPrivateTrial(profileId: string, formData: FormData) {
   await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
   const dateRaw = String(formData.get("date") ?? "");
   const timeRaw = String(formData.get("time") ?? "");
   const duration = Number(formData.get("duration") ?? 0);
@@ -380,24 +392,24 @@ export async function adminBookPrivateTrial(profileId: string, formData: FormDat
     String(formData.get("instructor") ?? "").trim().slice(0, 80) || "Atheneum Coach";
 
   if (!PRIVATE_TRIAL_DURATIONS.includes(duration)) {
-    throw new Error("Pick a 30, 45, or 60 minute session.");
+    failTo(memberPath, "Pick a 30, 45, or 60 minute session.");
   }
   const startsAt = new Date(`${dateRaw}T${timeRaw}`);
   if (!dateRaw || !timeRaw || Number.isNaN(startsAt.getTime())) {
-    throw new Error("Please pick a valid date and time.");
+    failTo(memberPath, "Please pick a valid date and time.");
   }
-  if (startsAt < new Date()) throw new Error("That time is in the past.");
+  if (startsAt < new Date()) failTo(memberPath, "That time is in the past.");
 
   const startMins = startsAt.getHours() * 60 + startsAt.getMinutes();
   if (startMins < PRIVATE_TRIAL_OPEN_MIN || startMins + duration > PRIVATE_TRIAL_CLOSE_MIN) {
-    throw new Error("Private trials run between 8:00 AM and 8:00 PM.");
+    failTo(memberPath, "Private trials run between 8:00 AM and 8:00 PM.");
   }
 
   const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
   if (profile.membershipType === "TRIAL") {
     const trialEnd = trialEndOfDay(profile.membershipRenewsAt);
     if (!trialEnd || startsAt > trialEnd) {
-      throw new Error("That time is after the trial ends — extend the trial or pick an earlier slot.");
+      failTo(memberPath, "That time is after the trial ends — extend the trial or pick an earlier slot.");
     }
   }
 
@@ -415,7 +427,8 @@ export async function adminBookPrivateTrial(profileId: string, formData: FormDat
     return s.startsAt < endsAt && sEnd > startsAt;
   });
   if (conflict) {
-    throw new Error(
+    failTo(
+      memberPath,
       `That time overlaps ${conflict.template.name} at ${formatTime(conflict.startsAt)} — pick an open slot.`
     );
   }

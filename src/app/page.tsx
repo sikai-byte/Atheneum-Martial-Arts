@@ -33,7 +33,11 @@ export default async function HomePage() {
     }),
     prisma.announcement.findMany({ orderBy: { createdAt: "desc" }, take: 3 }),
     prisma.classSession.findMany({
-      where: { startsAt: { gte: now }, status: "SCHEDULED" },
+      where: {
+        startsAt: { gte: now },
+        status: "SCHEDULED",
+        template: { name: { not: { startsWith: "Private Trial" } } },
+      },
       include: { template: { include: { program: true } }, bookings: { where: { status: "BOOKED" } } },
       orderBy: { startsAt: "asc" },
       take: 30,

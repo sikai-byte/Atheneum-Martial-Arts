@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams: { program?: string; age?: string; level?: string; view?: string };
+  searchParams: { program?: string; age?: string; level?: string; view?: string; error?: string };
 }) {
   const user = await requireUser();
   const profiles = householdProfiles(user);
@@ -59,7 +59,7 @@ export default async function SchedulePage({
   }
 
   const filterLink = (params: Record<string, string | undefined>) => {
-    const merged = { ...searchParams, ...params };
+    const merged = { ...searchParams, error: undefined, ...params };
     const qs = Object.entries(merged)
       .filter(([, v]) => v)
       .map(([k, v]) => `${k}=${encodeURIComponent(v!)}`)
@@ -71,6 +71,14 @@ export default async function SchedulePage({
     <div>
       <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
       <p className="mt-1 text-stone-600">Find your next class and book in seconds.</p>
+      {searchParams.error && (
+        <p
+          role="alert"
+          className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
+          {searchParams.error}
+        </p>
+      )}
 
       {canSwitchView && (
         <div className="mt-4 inline-flex rounded-lg border border-stone-300 bg-white p-1" aria-label="Schedule view">
