@@ -12,10 +12,11 @@ function databaseFile(): string | null {
   return path.isAbsolute(file) ? file : path.join(process.cwd(), "prisma", file);
 }
 
+// VACUUM INTO is SQLite-only; on Postgres the host takes managed backups instead.
 export function backupDir(): string | null {
-  if (process.env.BACKUP_DIR) return process.env.BACKUP_DIR;
   const file = databaseFile();
-  return file ? path.join(path.dirname(file), "backups") : null;
+  if (!file) return null;
+  return process.env.BACKUP_DIR ?? path.join(path.dirname(file), "backups");
 }
 
 export async function runBackup(): Promise<string | null> {

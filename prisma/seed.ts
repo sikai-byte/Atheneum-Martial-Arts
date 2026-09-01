@@ -416,6 +416,225 @@ async function seedFollowUpBot() {
   console.log("Seeded follow-up sequences and sample leads.");
 }
 
+const PLANS = [
+  {
+    name: "Adult Unlimited",
+    description: "All adult BJJ, Muay Thai and Judo classes.",
+    priceCents: 16900,
+    sortOrder: 1,
+  },
+  {
+    name: "Kids Unlimited",
+    description: "All kids classes, any program.",
+    priceCents: 13900,
+    sortOrder: 2,
+  },
+  {
+    name: "Two Classes / Week",
+    description: "Two classes a week, any program.",
+    priceCents: 11900,
+    classesPerWeek: 2,
+    sortOrder: 3,
+  },
+  {
+    name: "10-Class Punch Pass",
+    description: "Ten classes, no expiry.",
+    priceCents: 20000,
+    billingPeriod: "ONE_TIME",
+    punchPassClasses: 10,
+    sortOrder: 4,
+  },
+];
+
+async function seedMembershipPlans() {
+  for (const plan of PLANS) {
+    await prisma.membershipPlan.upsert({
+      where: { name: plan.name },
+      update: {},
+      create: plan,
+    });
+  }
+}
+
+/**
+ * Gives the sample members real dues history so LTV, MRR and source attribution have something to
+ * show, including one member converted from a Facebook lead so the growth table isn't empty.
+ */
+async function seedMemberships(profiles: {
+  memberProfile: { id: string };
+  parentProfile: { id: string };
+  child1: { id: string };
+  child2: { id: string };
+}) {
+  const plans = await prisma.membershipPlan.findMany();
+  const planByName = new Map(plans.map((p) => [p.name, p]));
+  const adult = planByName.get("Adult Unlimited")!;
+  const kids = planByName.get("Kids Unlimited")!;
+  const punchPass = planByName.get("10-Class Punch Pass")!;
+
+  // Casey has been paying adult dues for 14 months — the studio's best-case retention.
+  await prisma.memberProfile.update({
+    where: { id: profiles.parentProfile.id },
+    data: { joinedAt: daysFromNow(-425) },
+  });
+  const caseyMembership = await prisma.membership.create({
+    data: {
+      profileId: profiles.parentProfile.id,
+      planId: adult.id,
+      priceCents: adult.priceCents,
+      startedAt: daysFromNow(-425),
+      billingDay: 8,
+      nextInvoiceAt: daysFromNow(18),
+    },
+  });
+  for (let i = 13; i >= 0; i -= 1) {
+    await prisma.payment.create({
+      data: {
+        profileId: profiles.parentProfile.id,
+        membershipId: caseyMembership.id,
+        amountCents: adult.priceCents,
+        kind: "DUES",
+        method: "STRIPE",
+        description: "Adult Unlimited dues",
+        paidAt: daysFromNow(-30 * i - 2),
+        recordedBy: "seed",
+      },
+    });
+  }
+
+  // Riley came from a Facebook lead, so her dues are credited to that campaign.
+  const rileyLead = await prisma.lead.upsert({
+    where: { phone: "+19525550142" },
+    update: {},
+    create: {
+      fullName: "Casey Smith",
+      phone: "+19525550142",
+      email: "casey.fb@example.com",
+      source: "FACEBOOK",
+      campaign: "Kids BJJ - Spring Trial",
+      formName: "Kids Free Week",
+      interest: "Kids BJJ for my 8 year old",
+      ageGroup: "KID",
+      childName: "Riley Smith (Sample Child)",
+      status: "WON",
+      submittedAt: daysFromNow(-212),
+      firstContactedAt: new Date(daysFromNow(-212).getTime() + 3 * 60_000),
+      pausedAt: daysFromNow(-205),
+      events: {
+        create: [
+          { type: "CREATED", summary: "Lead captured from FACEBOOK" },
+          { type: "CONVERTED", summary: "Signed up Riley Smith on Kids Unlimited" },
+        ],
+      },
+    },
+  });
+  await prisma.memberProfile.update({
+    where: { id: profiles.child1.id },
+    data: { joinedAt: daysFromNow(-205), leadId: rileyLead.id },
+  });
+  const rileyMembership = await prisma.membership.create({
+    data: {
+      profileId: profiles.child1.id,
+      planId: kids.id,
+      priceCents: kids.priceCents,
+      startedAt: daysFromNow(-205),
+      billingDay: 1,
+      nextInvoiceAt: daysFromNow(9),
+    },
+  });
+  await prisma.payment.create({
+    data: {
+      profileId: profiles.child1.id,
+      membershipId: rileyMembership.id,
+      amountCents: 5000,
+      kind: "SIGNUP_FEE",
+      method: "CARD_TERMINAL",
+      description: "Signup fee + gi",
+      paidAt: daysFromNow(-205),
+      recordedBy: "seed",
+    },
+  });
+  for (let i = 6; i >= 0; i -= 1) {
+    await prisma.payment.create({
+      data: {
+        profileId: profiles.child1.id,
+        membershipId: rileyMembership.id,
+        amountCents: kids.priceCents,
+        kind: "DUES",
+        method: "STRIPE",
+        description: "Kids Unlimited dues",
+        paidAt: daysFromNow(-30 * i - 1),
+        recordedBy: "seed",
+      },
+    });
+  }
+
+  // Avery's card failed this month: past due is the state the studio needs to see and chase.
+  const averyMembership = await prisma.membership.create({
+    data: {
+      profileId: profiles.child2.id,
+      planId: kids.id,
+      priceCents: kids.priceCents,
+      status: "PAST_DUE",
+      startedAt: daysFromNow(-96),
+      billingDay: 14,
+    },
+  });
+  await prisma.payment.createMany({
+    data: [
+      {
+        profileId: profiles.child2.id,
+        membershipId: averyMembership.id,
+        amountCents: kids.priceCents,
+        kind: "DUES",
+        method: "STRIPE",
+        description: "Kids Unlimited dues",
+        paidAt: daysFromNow(-66),
+        recordedBy: "seed",
+      },
+      {
+        profileId: profiles.child2.id,
+        membershipId: averyMembership.id,
+        amountCents: kids.priceCents,
+        kind: "DUES",
+        status: "FAILED",
+        method: "STRIPE",
+        description: "Card declined",
+        paidAt: daysFromNow(-4),
+        recordedBy: "seed",
+      },
+    ],
+  });
+
+  // Jordan bought a punch pass instead of signing up for dues.
+  await prisma.memberProfile.update({
+    where: { id: profiles.memberProfile.id },
+    data: { joinedAt: daysFromNow(-38) },
+  });
+  const jordanMembership = await prisma.membership.create({
+    data: {
+      profileId: profiles.memberProfile.id,
+      planId: punchPass.id,
+      priceCents: punchPass.priceCents,
+      startedAt: daysFromNow(-38),
+    },
+  });
+  await prisma.payment.create({
+    data: {
+      profileId: profiles.memberProfile.id,
+      membershipId: jordanMembership.id,
+      amountCents: punchPass.priceCents,
+      kind: "PUNCH_PASS",
+      method: "CASH",
+      description: "10-class punch pass",
+      paidAt: daysFromNow(-38),
+      recordedBy: "seed",
+    },
+  });
+
+  console.log("Seeded membership plans, memberships and payment history.");
+}
+
 async function ensureAdmin() {
   const existing = await prisma.user.findUnique({ where: { email: "admin@example.com" } });
   if (existing) return;
@@ -450,6 +669,7 @@ async function capCapacities() {
 
 async function main() {
   await seedProducts();
+  await seedMembershipPlans();
   await seedFollowUpBot();
   await capCapacities();
 
@@ -554,6 +774,7 @@ async function main() {
     },
   });
 
+  await seedMemberships({ memberProfile, parentProfile, child1, child2 });
   await ensureAdmin();
 
   const bjj = await prisma.program.create({

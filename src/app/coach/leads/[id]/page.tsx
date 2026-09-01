@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusBadge, TemperatureBadge } from "@/components/leads/LeadBadges";
 import SmsComposer from "@/components/leads/SmsComposer";
+import ConvertLeadForm from "@/components/members/ConvertLeadForm";
 import { requireCoach } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDateTime, formatRelative } from "@/lib/format";
@@ -38,15 +39,19 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       messages: { orderBy: { createdAt: "asc" } },
       events: { orderBy: { createdAt: "desc" }, take: 30 },
       tasks: { where: { status: "PENDING" }, orderBy: { dueAt: "asc" } },
+      profile: { select: { id: true, name: true } },
     },
   });
   if (!lead) notFound();
 
-  const sequences = await prisma.sequence.findMany({
-    where: { active: true },
-    include: { steps: { orderBy: { order: "asc" } } },
-    orderBy: { key: "asc" },
-  });
+  const [sequences, plans] = await Promise.all([
+    prisma.sequence.findMany({
+      where: { active: true },
+      include: { steps: { orderBy: { order: "asc" } } },
+      orderBy: { key: "asc" },
+    }),
+    prisma.membershipPlan.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
+  ]);
   const now = new Date();
   const answers = (() => {
     try {
@@ -296,6 +301,39 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             )}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-stone-200 bg-white p-4">
+        <h2 className="font-semibold">Membership</h2>
+        {lead.profile ? (
+          <p className="mt-2 text-sm text-stone-600">
+            Signed up as{" "}
+            <Link
+              href={`/coach/members/${lead.profile.id}`}
+              className="font-medium text-brand underline"
+            >
+              {lead.profile.name}
+            </Link>
+            . Dues and lifetime value live on the member record.
+          </p>
+        ) : (
+          <>
+            <p className="mt-1 text-xs text-stone-500">
+              Creating the member keeps this lead attached, so every payment they make is credited
+              back to {lead.source.toLowerCase().replace("_", " ")}
+              {lead.campaign && ` · ${lead.campaign}`}.
+            </p>
+            <div className="mt-3">
+              <ConvertLeadForm
+                leadId={lead.id}
+                defaultName={(lead.ageGroup === "KID" ? lead.childName : lead.fullName) || lead.fullName}
+                defaultEmail={lead.email ?? ""}
+                defaultIsChild={lead.ageGroup === "KID"}
+                plans={plans}
+              />
+            </div>
+          </>
+        )}
       </section>
 
       <section className="rounded-xl border border-stone-200 bg-white p-4">

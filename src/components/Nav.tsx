@@ -17,6 +17,8 @@ const coachLinks = [
   { href: "/coach", label: "Today" },
   { href: "/schedule", label: "Schedule" },
   { href: "/coach/leads", label: "Leads" },
+  { href: "/coach/members", label: "Members" },
+  { href: "/coach/growth", label: "Growth" },
   { href: "/community", label: "Community" },
   { href: "/coach/orders", label: "Orders" },
 ];
@@ -26,6 +28,7 @@ const adminLinks = [
   { href: "/coach", label: "Today" },
   { href: "/schedule", label: "Schedule" },
   { href: "/coach/leads", label: "Leads" },
+  { href: "/coach/members", label: "Members" },
   { href: "/community", label: "Community" },
   { href: "/coach/orders", label: "Orders" },
 ];

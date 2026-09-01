@@ -2,7 +2,7 @@
 
 A member-centered web app for Atheneum Martial Arts (Medina, MN). When a member opens the app, it immediately shows what they need for their next successful training session.
 
-Built with Next.js (App Router), TypeScript, Tailwind CSS, Prisma, and SQLite.
+Built with Next.js (App Router), TypeScript, Tailwind CSS, Prisma, and PostgreSQL.
 
 ## Features (MVP vertical slice)
 
@@ -13,6 +13,8 @@ Built with Next.js (App Router), TypeScript, Tailwind CSS, Prisma, and SQLite.
 - **Coach tools** — today's classes, rosters, one-tap attendance check-in
 - **Progress** — attendance history, weekly consistency vs. goal, coach-recorded milestones
 - **Lead follow-up bot** (`/coach/leads`) — new leads are investigated and texted within 5 minutes, then followed up on a cadence until they reply
+- **Members & dues** (`/coach/members`) — sign a lead up as a member in one step, record dues and one-off payments, track past-due cards
+- **Growth** (`/coach/growth`) — leads → members → revenue per source and campaign, and lifetime value per member
 
 ## Lead follow-up bot
 
@@ -64,6 +66,7 @@ demoed and tested.
 | Facebook Lead Ads | `FB_VERIFY_TOKEN`, `FB_APP_SECRET`, `FB_PAGE_ACCESS_TOKEN` | Subscribe the page's `leadgen` webhook to `/api/webhooks/facebook` (the `GET` handler answers Meta's verification challenge) |
 | AI investigation | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` (optional `LLM_MODEL`) | Nothing to wire; falls back to the rules engine on any error |
 | Dispatcher cron | `CRON_SECRET` | Schedule the `curl` above every minute |
+| Stripe dues | `STRIPE_WEBHOOK_SECRET` (optional `STRIPE_BILLING_PORTAL_URL`) | Point a Stripe webhook at `POST /api/webhooks/stripe` for `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted` |
 
 Compliance notes: STOP keywords opt a number out permanently, opted-out leads can't be texted from
 the UI, and quiet hours are enforced for automated sends. The studio is still responsible for
@@ -75,9 +78,10 @@ All data is clearly-labeled sample data until Atheneum supplies the real schedul
 
 ```bash
 npm install
-cp .env.example .env   # then set a real SESSION_SECRET
-npx prisma db push     # create the SQLite database
-npx prisma db seed     # load sample data
+cp .env.example .env      # then set a real SESSION_SECRET
+docker compose up -d db   # local Postgres on port 55432
+npx prisma migrate dev    # apply migrations
+npx prisma db seed        # load sample data
 npm run dev
 ```
 
@@ -98,15 +102,32 @@ Open http://localhost:3000.
 - `npm run build` / `npm start` — production build
 - `npm run lint` — ESLint
 - `npm run typecheck` — TypeScript
-- `npm run db:push` / `npm run db:seed` — database setup
+- `npm run db:migrate` / `npm run db:deploy` / `npm run db:seed` — database setup
 
 ## Deploying (Railway)
 
 The repo includes `railway.json`. On Railway:
 
-1. Create a service from this repo and attach a **volume** mounted at `/data`.
-2. Set environment variables: `DATABASE_URL=file:/data/atheneum.db` and a random `SESSION_SECRET` (32+ chars).
-3. Deploy — the start command (`npm run start:prod`) pushes the Prisma schema and seeds sample data only if the database is empty.
+1. Create a service from this repo and add the **Postgres** plugin (it injects `DATABASE_URL`).
+2. Set a random `SESSION_SECRET` (32+ chars), plus whatever integrations you're using from the table above.
+3. Deploy — the start command (`npm run start:prod`) runs `prisma migrate deploy` and seeds sample data only if the database is empty.
+4. Add a Railway cron running `npm run bot:tick` every minute so follow-ups actually go out.
+
+Keep a second Railway environment (`staging`) pointed at your working branch with its own Postgres,
+so the bot is never tested against real lead phone numbers.
+
+### Membership, dues and LTV
+
+One database holds both sides of the business: `Lead` (where someone came from) and `MemberProfile`
+→ `Membership` → `Payment` (what they're worth). Converting a lead keeps the lead row and links it
+to the new profile, so every payment stays credited to the ad, campaign, or walk-in that produced
+it — that's what `/coach/growth` reports on.
+
+Stripe is optional. Without it, dues are recorded by hand on the member page. With
+`STRIPE_WEBHOOK_SECRET` set, point a Stripe webhook at `POST /api/webhooks/stripe`: paid invoices
+land in the ledger (idempotently, keyed on the Stripe invoice ID), failed invoices flip the
+membership to past due and text the member a link to update their card, and cancelled
+subscriptions end the membership.
 
 ## Notes
 
