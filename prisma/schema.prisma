@@ -66,7 +66,7 @@ model ClassTemplate {
   description String
   ageGroup    String  @default("ADULTS") // ADULTS | KIDS | ALL
   level       String  @default("ALL")    // BEGINNER | ALL | COMPETITION
-  capacity    Int     @default(20)
+  capacity    Int     @default(12)
   durationMin Int     @default(60)
   gearNotes   String  @default("")
   programId   String
