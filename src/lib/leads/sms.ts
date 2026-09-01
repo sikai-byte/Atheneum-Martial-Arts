@@ -1,6 +1,12 @@
+import { ghlConfigured, sendGhlSms } from "./ghl";
+
+export type SmsProvider = "GHL" | "TWILIO" | "MOCK";
+
 export type SmsResult =
-  | { ok: true; provider: "TWILIO" | "MOCK"; providerId: string | null }
-  | { ok: false; provider: "TWILIO" | "MOCK"; error: string };
+  | { ok: true; provider: SmsProvider; providerId: string | null }
+  | { ok: false; provider: SmsProvider; error: string };
+
+export type SmsContact = { name?: string; email?: string | null };
 
 export function twilioConfigured() {
   return Boolean(
@@ -10,15 +16,32 @@ export function twilioConfigured() {
   );
 }
 
+/** Which provider a send would use right now, for the settings page and staff warnings. */
+export function activeSmsProvider(): SmsProvider {
+  if (ghlConfigured()) return "GHL";
+  if (twilioConfigured()) return "TWILIO";
+  return "MOCK";
+}
+
 /**
- * Sends an SMS through Twilio when credentials are present. Without credentials the studio can
- * still run the whole follow-up flow: messages are recorded as sent by the MOCK provider and
- * logged, so cadences, quiet hours, and the staff inbox are all exercisable before go-live.
+ * Sends an SMS through HighLevel (the studio's existing CRM number) when configured, otherwise
+ * Twilio. Without either the studio can still run the whole follow-up flow: messages are recorded
+ * as sent by the MOCK provider and logged, so cadences, quiet hours, and the staff inbox are all
+ * exercisable before go-live.
  */
-export async function sendSms(to: string, body: string): Promise<SmsResult> {
-  if (!twilioConfigured()) {
+export async function sendSms(to: string, body: string, contact: SmsContact = {}): Promise<SmsResult> {
+  const provider = activeSmsProvider();
+
+  if (provider === "MOCK") {
     console.info(`[sms:mock] -> ${to}: ${body}`);
     return { ok: true, provider: "MOCK", providerId: null };
+  }
+
+  if (provider === "GHL") {
+    const result = await sendGhlSms({ phone: to, body, name: contact.name, email: contact.email });
+    return result.ok
+      ? { ok: true, provider: "GHL", providerId: result.providerId }
+      : { ok: false, provider: "GHL", error: result.error };
   }
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID!;

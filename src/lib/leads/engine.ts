@@ -3,7 +3,7 @@ import { prisma } from "../db";
 import { getBotConfig, isQuietHour, nextSendableTime } from "./config";
 import { investigateAndSave } from "./investigate";
 import { firstName, normalizePhone } from "./phone";
-import { sendSms } from "./sms";
+import { sendSms, type SmsProvider } from "./sms";
 import { renderTemplate, truncateForSms } from "./templates";
 
 export const NEW_LEAD_SEQUENCE = "NEW_LEAD";
@@ -234,7 +234,10 @@ export async function dispatchDueFollowUps(options: { leadId?: string; now?: Dat
           }),
     );
 
-    const result = await sendSms(lead.phone, body);
+    const result = await sendSms(lead.phone, body, {
+      name: lead.fullName,
+      email: lead.email,
+    });
     if (!result.ok) {
       await prisma.followUpTask.update({
         where: { id: task.id },
@@ -312,7 +315,7 @@ export async function sendManualSms(leadId: string, rawBody: string, staffName: 
   const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
   if (lead.optedOutAt) throw new LeadInputError("This lead opted out of texts.");
 
-  const result = await sendSms(lead.phone, body);
+  const result = await sendSms(lead.phone, body, { name: lead.fullName, email: lead.email });
   await prisma.leadMessage.create({
     data: {
       leadId,
@@ -327,7 +330,7 @@ export async function sendManualSms(leadId: string, rawBody: string, staffName: 
   });
   if (!result.ok) {
     await logEvent(leadId, "SEND_FAILED", `${staffName} tried to text the lead`, result.error);
-    throw new LeadInputError(`Twilio rejected the message: ${result.error}`);
+    throw new LeadInputError(`${result.provider} rejected the message: ${result.error}`);
   }
   await prisma.lead.update({
     where: { id: leadId },
@@ -391,7 +394,11 @@ function looksLikeOptOut(body: string) {
  * Records an inbound text, stops the robot from talking over a live conversation, and (optionally)
  * acknowledges instantly so the lead isn't left waiting for a human.
  */
-export async function handleInboundSms(fromPhone: string, rawBody: string) {
+export async function handleInboundSms(
+  fromPhone: string,
+  rawBody: string,
+  provider: SmsProvider = "TWILIO",
+) {
   const phone = normalizePhone(fromPhone);
   if (!phone) return { matched: false as const };
   const lead = await prisma.lead.findUnique({ where: { phone } });
@@ -400,7 +407,7 @@ export async function handleInboundSms(fromPhone: string, rawBody: string) {
   const body = rawBody.trim();
   const now = new Date();
   await prisma.leadMessage.create({
-    data: { leadId: lead.id, direction: "INBOUND", body, status: "RECEIVED", provider: "TWILIO" },
+    data: { leadId: lead.id, direction: "INBOUND", body, status: "RECEIVED", provider },
   });
   await logEvent(lead.id, "SMS_RECEIVED", "Lead replied by text", body);
 
@@ -434,7 +441,7 @@ export async function handleInboundSms(fromPhone: string, rawBody: string) {
         ? `Awesome, ${firstName(lead.fullName)}! A coach will text you in a few minutes to lock in a class time. If it's easier, you can grab a spot here: ${config.bookingLink}`
         : `Thanks ${firstName(lead.fullName)} — got it. A coach at ${config.studioName} will follow up shortly.`,
     );
-    const result = await sendSms(lead.phone, reply);
+    const result = await sendSms(lead.phone, reply, { name: lead.fullName, email: lead.email });
     await prisma.leadMessage.create({
       data: {
         leadId: lead.id,
