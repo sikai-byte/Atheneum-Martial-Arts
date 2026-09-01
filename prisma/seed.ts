@@ -159,7 +159,7 @@ const REACTIVATION_STEPS = [
     delayMinutes: 0,
     goal: "Re-introduce the studio without pretending they just enquired",
     template:
-      "Hi {{firstName}}, it's {{studio}} in Medina. You asked about {{program}} a while back and we just opened new beginner spots. Want me to hold one for {{who}} this week?",
+      "Hi {{firstName}}, it's {{studio}} in Medina. You reached out to us a while back, and we just opened new beginner spots in {{program}}. Want me to hold one for {{who}} this week?",
   },
   {
     order: 2,
@@ -203,15 +203,20 @@ async function seedFollowUpBot() {
   ];
 
   for (const sequence of sequences) {
-    const existing = await prisma.sequence.findUnique({ where: { key: sequence.key } });
-    if (existing) continue;
-    await prisma.sequence.create({
-      data: {
-        key: sequence.key,
-        name: sequence.name,
-        purpose: sequence.purpose,
-        steps: { create: sequence.steps },
-      },
+    const record = await prisma.sequence.upsert({
+      where: { key: sequence.key },
+      update: { name: sequence.name, purpose: sequence.purpose },
+      create: { key: sequence.key, name: sequence.name, purpose: sequence.purpose },
+    });
+    for (const step of sequence.steps) {
+      await prisma.sequenceStep.upsert({
+        where: { sequenceId_order: { sequenceId: record.id, order: step.order } },
+        update: { delayMinutes: step.delayMinutes, goal: step.goal, template: step.template },
+        create: { ...step, sequenceId: record.id },
+      });
+    }
+    await prisma.sequenceStep.deleteMany({
+      where: { sequenceId: record.id, order: { gt: sequence.steps.length } },
     });
   }
 

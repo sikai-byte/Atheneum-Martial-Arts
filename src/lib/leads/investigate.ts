@@ -158,7 +158,7 @@ function investigateWithRules(
   const name = firstName(lead.fullName);
   const suggestedFirstText =
     age > 30
-      ? `Hi ${name}, it's ${studioName}. You asked about ${recommendedProgram} a while back and we just opened new beginner spots. Want me to hold one for ${youOrChild} this week?`
+      ? `Hi ${name}, it's ${studioName}. You reached out to us a while back and we just opened new beginner spots in ${recommendedProgram}. Want me to hold one for ${youOrChild} this week?`
       : `Hi ${name}, thanks for reaching out to ${studioName}! I can get ${youOrChild} into a free ${recommendedProgram} class this week. Does a weeknight or Saturday work better?`;
 
   return {
