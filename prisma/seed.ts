@@ -121,7 +121,7 @@ const NEW_LEAD_STEPS = [
     delayMinutes: 0,
     goal: "Reply within 5 minutes while they're still on their phone",
     template:
-      "Hi {{firstName}}, this is {{studio}} in Medina — thanks for asking about {{program}}! I can get {{who}} into a free class this week. Does a weeknight or Saturday work better?",
+      "Hi {{firstName}}, this is {{studio}} in Medina — thanks for asking about {{program}}! I can get {{who}} into a free class this week. Does a weeknight or Saturday work better? Reply STOP to opt out.",
   },
   {
     order: 2,
@@ -159,7 +159,7 @@ const REACTIVATION_STEPS = [
     delayMinutes: 0,
     goal: "Re-introduce the studio without pretending they just enquired",
     template:
-      "Hi {{firstName}}, it's {{studio}} in Medina. You reached out to us a while back, and we just opened new beginner spots in {{program}}. Want me to hold one for {{who}} this week?",
+      "Hi {{firstName}}, it's {{studio}} in Medina. You reached out to us a while back, and we just opened new beginner spots in {{program}}. Want me to hold one for {{who}} this week? Reply STOP to opt out.",
   },
   {
     order: 2,
