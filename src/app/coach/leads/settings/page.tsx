@@ -4,7 +4,8 @@ import { requireCoach } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getBotConfig } from "@/lib/leads/config";
 import { llmConfigured } from "@/lib/leads/investigate";
-import { twilioConfigured } from "@/lib/leads/sms";
+import { ghlConfigured } from "@/lib/leads/ghl";
+import { activeSmsProvider, twilioConfigured } from "@/lib/leads/sms";
 
 export const dynamic = "force-dynamic";
 
@@ -18,13 +19,25 @@ export default async function BotSettingsPage() {
     }),
   ]);
 
+  const provider = activeSmsProvider();
+
   const integrations = [
+    {
+      name: "HighLevel / Gymnetics SMS",
+      ready: ghlConfigured(),
+      detail: ghlConfigured()
+        ? "Texts go out through the studio's existing HighLevel number. Add a workflow webhook on inbound messages pointing at /api/webhooks/ghl/inbound?secret=GHL_WEBHOOK_SECRET so replies pause follow-up."
+        : "Set GHL_API_TOKEN (private integration token) and GHL_LOCATION_ID to text from the number already on the Gymnetics sub-account.",
+    },
     {
       name: "Twilio SMS",
       ready: twilioConfigured(),
-      detail: twilioConfigured()
-        ? "Texts are delivered through Twilio."
-        : "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER (or TWILIO_MESSAGING_SERVICE_SID). Point the number's inbound webhook at /api/webhooks/twilio/sms.",
+      detail:
+        provider === "GHL" && twilioConfigured()
+          ? "Configured but unused: HighLevel takes priority while its token is set."
+          : twilioConfigured()
+            ? "Texts are delivered through Twilio."
+            : "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER (or TWILIO_MESSAGING_SERVICE_SID). Point the number's inbound webhook at /api/webhooks/twilio/sms.",
     },
     {
       name: "Facebook Lead Ads",

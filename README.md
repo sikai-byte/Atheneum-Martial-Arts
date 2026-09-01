@@ -35,7 +35,7 @@ Goal: never let a lead sit. Every lead — from a Facebook ad, the front desk, o
 4. **Cadence** — `NEW_LEAD` (5 texts over a week) or `REACTIVATION` for leads older than two weeks
    (4 texts over three weeks, opening with a new-intake angle instead of "thanks for enquiring").
    Templates and delays live in the database and are editable without a code change.
-5. **Reply** — the inbound Twilio webhook records the text, cancels the queued drip so the bot
+5. **Reply** — the inbound webhook (HighLevel or Twilio) records the text, cancels the queued drip so the bot
    can't talk over a live conversation, moves the lead to *replied*, re-investigates, and
    acknowledges instantly so the lead isn't left waiting.
 6. **Stop conditions** — STOP/unsubscribe keywords, a coach marking *do not text*, or the lead
@@ -62,11 +62,17 @@ demoed and tested.
 
 | Integration | Variables | Wiring |
 | --- | --- | --- |
+| HighLevel / Gymnetics SMS | `GHL_API_TOKEN`, `GHL_LOCATION_ID`, `GHL_WEBHOOK_SECRET` (optional `GHL_FROM_NUMBER`) | Texts from the number already on the sub-account, so no separate number or 10DLC registration. Add a HighLevel workflow triggered on inbound messages with a webhook action posting to `/api/webhooks/ghl/inbound?secret=$GHL_WEBHOOK_SECRET` |
 | Twilio SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` (or `TWILIO_MESSAGING_SERVICE_SID`) | Set the number's inbound webhook to `POST /api/webhooks/twilio/sms`; set `PUBLIC_BASE_URL` behind a proxy so signature validation works |
 | Facebook Lead Ads | `FB_VERIFY_TOKEN`, `FB_APP_SECRET`, `FB_PAGE_ACCESS_TOKEN` | Subscribe the page's `leadgen` webhook to `/api/webhooks/facebook` (the `GET` handler answers Meta's verification challenge) |
 | AI investigation | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` (optional `LLM_MODEL`) | Nothing to wire; falls back to the rules engine on any error |
 | Dispatcher cron | `CRON_SECRET` | Schedule the `curl` above every minute |
 | Stripe dues | `STRIPE_WEBHOOK_SECRET` (optional `STRIPE_BILLING_PORTAL_URL`) | Point a Stripe webhook at `POST /api/webhooks/stripe` for `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted` |
+
+Only one SMS provider is used per send: HighLevel when `GHL_API_TOKEN` and `GHL_LOCATION_ID` are
+set, else Twilio, else the mock. Outbound HighLevel sends upsert the lead as a contact first (the
+API addresses messages by contact, not number), which also keeps one conversation thread per
+person inside Gymnetics.
 
 Compliance notes: STOP keywords opt a number out permanently, opted-out leads can't be texted from
 the UI, and quiet hours are enforced for automated sends. The studio is still responsible for
