@@ -1,5 +1,6 @@
 "use server";
 
+import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import bcrypt from "bcryptjs";
@@ -10,6 +11,7 @@ import { getSession } from "./session";
 import { requireAdmin, requireCoach, requireUser } from "./auth";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
 import { bookingLimit } from "./capacity";
+import { appUrl, sendPasswordResetEmail } from "./email";
 
 export type LoginState = { error?: string };
 
@@ -30,6 +32,69 @@ export async function logout() {
   const session = await getSession();
   session.destroy();
   redirect("/login");
+}
+
+export type ForgotPasswordState = { done?: boolean; error?: string };
+
+export async function requestPasswordReset(
+  _prevState: ForgotPasswordState,
+  formData: FormData
+): Promise<ForgotPasswordState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) return { error: "Enter your email address." };
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (user) {
+    const token = crypto.randomBytes(32).toString("base64url");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
+    await prisma.passwordResetToken.create({
+      data: {
+        tokenHash,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    try {
+      await sendPasswordResetEmail(email, `${appUrl()}/reset-password?token=${token}`);
+    } catch (err) {
+      console.error("Password reset email failed:", err);
+      return { error: "We couldn't send the email right now. Please try again in a few minutes." };
+    }
+  }
+
+  // Same response whether or not the account exists.
+  return { done: true };
+}
+
+export type ResetPasswordState = { error?: string };
+
+export async function resetPassword(
+  _prevState: ResetPasswordState,
+  formData: FormData
+): Promise<ResetPasswordState> {
+  const token = String(formData.get("token") ?? "");
+  const newPassword = String(formData.get("newPassword") ?? "");
+  if (newPassword.length < 8) return { error: "Password must be at least 8 characters." };
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+  if (!record || record.usedAt || record.expiresAt < new Date()) {
+    return { error: "This reset link is invalid or has expired. Please request a new one." };
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { passwordHash: await bcrypt.hash(newPassword, 10) },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+
+  redirect("/login?reset=1");
 }
 
 async function assertProfileInHousehold(userId: string, profileId: string) {

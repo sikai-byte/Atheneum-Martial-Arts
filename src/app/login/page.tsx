@@ -1,6 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { login, type LoginState } from "@/lib/actions";
 
@@ -14,6 +17,16 @@ function SubmitButton() {
     >
       {pending ? "Signing in…" : "Sign in"}
     </button>
+  );
+}
+
+function ResetNotice() {
+  const wasReset = useSearchParams().get("reset") === "1";
+  if (!wasReset) return null;
+  return (
+    <p className="mt-4 rounded-lg bg-green-50 px-3 py-2 text-center text-sm text-green-800">
+      Your password has been updated. Sign in with your new password.
+    </p>
   );
 }
 
@@ -50,6 +63,9 @@ export default function LoginPage() {
           This is where you belong.
         </p>
       </div>
+      <Suspense>
+        <ResetNotice />
+      </Suspense>
       <form action={formAction} className="mt-6 space-y-4">
         <div>
           <label htmlFor="email" className="mb-1 block text-sm font-medium">
@@ -83,6 +99,11 @@ export default function LoginPage() {
           </p>
         )}
         <SubmitButton />
+        <p className="text-center text-sm">
+          <Link href="/forgot-password" className="font-medium text-brand hover:underline">
+            Forgot your password?
+          </Link>
+        </p>
       </form>
       <div className="mt-8 rounded-lg border border-stone-200 bg-white p-4 text-sm text-stone-600">
         <p className="font-semibold text-stone-800">Sample accounts (password: atheneum123)</p>
