@@ -43,8 +43,8 @@ export default function LoginPage() {
         priority
         className="mx-auto"
       />
-      <h1 className="mt-3 text-center text-2xl font-bold tracking-tight text-brand">
-        Atheneum Martial Arts
+      <h1 className="mt-3 text-center text-2xl font-bold tracking-wide text-brand">
+        ATHENEUM MARTIAL ARTS
       </h1>
       <p className="mt-1 text-center text-stone-600">
         Sign in to book classes and track your training.

@@ -44,7 +44,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <Link href={links[0].href} className="flex shrink-0 items-center gap-2">
             <Image src="/logo.png" alt="Atheneum Martial Arts" width={36} height={37} priority />
-            <span className="text-lg font-bold tracking-tight text-brand">Atheneum</span>
+            <span className="text-lg font-bold tracking-wide text-brand">ATHENEUM</span>
           </Link>
           <div className="flex items-center gap-4">
             <nav className="hidden gap-1 lg:flex" aria-label="Primary">
