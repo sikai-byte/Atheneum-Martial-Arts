@@ -15,6 +15,8 @@ type Settings = {
   agentEnabled: boolean;
   agentMode: string;
   agentPersona: string;
+  coachAlertPhone: string;
+  coachAlertHours: number;
 };
 
 function Submit() {
@@ -204,6 +206,40 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
             Name and tone. Leads will assume this is a person, so use a real coach&apos;s name only
             if that coach is happy to be the one texting.
           </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="coachAlertPhone" className="mb-1 block text-sm font-medium">
+              Text a coach on handoff
+            </label>
+            <input
+              id="coachAlertPhone"
+              name="coachAlertPhone"
+              defaultValue={settings.coachAlertPhone}
+              placeholder="(612) 555-0123"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-stone-500">
+              Whenever the agent hands a lead over — pricing, haggling, anything it may not answer —
+              this number gets the lead&apos;s details and a link to the thread. Leave blank for no
+              alerts.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="coachAlertHours" className="mb-1 block text-sm font-medium">
+              Hours before the same lead can alert again
+            </label>
+            <input
+              id="coachAlertHours"
+              name="coachAlertHours"
+              type="number"
+              min={0}
+              max={168}
+              defaultValue={settings.coachAlertHours}
+              className={inputClass}
+            />
+          </div>
         </div>
       </fieldset>
 

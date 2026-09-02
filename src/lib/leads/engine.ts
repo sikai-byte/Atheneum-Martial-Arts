@@ -1,7 +1,7 @@
 import type { Lead } from "@prisma/client";
 import { prisma } from "../db";
 import { composeAgentReply, type AgentReply } from "./agent";
-import { getBotConfig, isQuietHour, nextSendableTime } from "./config";
+import { getBotConfig, isQuietHour, nextSendableTime, type BotSettings } from "./config";
 import { investigateAndSave } from "./investigate";
 import { llmConfigured } from "./llm";
 import { firstName, normalizePhone } from "./phone";
@@ -525,6 +525,46 @@ function keywordAcknowledgement(
 }
 
 /**
+ * Texts the coach when the agent hands a lead over — pricing questions, haggling, anything it may
+ * not answer — so a live conversation is not left waiting on someone checking the inbox. Quiet
+ * hours do not apply: this goes to staff, not to a lead.
+ */
+async function alertCoach(leadId: string, reason: string, config: BotSettings): Promise<boolean> {
+  const to = normalizePhone(config.coachAlertPhone);
+  if (!to) return false;
+
+  const since = new Date(Date.now() - config.coachAlertHours * 60 * 60 * 1000);
+  const recent = await prisma.leadEvent.findFirst({
+    where: { leadId, type: "COACH_ALERTED", createdAt: { gte: since } },
+  });
+  if (recent) return false;
+
+  const lead = await prisma.lead.findUniqueOrThrow({
+    where: { id: leadId },
+    include: { messages: { where: { direction: "INBOUND" }, orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  const base = (process.env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
+  const body = truncateForSms(
+    [
+      `${lead.fullName} (${lead.phone}) needs you: ${reason}`,
+      lead.messages[0] ? `They said: "${lead.messages[0].body}"` : "",
+      base ? `${base}/coach/leads/${lead.id}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+
+  const result = await sendSms(to, body);
+  await logEvent(
+    leadId,
+    "COACH_ALERTED",
+    result.ok ? "Texted the coach about this handoff" : "Could not text the coach about this handoff",
+    result.ok ? body : result.error,
+  );
+  return result.ok;
+}
+
+/**
  * Runs the sales agent over a conversation and either sends its reply or leaves it as a draft for
  * staff, depending on `agentMode`. Drafts are stored as `DRAFT` messages on the thread so the
  * coach sees the proposed text in context rather than in a separate queue.
@@ -550,6 +590,7 @@ export async function respondToLead(
       data: { handoffAt: new Date(), handoffReason: reply.reason },
     });
     await logEvent(leadId, "HANDOFF", "Sales agent asked for a human", reply.reason);
+    await alertCoach(leadId, reply.reason, config);
   }
 
   // A draft is the safe default: nothing reaches the lead until a coach approves it.

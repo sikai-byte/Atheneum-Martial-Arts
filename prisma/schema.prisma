@@ -332,7 +332,7 @@ model LeadMessage {
 
 model LeadEvent {
   id        String   @id @default(cuid())
-  type      String   // CREATED | SMS_SENT | SMS_RECEIVED | INVESTIGATED | STATUS_CHANGED | PAUSED | RESUMED | OPTED_OUT | SEND_FAILED | CONVERTED
+  type      String   // CREATED | SMS_SENT | SMS_RECEIVED | INVESTIGATED | STATUS_CHANGED | PAUSED | RESUMED | OPTED_OUT | SEND_FAILED | CONVERTED | HANDOFF | COACH_ALERTED
   summary   String
   detail    String   @default("")
   createdAt DateTime @default(now())
@@ -373,6 +373,8 @@ model BotConfig {
   agentEnabled     Boolean @default(true) // let the sales agent write replies (needs an LLM key)
   agentMode        String  @default("DRAFT") // DRAFT (staff approves) | AUTOPILOT (sends itself)
   agentPersona     String  @default("You are Sam, the front-desk coach at the studio. Warm, direct, never pushy.")
+  coachAlertPhone  String  @default("") // texted when the agent hands a lead to a human
+  coachAlertHours  Int     @default(6)  // quiet window before the same lead can alert again
 }
 
 /// Everything the sales agent is allowed to claim: programs, prices, policies, objection

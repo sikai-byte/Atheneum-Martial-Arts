@@ -304,6 +304,8 @@ export async function updateBotConfigAction(
       agentEnabled: formData.get("agentEnabled") === "on",
       agentMode: formData.get("agentMode") === "AUTOPILOT" ? "AUTOPILOT" : "DRAFT",
       agentPersona: String(formData.get("agentPersona") ?? "").trim() || undefined,
+      coachAlertPhone: String(formData.get("coachAlertPhone") ?? "").trim(),
+      coachAlertHours: Math.min(168, Math.max(0, Number(formData.get("coachAlertHours")) || 0)),
     },
     create: { id: "default" },
   });
