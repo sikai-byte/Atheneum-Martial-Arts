@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { dispatchDueFollowUps } from "@/lib/leads/engine";
+import { ensureUpcomingSessions } from "@/lib/schedule/rollout";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,9 @@ async function tick(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
+  const sessionsCreated = await ensureUpcomingSessions();
   const summary = await dispatchDueFollowUps();
-  return NextResponse.json({ ranAt: new Date().toISOString(), ...summary });
+  return NextResponse.json({ ranAt: new Date().toISOString(), sessionsCreated, ...summary });
 }
 
 export async function GET(request: Request) {

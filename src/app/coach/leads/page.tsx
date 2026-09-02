@@ -15,6 +15,7 @@ const FILTERS = [
   { key: "all", label: "All" },
   { key: "new", label: "Awaiting first text" },
   { key: "engaged", label: "Replied" },
+  { key: "handoff", label: "Needs a coach" },
   { key: "working", label: "In sequence" },
   { key: "won", label: "Won" },
   { key: "closed", label: "Closed" },
@@ -28,6 +29,13 @@ function whereForFilter(filter: FilterKey) {
       return { firstContactedAt: null, optedOutAt: null };
     case "engaged":
       return { status: "ENGAGED" };
+    case "handoff":
+      return {
+        OR: [
+          { handoffAt: { not: null } },
+          { messages: { some: { status: "DRAFT" } } },
+        ],
+      };
     case "working":
       return { status: { in: ["CONTACTED", "NEW"] }, tasks: { some: { status: "PENDING" } } };
     case "won":

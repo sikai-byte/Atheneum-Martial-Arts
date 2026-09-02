@@ -69,6 +69,17 @@ export default async function BotSettingsPage() {
         <h1 className="mt-2 text-2xl font-bold tracking-tight">Bot settings</h1>
       </div>
 
+      <Link
+        href="/coach/leads/knowledge"
+        className="block rounded-xl border border-stone-200 bg-white p-4 hover:bg-stone-50"
+      >
+        <p className="font-semibold">What the agent knows →</p>
+        <p className="mt-1 text-sm text-stone-600">
+          Programs, prices, policies, objections and upsell paths. The agent can only state facts
+          from here, so this is where you correct it.
+        </p>
+      </Link>
+
       <div className="rounded-xl border border-stone-200 bg-white p-4">
         <BotSettingsForm settings={config} />
       </div>

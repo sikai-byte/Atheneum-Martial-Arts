@@ -1,7 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { SEED_KNOWLEDGE } from "../src/lib/leads/knowledgeSeed";
 
 const prisma = new PrismaClient();
+
+async function seedKnowledge() {
+  for (const item of SEED_KNOWLEDGE) {
+    const existing = await prisma.knowledgeItem.findFirst({ where: { title: item.title } });
+    if (existing) continue;
+    await prisma.knowledgeItem.create({ data: item });
+  }
+}
 
 function daysFromNow(days: number) {
   const d = new Date();
@@ -10,13 +19,52 @@ function daysFromNow(days: number) {
   return d;
 }
 
+const STUDIO_TZ = "America/Chicago";
+
+function studioParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: STUDIO_TZ,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "0";
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return {
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+    hour: Number(get("hour")) % 24,
+    minute: Number(get("minute")),
+    dayOfWeek: weekdays.indexOf(get("weekday")),
+  };
+}
+
+/** Wall-clock time at the studio, converted to the UTC instant we store. */
+function studioTime(year: number, month: number, day: number, hour: number, minute: number) {
+  const naive = Date.UTC(year, month - 1, day, hour, minute);
+  let guess = naive;
+  // Two passes settle the offset either side of a daylight-saving change.
+  for (let i = 0; i < 2; i += 1) {
+    const local = studioParts(new Date(guess));
+    const localAsUtc = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute);
+    guess += naive - localAsUtc;
+  }
+  return new Date(guess);
+}
+
+/**
+ * The weekly schedule is written in the studio's local time, so seeding has to convert rather than
+ * use the server clock: on a UTC box `setHours(17)` would put the 5:15pm kids class at lunchtime.
+ */
 function nextDateAt(dayOfWeek: number, hour: number, minute: number, weekOffset = 0) {
-  const now = new Date();
-  const d = new Date(now);
-  const diff = (dayOfWeek - now.getDay() + 7) % 7;
-  d.setDate(now.getDate() + diff + weekOffset * 7);
-  d.setHours(hour, minute, 0, 0);
-  return d;
+  const today = studioParts(new Date());
+  const diff = (dayOfWeek - today.dayOfWeek + 7) % 7;
+  return studioTime(today.year, today.month, today.day + diff + weekOffset * 7, hour, minute);
 }
 
 async function resetIfOutdatedSchedule() {
@@ -28,6 +76,7 @@ async function resetIfOutdatedSchedule() {
   console.log("Outdated sample data detected — resetting database.");
   await prisma.attendance.deleteMany();
   await prisma.booking.deleteMany();
+  await prisma.trialBooking.deleteMany();
   await prisma.classSession.deleteMany();
   await prisma.classTemplate.deleteMany();
   await prisma.program.deleteMany();
@@ -184,8 +233,44 @@ const REACTIVATION_STEPS = [
   },
 ];
 
+/**
+ * After someone signs up the goal stops being the sale: settle them in, catch the drop-off risk
+ * in the first month, and only then look for a second discipline or a referral.
+ */
+const MEMBER_NURTURE_STEPS = [
+  {
+    order: 1,
+    delayMinutes: 1440,
+    goal: "Welcome and remove first-class friction",
+    template:
+      "Welcome to {{studio}}, {{firstName}}! Turn up 10 minutes early for the first class, wear shorts and a t-shirt, and bring water — we'll lend {{who}} any gear needed. Any questions before then?",
+  },
+  {
+    order: 2,
+    delayMinutes: 20160,
+    goal: "Catch the two-week wobble before it becomes a cancellation",
+    template:
+      "Hi {{firstName}} — two weeks in. How's {{who}} finding it so far? If anything felt off, tell me and I'll get a coach on it.",
+  },
+  {
+    order: 3,
+    delayMinutes: 43200,
+    goal: "Ask for the referral once they're getting value",
+    template:
+      "{{firstName}}, glad to see {{who}} on the mats. Training partners make it stick — if there's a friend who'd enjoy it, send them my way and their first class is free too.",
+  },
+  {
+    order: 4,
+    delayMinutes: 86400,
+    goal: "Offer a second discipline, only after the habit is established",
+    template:
+      "Hi {{firstName}} — {{who}} has built a solid base now. Plenty of our students add a second art around this point because it sharpens the first. Want me to explain which pairs well?",
+  },
+];
+
 async function seedFollowUpBot() {
   await prisma.botConfig.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
+  await seedKnowledge();
 
   const sequences = [
     {
@@ -199,6 +284,12 @@ async function seedFollowUpBot() {
       name: "Old lead reactivation (4 texts over 3 weeks)",
       purpose: "Leads older than two weeks: re-introduce the studio and offer a new intake.",
       steps: REACTIVATION_STEPS,
+    },
+    {
+      key: "MEMBER_NURTURE",
+      name: "New member nurture (4 texts over 2 months)",
+      purpose: "Post-signup: settle them in, catch early drop-off, then referrals and a second art.",
+      steps: MEMBER_NURTURE_STEPS,
     },
   ];
 
