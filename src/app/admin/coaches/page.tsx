@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { coachInitials } from "@/lib/format";
+import PhotoCropUploader from "@/components/PhotoCropUploader";
 import {
   createCoach,
   deleteCoach,
@@ -158,22 +159,11 @@ export default async function AdminCoachesPage({
                     </span>
                   )}
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <form action={updateCoachPhoto.bind(null, coach.id)} className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      name="photo"
-                      accept="image/jpeg,image/png,image/webp"
-                      required
-                      className="max-w-52 text-xs"
-                    />
-                    <button
-                      type="submit"
-                      className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
-                    >
-                      Upload photo
-                    </button>
-                  </form>
+                <div className="mt-2 flex flex-wrap items-start gap-3">
+                  <PhotoCropUploader
+                    action={updateCoachPhoto.bind(null, coach.id)}
+                    buttonLabel={coach.photoType ? "Change photo" : "Upload photo"}
+                  />
                   {coach.photoType && (
                     <form action={removeCoachPhoto.bind(null, coach.id)}>
                       <button
