@@ -103,7 +103,7 @@ export const SEED_KNOWLEDGE: Array<
   {
     category: "PRICING",
     title: "Kids membership rates",
-    body: "Kids start at $160 per month for one class a week. There are also $180 per month for two classes a week and $240 per month unlimited. Do not list all three like a menu: ask how many days a week they want their child training, then give the one rate that matches.",
+    body: "Kids pricing depends on how often the child trains — one class a week, two, or unlimited — and the tiers came out of specific conversations with specific families rather than a published price list. The agent never quotes a kids rate over text: ask how many days a week they are picturing, then hand off so a coach can price it. The first class is free regardless.",
     audience: "KIDS",
     program: "",
     order: 31,

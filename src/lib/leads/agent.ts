@@ -45,6 +45,8 @@ const HARD_RULES = [
   "- Keep the text under 300 characters.",
   "- Do not add an opt-out line: the system adds it where it is required.",
   "- If the lead is upset, asks for a human, asks something the facts do not cover, or is negotiating money, use HANDOFF and write a short holding message.",
+  "- Children's rates depend on how many days a week the family wants, so never quote one. Ask what schedule suits them and hand off for the coach to price it.",
+  "- Never negotiate, discount or agree to a budget. Any haggling is a HANDOFF.",
 ].join("\n");
 
 type AgentLead = Lead & { messages: LeadMessage[]; insight: LeadInsight | null };
@@ -156,6 +158,12 @@ function buildAgentPrompt(input: {
 }
 
 const MONEY = /\$\s?\d/;
+/** Someone pushing on price: a coach owns that conversation, not the agent. */
+const NEGOTIATION =
+  /\b(discount|cheaper|cheapest|too expensive|can'?t afford|budget|deal|special rate|price match|payment plan|scholarship|free month|waive)\b|\bcan you do \$/i;
+/** The lead saying yes to a time, which is what turns a proposal into a real booking. */
+const AGREEMENT =
+  /\b(yes|yep|yeah|yup|sure|ok|okay|sounds good|that works|works for (me|us|him|her)|perfect|great|let'?s do it|see you|book (us|him|her|me|it)|sign (him|her|us|me) up|we'?ll be there|i'?ll be there)\b/i;
 const CLOCK = /\b\d{1,2}\s?(?::\d{2})?\s?(?:am|pm)\b/i;
 const WEEKDAY = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i;
 
@@ -192,6 +200,16 @@ export function verifyAgainstFacts(
   }
 
   return { ok: true };
+}
+
+/**
+ * The lead has to have said yes before a booking is real. Without this the model happily attaches
+ * a `sessionId` to "how about Monday 6:15?", which would book someone who never agreed.
+ */
+function acceptedAnOffer(messages: LeadMessage[]): boolean {
+  const lastInbound = [...messages].reverse().find((m) => m.direction === "INBOUND");
+  if (!lastInbound) return false;
+  return AGREEMENT.test(lastInbound.body) || CLOCK.test(lastInbound.body) || WEEKDAY.test(lastInbound.body);
 }
 
 function fallbackReply(lead: AgentLead, config: BotSettings): AgentReply {
@@ -268,7 +286,24 @@ export async function composeAgentReply(
   const reason = typeof parsed?.reason === "string" ? parsed.reason : "";
   const claimedSession = typeof parsed?.sessionId === "string" ? parsed.sessionId : "";
   // Only ids we actually offered can be booked, so a hallucinated id books nothing.
-  const sessionId = classes.some((c) => c.id === claimedSession) ? claimedSession : null;
+  const offered = classes.some((c) => c.id === claimedSession) ? claimedSession : null;
+  const sessionId = acceptedAnOffer(lead.messages) ? offered : null;
+
+  const lastInbound = [...lead.messages].reverse().find((m) => m.direction === "INBOUND");
+  const haggling = NEGOTIATION.test(lastInbound?.body ?? "");
+  const quotesKidsRate = lead.ageGroup === "KID" && MONEY.test(message);
+  if (haggling || quotesKidsRate) {
+    return {
+      body: `Thanks ${firstName(lead.fullName)} — let me get a coach to answer that one properly. They'll text you shortly.`,
+      action: "HANDOFF",
+      sessionId: null,
+      reason: haggling
+        ? "Lead is negotiating on price — a coach owns that conversation."
+        : "Draft quoted a children's rate, which depends on the family's schedule.",
+      generatedBy: "AI",
+      model: response.model,
+    };
+  }
 
   const allowed = [facts, classes.map((c) => c.label).join("\n")].join("\n");
   const verdict = verifyAgainstFacts(message, allowed);
