@@ -361,8 +361,9 @@ export default async function AdminMemberPage({
           </h2>
           <div className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <p className="text-sm text-stone-600">
-              Paste this into your lead bot&apos;s text message. Replace the password placeholder
-              with the temp password you set.
+              Trial members are emailed their sign-in details automatically when the account is
+              created, and again when you book their class. Use this text if you also want to
+              send it by SMS — replace the password placeholder with the temp password you set.
             </p>
             <p className="rounded-lg bg-stone-50 p-3 text-sm text-stone-800">{inviteText}</p>
             <CopyButton text={inviteText} />

@@ -29,6 +29,62 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   }
 }
 
+const BRAND_WRAP = (inner: string) =>
+  `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+    <h2 style="color:#0039b7">Atheneum Martial Arts</h2>
+    ${inner}
+  </div>`;
+
+export async function sendTrialWelcomeEmail(
+  to: string,
+  firstName: string,
+  password: string,
+  trialEndsAt: Date
+): Promise<void> {
+  const endDate = trialEndsAt.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+  await sendEmail(
+    to,
+    "Welcome to Atheneum Martial Arts — your trial is ready",
+    BRAND_WRAP(
+      `<p>Hi ${firstName}, your trial account is ready! Your trial runs through <strong>${endDate}</strong>.</p>
+      <p style="margin:24px 0">
+        <a href="${appUrl()}/login" style="background:#0039b7;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Sign in to the portal</a>
+      </p>
+      <p>Login: <strong>${to}</strong><br/>Temporary password: <strong>${password}</strong></p>
+      <p style="color:#666;font-size:14px">After signing in, you can change your password from the My account page. See you on the mats!</p>`
+    )
+  );
+}
+
+export async function sendTrialBookingEmail(
+  to: string,
+  firstName: string,
+  className: string,
+  startsAt: Date
+): Promise<void> {
+  const day = startsAt.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+  const time = startsAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  await sendEmail(
+    to,
+    `Your class is booked: ${className}`,
+    BRAND_WRAP(
+      `<p>Hi ${firstName}, you're booked for <strong>${className}</strong> on <strong>${day}</strong> at <strong>${time}</strong>.</p>
+      <p style="margin:24px 0">
+        <a href="${appUrl()}" style="background:#0039b7;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">View it in the portal</a>
+      </p>
+      <p style="color:#666;font-size:14px">825 Meander Court, Medina, MN 55340 · (763) 342-5614</p>`
+    )
+  );
+}
+
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
   await sendEmail(
     to,

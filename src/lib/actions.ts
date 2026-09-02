@@ -13,7 +13,12 @@ import { ensureUploadsDir, uploadsDir } from "./uploads";
 import { formatTime } from "./format";
 import { bookingLimit } from "./capacity";
 import { trialEndOfDay } from "./trial";
-import { appUrl, sendPasswordResetEmail } from "./email";
+import {
+  appUrl,
+  sendPasswordResetEmail,
+  sendTrialBookingEmail,
+  sendTrialWelcomeEmail,
+} from "./email";
 
 export type LoginState = { error?: string };
 
@@ -376,8 +381,36 @@ export async function createMemberAccount(formData: FormData) {
     },
   });
 
+  if (isTrial) {
+    try {
+      await sendTrialWelcomeEmail(email, name.split(" ")[0], password, trialEndsAt);
+    } catch (err) {
+      console.error("[email] trial welcome email failed:", err);
+    }
+  }
+
   revalidatePath("/admin");
   redirect(`/admin/member/${profile.id}`);
+}
+
+async function notifyTrialBooking(profileId: string, className: string, startsAt: Date) {
+  try {
+    const profile = await prisma.memberProfile.findUnique({
+      where: { id: profileId },
+      include: { user: true, household: { include: { users: true } } },
+    });
+    if (!profile || profile.membershipType !== "TRIAL") return;
+    const recipient = profile.user ?? profile.household.users[0];
+    if (!recipient) return;
+    await sendTrialBookingEmail(
+      recipient.email,
+      profile.name.split(" ")[0],
+      className,
+      startsAt
+    );
+  } catch (err) {
+    console.error("[email] trial booking email failed:", err);
+  }
 }
 
 export async function adminBookClass(profileId: string, formData: FormData) {
@@ -386,6 +419,13 @@ export async function adminBookClass(profileId: string, formData: FormData) {
   const sessionId = String(formData.get("sessionId") ?? "");
   if (!sessionId) failTo(memberPath, "Please pick a class.");
   await bookClass(profileId, sessionId, memberPath);
+  const booking = await prisma.booking.findFirst({
+    where: { profileId, sessionId, status: "BOOKED" },
+    include: { session: { include: { template: true } } },
+  });
+  if (booking) {
+    await notifyTrialBooking(profileId, booking.session.template.name, booking.session.startsAt);
+  }
   revalidatePath(memberPath);
 }
 
@@ -488,6 +528,8 @@ export async function adminBookPrivateTrial(profileId: string, formData: FormDat
   await prisma.booking.create({
     data: { profileId, sessionId: session.id, status: "BOOKED" },
   });
+
+  await notifyTrialBooking(profileId, templateName, startsAt);
 
   revalidatePath(`/admin/member/${profileId}`);
   revalidatePath("/");
