@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireCoach } from "@/lib/auth";
 import { deleteAnnouncement, postAnnouncement } from "@/lib/actions";
 import { formatDay, formatTime } from "@/lib/format";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function CoachTodayPage() {
     <Link
       key={s.id}
       href={`/coach/session/${s.id}`}
-      className="block rounded-xl border border-stone-200 bg-white p-4 hover:border-stone-400"
+      className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm hover:border-stone-400"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -73,7 +74,7 @@ export default async function CoachTodayPage() {
           Today&apos;s classes
         </h2>
         {todaySessions.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-stone-600">
             No classes scheduled today.
           </p>
         ) : (
@@ -92,7 +93,7 @@ export default async function CoachTodayPage() {
         <h2 id="post-update" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
           Post an update
         </h2>
-        <form action={postAnnouncement} className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4">
+        <form action={postAnnouncement} className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-stone-600">
             Updates appear on every member&apos;s home page right away.
           </p>
@@ -123,17 +124,17 @@ export default async function CoachTodayPage() {
               className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
             />
           </div>
-          <button
-            type="submit"
+          <SubmitButton
+            pendingLabel="Posting…"
             className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             Post to all members
-          </button>
+          </SubmitButton>
         </form>
         {announcements.length > 0 && (
           <div className="mt-3 space-y-3">
             {announcements.map((a) => (
-              <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">{a.title}</p>
@@ -143,12 +144,12 @@ export default async function CoachTodayPage() {
                     </p>
                   </div>
                   <form action={deleteAnnouncement.bind(null, a.id)}>
-                    <button
-                      type="submit"
+                    <SubmitButton
+                      pendingLabel="Deleting…"
                       className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
                     >
                       Delete
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>

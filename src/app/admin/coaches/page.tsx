@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { coachInitials } from "@/lib/format";
 import PhotoCropUploader from "@/components/PhotoCropUploader";
+import Flash from "@/components/Flash";
+import SubmitButton from "@/components/SubmitButton";
 import {
   createCoach,
   deleteCoach,
@@ -103,7 +105,7 @@ function CoachFields({
 export default async function AdminCoachesPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: { error?: string; ok?: string };
 }) {
   await requireAdmin();
   const coaches = await prisma.coachProfile.findMany({
@@ -121,29 +123,22 @@ export default async function AdminCoachesPage({
           Changes here update the Coaches page everyone sees. Hidden coaches stay saved but
           don&apos;t appear publicly.
         </p>
-        {searchParams.error && (
-          <p
-            role="alert"
-            className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          >
-            {searchParams.error}
-          </p>
-        )}
+        <Flash ok={searchParams.ok} error={searchParams.error} />
       </section>
 
       <section className="space-y-4" aria-label="Coaches">
         {coaches.map((coach) => (
-          <article key={coach.id} className="rounded-xl border border-stone-200 bg-white p-4">
+          <article key={coach.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <div className="flex items-start gap-4">
               {coach.photoType ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={`/api/coach-photo/${coach.id}?v=${coach.photoUpdatedAt?.getTime() ?? 0}`}
                   alt={coach.name}
-                  className="h-16 w-16 shrink-0 rounded-full object-cover"
+                  className="h-24 w-24 shrink-0 rounded-full object-cover ring-2 ring-stone-100"
                 />
               ) : (
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand/10 text-lg font-bold text-brand">
+                <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-brand/10 text-2xl font-bold text-brand">
                   {coachInitials(coach.name)}
                 </span>
               )}
@@ -166,12 +161,12 @@ export default async function AdminCoachesPage({
                   />
                   {coach.photoType && (
                     <form action={removeCoachPhoto.bind(null, coach.id)}>
-                      <button
-                        type="submit"
+                      <SubmitButton
+                        pendingLabel="Removing…"
                         className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
                       >
                         Remove photo
-                      </button>
+                      </SubmitButton>
                     </form>
                   )}
                 </div>
@@ -189,21 +184,15 @@ export default async function AdminCoachesPage({
                   />
                   Show on the Coaches page
                 </label>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
-                >
+                <SubmitButton className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
                   Save changes
-                </button>
+                </SubmitButton>
               </div>
             </form>
             <form action={deleteCoach.bind(null, coach.id)} className="mt-3 text-right">
-              <button
-                type="submit"
-                className="text-xs text-red-600 hover:underline"
-              >
+              <SubmitButton pendingLabel="Deleting…" className="text-xs text-red-600 hover:underline">
                 Delete this coach
-              </button>
+              </SubmitButton>
             </form>
           </article>
         ))}
@@ -215,15 +204,15 @@ export default async function AdminCoachesPage({
         </h2>
         <form
           action={createCoach}
-          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
         >
           <CoachFields idPrefix="new-coach" />
-          <button
-            type="submit"
+          <SubmitButton
+            pendingLabel="Adding…"
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             Add coach
-          </button>
+          </SubmitButton>
         </form>
       </section>
     </div>

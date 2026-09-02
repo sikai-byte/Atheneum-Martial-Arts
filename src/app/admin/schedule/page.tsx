@@ -10,6 +10,8 @@ import {
   updateSlot,
   updateTemplate,
 } from "@/lib/adminContent";
+import Flash from "@/components/Flash";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +103,7 @@ function SlotFields({
 export default async function AdminSchedulePage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: { error?: string; ok?: string };
 }) {
   await requireAdmin();
   await ensureUpcomingSessions();
@@ -138,14 +140,7 @@ export default async function AdminSchedulePage({
           Weekly time slots control which classes appear on the schedule each week. Class details
           control names, descriptions, and capacity.
         </p>
-        {searchParams.error && (
-          <p
-            role="alert"
-            className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          >
-            {searchParams.error}
-          </p>
-        )}
+        <Flash ok={searchParams.ok} error={searchParams.error} />
       </section>
 
       <section aria-labelledby="weekly-slots" className="space-y-4">
@@ -159,7 +154,7 @@ export default async function AdminSchedulePage({
           </p>
         </div>
         {slots.map((slot) => (
-          <article key={slot.id} className="rounded-xl border border-stone-200 bg-white p-4">
+          <article key={slot.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-semibold">
                 {dayNames[slot.dayOfWeek]}{" "}
@@ -184,18 +179,15 @@ export default async function AdminSchedulePage({
                   />
                   Keep scheduling this class each week
                 </label>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
-                >
+                <SubmitButton className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
                   Save changes
-                </button>
+                </SubmitButton>
               </div>
             </form>
             <form action={deleteSlot.bind(null, slot.id)} className="mt-2 text-right">
-              <button type="submit" className="text-xs text-red-600 hover:underline">
+              <SubmitButton pendingLabel="Deleting…" className="text-xs text-red-600 hover:underline">
                 Delete this time slot
-              </button>
+              </SubmitButton>
             </form>
           </article>
         ))}
@@ -207,12 +199,12 @@ export default async function AdminSchedulePage({
             Add a weekly time slot
           </h3>
           <SlotFields templates={templates} idPrefix="new-slot" />
-          <button
-            type="submit"
+          <SubmitButton
+            pendingLabel="Adding…"
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             Add time slot
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -227,7 +219,7 @@ export default async function AdminSchedulePage({
           </p>
         </div>
         {templates.map((template) => (
-          <article key={template.id} className="rounded-xl border border-stone-200 bg-white p-4">
+          <article key={template.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-semibold">{template.name}</h3>
               <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-500">
@@ -361,12 +353,9 @@ export default async function AdminSchedulePage({
                 />
               </div>
               <div className="text-right">
-                <button
-                  type="submit"
-                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
-                >
+                <SubmitButton className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
                   Save changes
-                </button>
+                </SubmitButton>
               </div>
             </form>
           </article>
@@ -406,12 +395,12 @@ export default async function AdminSchedulePage({
                   session.status === "CANCELLED" ? "SCHEDULED" : "CANCELLED"
                 )}
               >
-                <button
-                  type="submit"
+                <SubmitButton
+                  pendingLabel="Working…"
                   className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
                 >
                   {session.status === "CANCELLED" ? "Restore" : "Cancel class"}
-                </button>
+                </SubmitButton>
               </form>
             </li>
           ))}

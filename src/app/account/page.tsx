@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { changeOwnPassword } from "@/lib/actions";
+import SubmitButton from "@/components/SubmitButton";
 
 export default async function AccountPage({
   searchParams,
@@ -52,12 +53,12 @@ export default async function AccountPage({
               className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
             />
           </div>
-          <button
-            type="submit"
+          <SubmitButton
+            pendingLabel="Updating…"
             className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             Update password
-          </button>
+          </SubmitButton>
         </form>
       </section>
     </div>

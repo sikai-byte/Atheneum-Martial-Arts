@@ -61,13 +61,13 @@ export default async function ProgressPage({
       )}
 
       <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-stone-200 bg-white p-4">
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
           <p className="text-3xl font-bold">{thisWeek}</p>
           <p className="mt-1 text-sm text-stone-600">
             classes this week (goal: {selected.weeklyGoal})
           </p>
         </div>
-        <div className="rounded-xl border border-stone-200 bg-white p-4">
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
           <p className="text-3xl font-bold">{attendances.length}</p>
           <p className="mt-1 text-sm text-stone-600">recent classes attended</p>
         </div>
@@ -80,7 +80,7 @@ export default async function ProgressPage({
           </h2>
           <div className="mt-2 space-y-3">
             {milestones.map((m) => (
-              <div key={m.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={m.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="font-medium">{m.title}</p>
                 {m.notes && <p className="mt-1 text-sm text-stone-600">{m.notes}</p>}
                 <p className="mt-2 text-xs text-stone-400">
@@ -97,13 +97,13 @@ export default async function ProgressPage({
           Recent training
         </h2>
         {attendances.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-stone-600">
             No classes recorded yet. Your first session will show up here.
           </p>
         ) : (
           <ul className="mt-2 space-y-2">
             {attendances.map((a) => (
-              <li key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <li key={a.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="font-medium">{a.session.template.name}</p>
                 <p className="mt-1 text-sm text-stone-600">
                   {formatDay(a.session.startsAt)} at {formatTime(a.session.startsAt)} ·{" "}

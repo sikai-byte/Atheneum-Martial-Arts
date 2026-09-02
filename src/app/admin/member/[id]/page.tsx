@@ -12,6 +12,7 @@ import {
 import { formatDay, formatTime } from "@/lib/format";
 import { appUrl } from "@/lib/email";
 import CopyButton from "@/components/CopyButton";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +103,7 @@ export default async function AdminMemberPage({
         </h2>
         <form
           action={updateMembership.bind(null, profile.id)}
-          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -181,12 +182,11 @@ export default async function AdminMemberPage({
             Punch-pass fields only apply to punch-pass memberships; the renewal date only applies
             to monthly plans.
           </p>
-          <button
-            type="submit"
+          <SubmitButton
             className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             Save membership
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -197,7 +197,7 @@ export default async function AdminMemberPage({
         <div className="mt-2 grid gap-4 lg:grid-cols-2">
           <form
             action={adminBookClass.bind(null, profile.id)}
-            className="space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+            className="space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
           >
             <p className="text-sm font-semibold">Group class</p>
             <p className="text-xs text-stone-500">
@@ -215,17 +215,17 @@ export default async function AdminMemberPage({
                 </option>
               ))}
             </select>
-            <button
-              type="submit"
+            <SubmitButton
+              pendingLabel="Booking…"
               className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
             >
               Book group class
-            </button>
+            </SubmitButton>
           </form>
 
           <form
             action={adminBookPrivateTrial.bind(null, profile.id)}
-            className="space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+            className="space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
           >
             <p className="text-sm font-semibold">Private trial</p>
             <p className="text-xs text-stone-500">
@@ -286,17 +286,17 @@ export default async function AdminMemberPage({
                 />
               </div>
             </div>
-            <button
-              type="submit"
+            <SubmitButton
+              pendingLabel="Booking…"
               className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
             >
               Book private trial
-            </button>
+            </SubmitButton>
           </form>
         </div>
 
         {upcomingBookings.length > 0 && (
-          <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+          <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold">Upcoming bookings</p>
             <ul className="mt-2 divide-y divide-stone-100">
               {upcomingBookings.map((b) => (
@@ -311,12 +311,12 @@ export default async function AdminMemberPage({
                     )}
                   </span>
                   <form action={adminCancelBooking.bind(null, profile.id, b.sessionId)}>
-                    <button
-                      type="submit"
+                    <SubmitButton
+                      pendingLabel="Cancelling…"
                       className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50"
                     >
                       Cancel
-                    </button>
+                    </SubmitButton>
                   </form>
                 </li>
               ))}
@@ -330,7 +330,7 @@ export default async function AdminMemberPage({
           <h2 id="invite-text" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
             Sign-in text for your lead bot
           </h2>
-          <div className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4">
+          <div className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <p className="text-sm text-stone-600">
               Paste this into your lead bot&apos;s text message. Replace the password placeholder
               with the temp password you set.
@@ -351,7 +351,7 @@ export default async function AdminMemberPage({
           </h2>
           <form
             action={resetMemberPassword.bind(null, profile.user.id)}
-            className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+            className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
           >
             <p className="text-sm text-stone-600">
               Sets a new password for {profile.user.email}. Share it with the member directly.
@@ -370,12 +370,12 @@ export default async function AdminMemberPage({
                 className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
               />
             </div>
-            <button
-              type="submit"
+            <SubmitButton
+              pendingLabel="Resetting…"
               className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
             >
               Reset password
-            </button>
+            </SubmitButton>
           </form>
         </section>
       )}

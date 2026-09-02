@@ -87,7 +87,7 @@ function Board({ title, entries }: { title: string; entries: Entry[] }) {
         {title}
       </h2>
       {entries.length === 0 ? (
-        <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+        <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-stone-600">
           No check-ins yet — the first class attended starts the race.
         </p>
       ) : (

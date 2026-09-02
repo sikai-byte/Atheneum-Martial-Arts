@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { addChildProfile, createMemberAccount } from "@/lib/actions";
 import { formatDay } from "@/lib/format";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,7 @@ export default async function AdminPage() {
             { label: "Coaches", value: coachCount },
             { label: "Open shop orders", value: openOrders },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-stone-200 bg-white p-4">
+            <div key={s.label} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
               <p className="text-2xl font-bold text-brand">{s.value}</p>
               <p className="mt-1 text-xs text-stone-500">{s.label}</p>
             </div>
@@ -105,7 +106,7 @@ export default async function AdminPage() {
             <Link
               key={card.href}
               href={card.href}
-              className="rounded-xl border border-stone-200 bg-white p-4 transition hover:border-brand/40 hover:shadow-sm"
+              className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
             >
               <p className="font-semibold text-brand">{card.title} &rarr;</p>
               <p className="mt-1 text-xs text-stone-500">{card.blurb}</p>
@@ -120,7 +121,7 @@ export default async function AdminPage() {
         </h2>
         <form
           action={createMemberAccount}
-          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
         >
           <p className="text-sm text-stone-600">
             Creates a login and a new household. Share the temporary password with the member and
@@ -210,12 +211,12 @@ export default async function AdminPage() {
               private) and copy the sign-in text for your lead bot.
             </p>
           </fieldset>
-          <button
-            type="submit"
+          <SubmitButton
+            pendingLabel="Creating…"
             className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             Create account
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -225,12 +226,12 @@ export default async function AdminPage() {
         </h2>
         <div className="mt-2 space-y-3">
           {memberHouseholds.length === 0 && (
-            <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
+            <p className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-sm text-stone-600">
               No member households yet — create the first account above.
             </p>
           )}
           {memberHouseholds.map((h) => (
-            <div key={h.id} className="rounded-xl border border-stone-200 bg-white p-4">
+            <div key={h.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">{h.name}</p>
                 <p className="text-xs text-stone-400">
@@ -296,12 +297,12 @@ export default async function AdminPage() {
                       className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
                     />
                   </div>
-                  <button
-                    type="submit"
+                  <SubmitButton
+                    pendingLabel="Adding…"
                     className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
                   >
                     Add child
-                  </button>
+                  </SubmitButton>
                 </form>
               </details>
             </div>

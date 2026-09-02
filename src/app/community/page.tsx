@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDay, formatTime } from "@/lib/format";
 import { createPost, deletePost, addComment, deleteComment } from "@/lib/actions";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -102,12 +103,12 @@ export default async function CommunityPage() {
               className="block w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-stone-700"
             />
           </div>
-          <button
-            type="submit"
+          <SubmitButton
+            pendingLabel="Posting…"
             className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             Post to community
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -124,7 +125,7 @@ export default async function CommunityPage() {
             {posts.map((post) => {
               const canDeletePost = isStaff || post.author.id === user.id;
               return (
-                <article key={post.id} className="rounded-xl border border-stone-200 bg-white p-4">
+                <article key={post.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -150,13 +151,13 @@ export default async function CommunityPage() {
                     </div>
                     {canDeletePost && (
                       <form action={deletePost.bind(null, post.id)}>
-                        <button
-                          type="submit"
+                        <SubmitButton
+                          pendingLabel="Deleting…"
+                          ariaLabel="Delete post"
                           className="text-xs text-stone-400 hover:text-red-600"
-                          aria-label="Delete post"
                         >
                           Delete
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </div>
@@ -182,13 +183,13 @@ export default async function CommunityPage() {
                               </p>
                               {canDeleteComment && (
                                 <form action={deleteComment.bind(null, c.id)}>
-                                  <button
-                                    type="submit"
+                                  <SubmitButton
+                                    pendingLabel="Deleting…"
+                                    ariaLabel="Delete comment"
                                     className="text-xs text-stone-400 hover:text-red-600"
-                                    aria-label="Delete comment"
                                   >
                                     Delete
-                                  </button>
+                                  </SubmitButton>
                                 </form>
                               )}
                             </li>
@@ -207,12 +208,12 @@ export default async function CommunityPage() {
                         placeholder="Write a comment…"
                         className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
                       />
-                      <button
-                        type="submit"
+                      <SubmitButton
+                        pendingLabel="Posting…"
                         className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100"
                       >
                         Reply
-                      </button>
+                      </SubmitButton>
                     </form>
                   </div>
                 </article>

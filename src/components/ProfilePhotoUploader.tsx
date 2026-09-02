@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { updateProfilePhoto } from "@/lib/actions";
 
 async function shrinkPhoto(file: File): Promise<Blob> {
@@ -35,6 +35,13 @@ export default function ProfilePhotoUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), 3000);
+    return () => clearTimeout(timer);
+  }, [saved]);
 
   const initials = name
     .split(" ")
@@ -47,12 +54,14 @@ export default function ProfilePhotoUploader({
     const file = fileList?.[0];
     if (!file) return;
     setError(null);
+    setSaved(false);
     startTransition(async () => {
       try {
         const blob = await shrinkPhoto(file);
         const formData = new FormData();
         formData.append("photo", blob, "photo.jpg");
         await updateProfilePhoto(profileId, formData);
+        setSaved(true);
       } catch {
         setError("Couldn't save that photo — please try another one.");
       }
@@ -67,18 +76,22 @@ export default function ProfilePhotoUploader({
         disabled={pending}
         aria-label={`${photoUrl ? "Change" : "Add"} photo for ${name}`}
         title={photoUrl ? "Change photo" : "Add photo"}
-        className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-stone-200 bg-brand-light disabled:opacity-60"
+        className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-stone-200 bg-brand-light ring-2 ring-stone-100 disabled:opacity-60"
       >
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-brand">
+          <span className="flex h-full w-full items-center justify-center text-xl font-semibold text-brand">
             {initials}
           </span>
         )}
-        <span className="absolute inset-x-0 bottom-0 bg-black/50 py-0.5 text-center text-[9px] font-medium text-white opacity-0 group-hover:opacity-100">
-          {pending ? "…" : "Edit"}
+        <span
+          className={`absolute inset-x-0 bottom-0 bg-black/50 py-0.5 text-center text-[10px] font-medium text-white ${
+            pending ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          {pending ? "Saving…" : "Edit"}
         </span>
       </button>
       <input
@@ -88,7 +101,16 @@ export default function ProfilePhotoUploader({
         className="hidden"
         onChange={(e) => onFileChosen(e.target.files)}
       />
-      {error && <p className="text-xs text-red-700">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-red-700">
+          {error}
+        </p>
+      )}
+      {saved && !error && (
+        <p role="status" className="text-xs font-medium text-emerald-700">
+          Photo saved
+        </p>
+      )}
     </div>
   );
 }

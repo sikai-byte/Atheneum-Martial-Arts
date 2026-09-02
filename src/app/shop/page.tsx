@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDay, formatPrice } from "@/lib/format";
 import { placeOrder, cancelOrder } from "@/lib/actions";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function ShopPage() {
           {products.map((p) => {
             const sizes = p.sizes ? p.sizes.split(",") : [];
             return (
-              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{p.name}</p>
@@ -98,12 +99,12 @@ export default async function ShopPage() {
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="submit"
+                  <SubmitButton
+                    pendingLabel="Placing order…"
                     className="rounded-md bg-brand px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90"
                   >
                     Order
-                  </button>
+                  </SubmitButton>
                 </form>
               </div>
             );
@@ -116,13 +117,13 @@ export default async function ShopPage() {
           Your orders
         </h2>
         {orders.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-stone-600">
             No orders yet. Anything you order shows up here.
           </p>
         ) : (
           <ul className="mt-2 space-y-2">
             {orders.map((o) => (
-              <li key={o.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <li key={o.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-medium">
@@ -142,12 +143,12 @@ export default async function ShopPage() {
                     </span>
                     {o.status === "PLACED" && (
                       <form action={cancelOrder.bind(null, o.id)}>
-                        <button
-                          type="submit"
+                        <SubmitButton
+                          pendingLabel="Cancelling…"
                           className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
                         >
                           Cancel
-                        </button>
+                        </SubmitButton>
                       </form>
                     )}
                   </div>

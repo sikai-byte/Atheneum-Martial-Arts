@@ -136,7 +136,12 @@ export default function PhotoCropUploader({
         formData.append("photo", blob, "photo.jpg");
         await action(formData);
         cancel();
-      } catch {
+      } catch (err) {
+        const digest = err instanceof Error ? (err as Error & { digest?: string }).digest : undefined;
+        if (digest?.startsWith("NEXT_REDIRECT")) {
+          cancel();
+          throw err;
+        }
         setError("Couldn't save that photo — please try again.");
       }
     });

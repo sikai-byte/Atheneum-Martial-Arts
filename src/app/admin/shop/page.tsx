@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { createProduct, updateProduct } from "@/lib/adminContent";
+import Flash from "@/components/Flash";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -131,7 +133,7 @@ function ProductFields({
 export default async function AdminShopPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: { error?: string; ok?: string };
 }) {
   await requireAdmin();
   const products = await prisma.product.findMany({
@@ -149,19 +151,12 @@ export default async function AdminShopPage({
           Changes here update the Team Shop. Uncheck &quot;Show in shop&quot; to retire an item —
           past orders keep their original price.
         </p>
-        {searchParams.error && (
-          <p
-            role="alert"
-            className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-          >
-            {searchParams.error}
-          </p>
-        )}
+        <Flash ok={searchParams.ok} error={searchParams.error} />
       </section>
 
       <section className="space-y-4" aria-label="Products">
         {products.map((product) => (
-          <article key={product.id} className="rounded-xl border border-stone-200 bg-white p-4">
+          <article key={product.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-semibold">{product.name}</h2>
               {!product.active && (
@@ -182,12 +177,9 @@ export default async function AdminShopPage({
                   />
                   Show in shop
                 </label>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
-                >
+                <SubmitButton className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
                   Save changes
-                </button>
+                </SubmitButton>
               </div>
             </form>
           </article>
@@ -203,15 +195,15 @@ export default async function AdminShopPage({
         </h2>
         <form
           action={createProduct}
-          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
         >
           <ProductFields idPrefix="new-product" />
-          <button
-            type="submit"
+          <SubmitButton
+            pendingLabel="Adding…"
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             Add product
-          </button>
+          </SubmitButton>
         </form>
       </section>
     </div>

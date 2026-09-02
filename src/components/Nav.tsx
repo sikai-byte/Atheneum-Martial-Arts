@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/actions";
+import SubmitButton from "@/components/SubmitButton";
 
 const memberLinks = [
   { href: "/", label: "Home" },
@@ -72,12 +73,12 @@ export default function Nav({ name, role }: { name: string; role: string }) {
                 {name}
               </Link>
               <form action={logout}>
-                <button
-                  type="submit"
+                <SubmitButton
+                  pendingLabel="Signing out…"
                   className="whitespace-nowrap rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
                 >
                   Sign out
-                </button>
+                </SubmitButton>
               </form>
             </div>
           </div>

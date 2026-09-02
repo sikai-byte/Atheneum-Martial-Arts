@@ -12,6 +12,10 @@ function failTo(target: string, message: string): never {
   redirect(`${target}?error=${encodeURIComponent(message)}`);
 }
 
+function doneTo(target: string, message: string): never {
+  redirect(`${target}?ok=${encodeURIComponent(message)}`);
+}
+
 function revalidateCoaches() {
   revalidatePath("/coaches");
   revalidatePath("/admin/coaches");
@@ -38,25 +42,30 @@ function coachFields(formData: FormData) {
 
 export async function createCoach(formData: FormData) {
   await requireAdmin();
-  await prisma.coachProfile.create({ data: coachFields(formData) });
+  const data = coachFields(formData);
+  await prisma.coachProfile.create({ data });
   revalidateCoaches();
+  doneTo("/admin/coaches", `${data.name} added.`);
 }
 
 export async function updateCoach(coachId: string, formData: FormData) {
   await requireAdmin();
   const active = formData.get("active") === "on";
+  const data = coachFields(formData);
   await prisma.coachProfile.update({
     where: { id: coachId },
-    data: { ...coachFields(formData), active },
+    data: { ...data, active },
   });
   revalidateCoaches();
+  doneTo("/admin/coaches", `${data.name} saved.`);
 }
 
 export async function deleteCoach(coachId: string) {
   await requireAdmin();
-  await prisma.coachProfile.delete({ where: { id: coachId } });
+  const coach = await prisma.coachProfile.delete({ where: { id: coachId } });
   await fs.rm(path.join(uploadsDir(), `coach-${coachId}`), { force: true });
   revalidateCoaches();
+  doneTo("/admin/coaches", `${coach.name} deleted.`);
 }
 
 export async function updateCoachPhoto(coachId: string, formData: FormData) {
@@ -75,21 +84,23 @@ export async function updateCoachPhoto(coachId: string, formData: FormData) {
   await ensureUploadsDir();
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(path.join(uploadsDir(), `coach-${coachId}`), buffer);
-  await prisma.coachProfile.update({
+  const coach = await prisma.coachProfile.update({
     where: { id: coachId },
     data: { photoType: file.type, photoUpdatedAt: new Date() },
   });
   revalidateCoaches();
+  doneTo("/admin/coaches", `Photo saved for ${coach.name}.`);
 }
 
 export async function removeCoachPhoto(coachId: string) {
   await requireAdmin();
   await fs.rm(path.join(uploadsDir(), `coach-${coachId}`), { force: true });
-  await prisma.coachProfile.update({
+  const coach = await prisma.coachProfile.update({
     where: { id: coachId },
     data: { photoType: "", photoUpdatedAt: null },
   });
   revalidateCoaches();
+  doneTo("/admin/coaches", `Photo removed for ${coach.name}.`);
 }
 
 function revalidateShop() {
@@ -131,18 +142,22 @@ function productFields(formData: FormData) {
 
 export async function createProduct(formData: FormData) {
   await requireAdmin();
-  await prisma.product.create({ data: productFields(formData) });
+  const data = productFields(formData);
+  await prisma.product.create({ data });
   revalidateShop();
+  doneTo("/admin/shop", `${data.name} added to the shop.`);
 }
 
 export async function updateProduct(productId: string, formData: FormData) {
   await requireAdmin();
   const active = formData.get("active") === "on";
+  const data = productFields(formData);
   await prisma.product.update({
     where: { id: productId },
-    data: { ...productFields(formData), active },
+    data: { ...data, active },
   });
   revalidateShop();
+  doneTo("/admin/shop", `${data.name} saved.`);
 }
 
 function revalidateSchedule() {
@@ -178,6 +193,7 @@ export async function updateTemplate(templateId: string, formData: FormData) {
     data: { name, description, ageGroup, level, capacity, durationMin, gearNotes },
   });
   revalidateSchedule();
+  doneTo("/admin/schedule", `${name} saved.`);
 }
 
 function slotFields(formData: FormData) {
@@ -207,6 +223,7 @@ export async function createSlot(formData: FormData) {
   await prisma.classTemplate.findUniqueOrThrow({ where: { id: data.templateId } });
   await prisma.recurringSlot.create({ data });
   revalidateSchedule();
+  doneTo("/admin/schedule", "Weekly time slot added.");
 }
 
 export async function updateSlot(slotId: string, formData: FormData) {
@@ -216,12 +233,14 @@ export async function updateSlot(slotId: string, formData: FormData) {
   await prisma.classTemplate.findUniqueOrThrow({ where: { id: data.templateId } });
   await prisma.recurringSlot.update({ where: { id: slotId }, data: { ...data, active } });
   revalidateSchedule();
+  doneTo("/admin/schedule", "Time slot saved.");
 }
 
 export async function deleteSlot(slotId: string) {
   await requireAdmin();
   await prisma.recurringSlot.delete({ where: { id: slotId } });
   revalidateSchedule();
+  doneTo("/admin/schedule", "Time slot removed.");
 }
 
 export async function setSessionStatus(sessionId: string, status: string) {
@@ -231,4 +250,8 @@ export async function setSessionStatus(sessionId: string, status: string) {
   }
   await prisma.classSession.update({ where: { id: sessionId }, data: { status } });
   revalidateSchedule();
+  doneTo(
+    "/admin/schedule",
+    status === "CANCELLED" ? "Session cancelled." : "Session restored."
+  );
 }

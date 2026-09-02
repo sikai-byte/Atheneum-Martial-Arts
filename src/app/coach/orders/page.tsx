@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireCoach } from "@/lib/auth";
 import { formatDay, formatPrice } from "@/lib/format";
 import { updateOrderStatus } from "@/lib/actions";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function CoachOrdersPage() {
   });
 
   const renderOrder = (o: (typeof orders)[number], open: boolean) => (
-    <li key={o.id} className="rounded-xl border border-stone-200 bg-white p-4">
+    <li key={o.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-medium">
@@ -38,30 +39,30 @@ export default async function CoachOrdersPage() {
           <div className="flex items-center gap-2">
             {o.status === "PLACED" ? (
               <form action={updateOrderStatus.bind(null, o.id, "READY")}>
-                <button
-                  type="submit"
+                <SubmitButton
+                  pendingLabel="Updating…"
                   className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
                 >
                   Mark ready
-                </button>
+                </SubmitButton>
               </form>
             ) : (
               <form action={updateOrderStatus.bind(null, o.id, "PICKED_UP")}>
-                <button
-                  type="submit"
+                <SubmitButton
+                  pendingLabel="Updating…"
                   className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
                 >
                   Picked up &amp; paid
-                </button>
+                </SubmitButton>
               </form>
             )}
             <form action={updateOrderStatus.bind(null, o.id, "CANCELLED")}>
-              <button
-                type="submit"
+              <SubmitButton
+                pendingLabel="Cancelling…"
                 className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
               >
                 Cancel
-              </button>
+              </SubmitButton>
             </form>
           </div>
         ) : (
@@ -87,7 +88,7 @@ export default async function CoachOrdersPage() {
           Open orders ({orders.length})
         </h2>
         {orders.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-stone-600">
             No open orders right now.
           </p>
         ) : (

@@ -66,11 +66,11 @@ export default async function HomePage() {
           width={1600}
           height={1067}
           priority
-          className="h-44 w-full object-cover sm:h-56"
+          className="h-56 w-full object-cover sm:h-72"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <div className="absolute bottom-4 left-4 right-4 sm:left-6 sm:right-6">
-          <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow">
+          <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow sm:text-3xl">
             Welcome back, {firstName}
           </h1>
           <p className="mt-0.5 text-sm text-white/90 drop-shadow">
@@ -84,7 +84,7 @@ export default async function HomePage() {
           Next booked class
         </h2>
         {nextBookings.length === 0 ? (
-          <div className="mt-2 rounded-xl border border-stone-200 bg-white p-4">
+          <div className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <p className="text-stone-700">Nothing booked yet.</p>
             <Link
               href="/schedule"
@@ -96,7 +96,7 @@ export default async function HomePage() {
         ) : (
           <div className="mt-2 space-y-3">
             {nextBookings.slice(0, profiles.length).map((b) => (
-              <div key={b.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={b.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="font-semibold">
                   {b.session.template.name}
                   {profiles.length > 1 && (
@@ -133,9 +133,9 @@ export default async function HomePage() {
                 ? Math.max(p.punchPassTotal - p.punchPassUsed, 0)
                 : null;
             return (
-              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <ProfilePhotoUploader
                       profileId={p.id}
                       name={p.name}
@@ -222,7 +222,7 @@ export default async function HomePage() {
             const count = weekAttendance.filter((a) => a.profileId === p.id).length;
             const remaining = Math.max(p.weeklyGoal - count, 0);
             return (
-              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <p className="font-medium">{p.name}</p>
                   <p className="text-sm text-stone-500">
@@ -263,7 +263,7 @@ export default async function HomePage() {
               <Link
                 key={s.id}
                 href="/schedule"
-                className="block rounded-xl border border-stone-200 bg-white p-4 hover:border-stone-400"
+                className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm hover:border-stone-400"
               >
                 <p className="font-medium">{s.template.name}</p>
                 <p className="mt-1 text-sm text-stone-600">
@@ -281,12 +281,12 @@ export default async function HomePage() {
         </h2>
         <div className="mt-2 space-y-3">
           {announcements.length === 0 && (
-            <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
+            <p className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-sm text-stone-600">
               No updates from the coaches right now.
             </p>
           )}
           {announcements.map((a) => (
-            <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+            <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
               <p className="font-medium">{a.title}</p>
               <p className="mt-1 text-sm text-stone-600">{a.body}</p>
               <p className="mt-2 text-xs text-stone-400">

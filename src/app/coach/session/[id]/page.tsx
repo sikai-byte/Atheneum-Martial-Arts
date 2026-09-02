@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireCoach } from "@/lib/auth";
 import { toggleAttendance } from "@/lib/actions";
 import { formatDay, formatTime } from "@/lib/format";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function RosterPage({ params }: { params: { id: string } })
           Roster
         </h2>
         {booked.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-stone-600">
             No bookings yet.
           </p>
         ) : (
@@ -62,7 +63,7 @@ export default async function RosterPage({ params }: { params: { id: string } })
               return (
                 <li
                   key={b.id}
-                  className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-4"
+                  className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
                 >
                   <div>
                     <p className="font-medium">{b.profile.name}</p>
@@ -72,8 +73,8 @@ export default async function RosterPage({ params }: { params: { id: string } })
                     </p>
                   </div>
                   <form action={toggleAttendance.bind(null, b.profileId, session.id)}>
-                    <button
-                      type="submit"
+                    <SubmitButton
+                      pendingLabel={attended ? "Undoing…" : "Checking in…"}
                       className={`rounded-lg px-4 py-2.5 text-sm font-semibold ${
                         attended
                           ? "border border-stone-300 text-stone-700 hover:bg-stone-100"
@@ -81,7 +82,7 @@ export default async function RosterPage({ params }: { params: { id: string } })
                       }`}
                     >
                       {attended ? "Undo check-in" : "Check in"}
-                    </button>
+                    </SubmitButton>
                   </form>
                 </li>
               );
@@ -97,7 +98,7 @@ export default async function RosterPage({ params }: { params: { id: string } })
           </h2>
           <ul className="mt-2 space-y-2">
             {waitlisted.map((b) => (
-              <li key={b.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <li key={b.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="font-medium">{b.profile.name}</p>
               </li>
             ))}
@@ -112,7 +113,7 @@ export default async function RosterPage({ params }: { params: { id: string } })
           </h2>
           <ul className="mt-2 space-y-2">
             {walkIns.map((a) => (
-              <li key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <li key={a.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="font-medium">{a.profile.name}</p>
               </li>
             ))}
