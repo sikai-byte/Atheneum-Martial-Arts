@@ -56,6 +56,10 @@ export default async function AdminMemberPage({
     orderBy: { session: { startsAt: "asc" } },
   });
 
+  const isTrial = profile.membershipType === "TRIAL";
+  const canBookGroup = !isTrial || profile.trialClassType !== "PRIVATE";
+  const canBookPrivate = !isTrial || profile.trialClassType !== "GROUP";
+
   const nextBooking = upcomingBookings[0];
   const firstName = profile.name.split(" ")[0];
   const inviteText = [
@@ -147,6 +151,21 @@ export default async function AdminMemberPage({
                 className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
               />
             </div>
+            <div>
+              <label htmlFor="trial-class-type" className="mb-1 block text-sm font-medium">
+                Trial classes allowed
+              </label>
+              <select
+                id="trial-class-type"
+                name="trialClassType"
+                defaultValue={profile.trialClassType}
+                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+              >
+                <option value="BOTH">Group classes and private trials</option>
+                <option value="GROUP">Group classes only</option>
+                <option value="PRIVATE">Private trial only</option>
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="punch-total" className="mb-1 block text-sm font-medium">
@@ -180,7 +199,7 @@ export default async function AdminMemberPage({
           </div>
           <p className="text-xs text-stone-500">
             Punch-pass fields only apply to punch-pass memberships; the renewal date only applies
-            to monthly plans.
+            to monthly plans. Trial classes allowed only applies to trial accounts.
           </p>
           <SubmitButton
             className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
@@ -194,7 +213,14 @@ export default async function AdminMemberPage({
         <h2 id="book-class" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
           Book a class for {firstName}
         </h2>
+        {isTrial && (!canBookGroup || !canBookPrivate) && (
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            This trial is limited to {canBookGroup ? "group classes" : "a private trial"} only —
+            change “Trial classes allowed” in Membership to open up the other option.
+          </p>
+        )}
         <div className="mt-2 grid gap-4 lg:grid-cols-2">
+          {canBookGroup && (
           <form
             action={adminBookClass.bind(null, profile.id)}
             className="space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
@@ -222,7 +248,9 @@ export default async function AdminMemberPage({
               Book group class
             </SubmitButton>
           </form>
+          )}
 
+          {canBookPrivate && (
           <form
             action={adminBookPrivateTrial.bind(null, profile.id)}
             className="space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
@@ -293,6 +321,7 @@ export default async function AdminMemberPage({
               Book private trial
             </SubmitButton>
           </form>
+          )}
         </div>
 
         {upcomingBookings.length > 0 && (

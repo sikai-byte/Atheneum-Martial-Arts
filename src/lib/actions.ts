@@ -123,7 +123,10 @@ export async function bookClass(
   const user = await requireUser();
   await assertProfileInHousehold(user.id, profileId);
 
-  const target = await prisma.classSession.findUniqueOrThrow({ where: { id: sessionId } });
+  const target = await prisma.classSession.findUniqueOrThrow({
+    where: { id: sessionId },
+    include: { template: true },
+  });
   const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
   if (profile.membershipType === "TRIAL") {
     const trialEnd = trialEndOfDay(profile.membershipRenewsAt);
@@ -131,6 +134,13 @@ export async function bookClass(
       failTo(
         errorPath,
         "That class is outside the trial period — see the front desk to start a membership."
+      );
+    }
+    const isPrivateTrialSession = target.template.name.startsWith("Private Trial");
+    if (profile.trialClassType === "PRIVATE" && !isPrivateTrialSession) {
+      failTo(
+        errorPath,
+        "This trial covers a private session only — talk to the front desk about group classes."
       );
     }
   }
@@ -331,6 +341,8 @@ export async function createMemberAccount(formData: FormData) {
   }
 
   const isTrial = formData.get("trial") === "on" && (role === "MEMBER" || role === "PARENT");
+  const trialClassType = String(formData.get("trialClassType") ?? "BOTH");
+  if (!TRIAL_CLASS_TYPES.includes(trialClassType)) throw new Error("Invalid trial class type.");
   const trialEndsRaw = String(formData.get("trialEndsAt") ?? "");
   const parsedTrialEnd = trialEndsRaw ? new Date(`${trialEndsRaw}T00:00:00`) : null;
   if (isTrial && parsedTrialEnd && Number.isNaN(parsedTrialEnd.getTime())) {
@@ -354,7 +366,12 @@ export async function createMemberAccount(formData: FormData) {
       userId: user.id,
       householdId: household.id,
       ...(isTrial
-        ? { membershipPlan: "Trial", membershipType: "TRIAL", membershipRenewsAt: trialEndsAt }
+        ? {
+            membershipPlan: "Trial",
+            membershipType: "TRIAL",
+            membershipRenewsAt: trialEndsAt,
+            trialClassType,
+          }
         : {}),
     },
   });
@@ -378,6 +395,7 @@ export async function adminCancelBooking(profileId: string, sessionId: string) {
   revalidatePath(`/admin/member/${profileId}`);
 }
 
+const TRIAL_CLASS_TYPES = ["BOTH", "GROUP", "PRIVATE"];
 const PRIVATE_TRIAL_DURATIONS = [30, 45, 60];
 const PRIVATE_TRIAL_OPEN_MIN = 8 * 60; // 8:00 AM
 const PRIVATE_TRIAL_CLOSE_MIN = 20 * 60; // 8:00 PM
@@ -407,6 +425,12 @@ export async function adminBookPrivateTrial(profileId: string, formData: FormDat
 
   const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
   if (profile.membershipType === "TRIAL") {
+    if (profile.trialClassType === "GROUP") {
+      failTo(
+        memberPath,
+        "This trial is set to group classes only — change the trial class type in Membership to book a private trial."
+      );
+    }
     const trialEnd = trialEndOfDay(profile.membershipRenewsAt);
     if (!trialEnd || startsAt > trialEnd) {
       failTo(memberPath, "That time is after the trial ends — extend the trial or pick an earlier slot.");
@@ -493,6 +517,7 @@ export async function addChildProfile(householdId: string, formData: FormData) {
             membershipPlan: "Trial",
             membershipType: "TRIAL",
             membershipRenewsAt: trialProfile.membershipRenewsAt,
+            trialClassType: trialProfile.trialClassType,
           }
         : {}),
     },
@@ -516,6 +541,8 @@ export async function updateMembership(profileId: string, formData: FormData) {
   const membershipRenewsAt = parsedRenewsAt;
   const punchPassTotal = Number(formData.get("punchPassTotal") ?? 0) || null;
   const punchPassUsed = Math.max(Number(formData.get("punchPassUsed") ?? 0) || 0, 0);
+  const trialClassType = String(formData.get("trialClassType") ?? "BOTH");
+  if (!TRIAL_CLASS_TYPES.includes(trialClassType)) throw new Error("Invalid trial class type.");
 
   await prisma.memberProfile.update({
     where: { id: profileId },
@@ -526,6 +553,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
         membershipType === "MONTHLY" || membershipType === "TRIAL" ? membershipRenewsAt : null,
       punchPassTotal: membershipType === "PUNCH_PASS" ? punchPassTotal ?? 10 : null,
       punchPassUsed: membershipType === "PUNCH_PASS" ? punchPassUsed : 0,
+      trialClassType: membershipType === "TRIAL" ? trialClassType : "BOTH",
     },
   });
 

@@ -204,6 +204,21 @@ export default async function AdminPage() {
                   className="rounded-lg border border-stone-300 px-3 py-2 text-sm"
                 />
               </div>
+              <div>
+                <label htmlFor="trial-class-type" className="mb-1 block text-xs font-medium">
+                  Trial classes allowed
+                </label>
+                <select
+                  id="trial-class-type"
+                  name="trialClassType"
+                  defaultValue="BOTH"
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                >
+                  <option value="BOTH">Group and private</option>
+                  <option value="GROUP">Group classes only</option>
+                  <option value="PRIVATE">Private trial only</option>
+                </select>
+              </div>
             </div>
             <p className="mt-2 text-xs text-stone-500">
               Trial members can browse everything and book classes until their trial ends. After
