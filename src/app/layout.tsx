@@ -41,7 +41,7 @@ export default async function RootLayout({
       >
         <PwaRegister />
         {user && <Nav name={user.name} role={user.role} />}
-        <main className="mx-auto w-full max-w-3xl px-4 pb-24 pt-6 md:pb-10">
+        <main className="mx-auto w-full max-w-3xl px-4 pb-24 pt-6 lg:pb-10">
           {children}
         </main>
       </body>

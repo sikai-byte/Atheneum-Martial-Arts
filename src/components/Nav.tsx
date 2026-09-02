@@ -8,8 +8,9 @@ import { logout } from "@/lib/actions";
 const memberLinks = [
   { href: "/", label: "Home" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/coaches", label: "Coaches" },
   { href: "/community", label: "Community" },
-  { href: "/leaderboard", label: "Leaders" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/progress", label: "Progress" },
   { href: "/shop", label: "Shop" },
 ];
@@ -17,8 +18,9 @@ const memberLinks = [
 const coachLinks = [
   { href: "/coach", label: "Today" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/coaches", label: "Coaches" },
   { href: "/community", label: "Community" },
-  { href: "/leaderboard", label: "Leaders" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/coach/orders", label: "Orders" },
 ];
 
@@ -26,8 +28,9 @@ const adminLinks = [
   { href: "/admin", label: "Admin" },
   { href: "/coach", label: "Today" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/coaches", label: "Coaches" },
   { href: "/community", label: "Community" },
-  { href: "/leaderboard", label: "Leaders" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/coach/orders", label: "Orders" },
 ];
 
@@ -41,10 +44,10 @@ export default function Nav({ name, role }: { name: string; role: string }) {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <Link href={links[0].href} className="flex shrink-0 items-center gap-2">
             <Image src="/logo.png" alt="Atheneum Martial Arts" width={36} height={37} priority />
-            <span className="text-lg font-bold tracking-tight text-brand md:max-lg:hidden">Atheneum</span>
+            <span className="text-lg font-bold tracking-tight text-brand">Atheneum</span>
           </Link>
           <div className="flex items-center gap-4">
-            <nav className="hidden gap-1 md:flex" aria-label="Primary">
+            <nav className="hidden gap-1 lg:flex" aria-label="Primary">
               {links.map((l) => (
                 <Link
                   key={l.href}
@@ -62,7 +65,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
             <div className="flex items-center gap-2">
               <Link
                 href="/account"
-                className={`hidden whitespace-nowrap text-sm md:inline ${
+                className={`hidden whitespace-nowrap text-sm lg:inline ${
                   pathname === "/account" ? "font-medium text-brand" : "text-stone-500 hover:text-stone-700"
                 }`}
               >
@@ -81,14 +84,14 @@ export default function Nav({ name, role }: { name: string; role: string }) {
         </div>
       </header>
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-stone-200 bg-white md:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 flex overflow-x-auto border-t border-stone-200 bg-white lg:hidden"
         aria-label="Primary mobile"
       >
         {[...links, { href: "/account", label: "Me" }].map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            className={`flex-1 py-4 text-center text-sm font-medium ${
+            className={`flex-1 whitespace-nowrap px-3 py-4 text-center text-sm font-medium ${
               pathname === l.href ? "text-brand" : "text-stone-500"
             }`}
           >
