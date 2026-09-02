@@ -115,6 +115,113 @@ async function seedProducts() {
   console.log("Seeded shop products.");
 }
 
+async function seedCoaches() {
+  const existing = await prisma.coachProfile.count();
+  if (existing > 0) return;
+  const coaches = [
+    {
+      name: "Coach DJ",
+      role: "MAIN",
+      disciplines: "Judo,Gi BJJ,Kids Judo",
+      bio: "Coach DJ leads our Judo and Gi BJJ programs, bringing a throw-first, position-second approach to the mats. He loves building fundamentals with the kids' Judo class and sharpening grip fighting with the adults.",
+      sortOrder: 1,
+    },
+    {
+      name: "Coach Jair",
+      role: "MAIN",
+      disciplines: "No-Gi BJJ,BJJ Comp Training,Kids BJJ",
+      bio: "Coach Jair runs our No-Gi BJJ and competition training programs. If you're chasing medals, his comp class is where you level up — and he brings the same energy to our kids' BJJ program.",
+      sortOrder: 2,
+    },
+    {
+      name: "Coach Shannon",
+      role: "MAIN",
+      disciplines: "Muay Thai,Fitness Kickboxing,Kids Muay Thai",
+      bio: "Coach Shannon heads up Muay Thai and Fitness Kickboxing. Whether you're here to fight or to sweat, her pad rounds will push you — and the kids' Muay Thai class is one of the most fun hours in the gym.",
+      sortOrder: 3,
+    },
+    {
+      name: "Coach Kazim",
+      role: "MAIN",
+      disciplines: "MMA,Kids MMA",
+      bio: "Coach Kazim leads our MMA program, blending striking, wrestling, and grappling into complete mixed martial arts training for adults and kids alike.",
+      sortOrder: 4,
+    },
+    {
+      name: "Coach Trey",
+      role: "MAIN",
+      disciplines: "Muay Thai,No-Gi BJJ,Kids BJJ",
+      bio: "Coach Trey splits his time between Muay Thai and No-Gi BJJ, and helps coach our kids' BJJ classes. Expect crisp technique and plenty of rounds.",
+      sortOrder: 5,
+    },
+    {
+      name: "Coach Sikai",
+      role: "MAIN",
+      disciplines: "Gi & No-Gi BJJ,Muay Thai,Kids BJJ,Kids Muay Thai",
+      bio: "Coach Sikai teaches across our Gi and No-Gi BJJ and Muay Thai programs, and coaches both kids' BJJ and kids' Muay Thai. Train for life — your only limit is your tribe.",
+      sortOrder: 6,
+    },
+    { name: "Coach Jacob", role: "ASSISTANT", disciplines: "", bio: "", sortOrder: 7 },
+    { name: "Coach Reese", role: "ASSISTANT", disciplines: "", bio: "", sortOrder: 8 },
+    { name: "Coach James", role: "ASSISTANT", disciplines: "", bio: "", sortOrder: 9 },
+    { name: "Coach Blake", role: "ASSISTANT", disciplines: "", bio: "", sortOrder: 10 },
+  ];
+  for (const c of coaches) {
+    await prisma.coachProfile.create({ data: c });
+  }
+  console.log("Seeded coach profiles.");
+}
+
+const weeklySlots: { templateName: string; day: number; hour: number; minute: number }[] = [
+  // Monday
+  { templateName: "Kids Gi BJJ (Fundamentals)", day: 1, hour: 17, minute: 15 },
+  { templateName: "Muay Thai", day: 1, hour: 18, minute: 15 },
+  { templateName: "No Gi BJJ", day: 1, hour: 19, minute: 15 },
+  // Tuesday
+  { templateName: "Kids No Gi BJJ (Fundamentals)", day: 2, hour: 16, minute: 15 },
+  { templateName: "Kids No Gi BJJ (Advanced)", day: 2, hour: 17, minute: 15 },
+  { templateName: "No Gi BJJ", day: 2, hour: 18, minute: 15 },
+  // Wednesday
+  { templateName: "Kids Judo (All Ages) (Gi)", day: 3, hour: 17, minute: 15 },
+  { templateName: "Judo", day: 3, hour: 18, minute: 15 },
+  { templateName: "Private Sessions", day: 3, hour: 19, minute: 15 },
+  // Thursday
+  { templateName: "Kids Muay Thai (Fundamentals)", day: 4, hour: 18, minute: 15 },
+  { templateName: "Cardio Kickboxing", day: 4, hour: 19, minute: 15 },
+  // Friday
+  { templateName: "Kids No Gi BJJ (Fundamentals)", day: 5, hour: 17, minute: 15 },
+  { templateName: "Muay Thai", day: 5, hour: 18, minute: 15 },
+  { templateName: "Muay Thai Sparring", day: 5, hour: 19, minute: 15 },
+  // Saturday
+  { templateName: "Gi BJJ", day: 6, hour: 11, minute: 0 },
+  { templateName: "Private Sessions", day: 6, hour: 12, minute: 0 },
+  // Sunday
+  { templateName: "Curious Cubs No Gi BJJ (Age 4-6)", day: 0, hour: 14, minute: 15 },
+  { templateName: "Kids Gi BJJ (Fundamentals)", day: 0, hour: 15, minute: 0 },
+  { templateName: "Kids No Gi BJJ (Advanced)", day: 0, hour: 16, minute: 0 },
+];
+
+async function seedRecurringSlots() {
+  const existing = await prisma.recurringSlot.count();
+  if (existing > 0) return;
+  const templates = await prisma.classTemplate.findMany();
+  const byName = new Map(templates.map((t) => [t.name, t.id]));
+  for (const slot of weeklySlots) {
+    const templateId = byName.get(slot.templateName);
+    if (!templateId) continue;
+    await prisma.recurringSlot.create({
+      data: {
+        templateId,
+        dayOfWeek: slot.day,
+        hour: slot.hour,
+        minute: slot.minute,
+        instructor: "Atheneum Coaches",
+      },
+    });
+  }
+  console.log("Seeded recurring weekly slots.");
+}
+
 async function ensureAdmin() {
   const existing = await prisma.user.findUnique({ where: { email: "admin@example.com" } });
   if (existing) return;
@@ -139,21 +246,14 @@ async function ensureAdmin() {
   console.log("Seeded admin account.");
 }
 
-async function capCapacities() {
-  const { count } = await prisma.classTemplate.updateMany({
-    where: { capacity: { gt: 12 } },
-    data: { capacity: 12 },
-  });
-  if (count > 0) console.log(`Capped ${count} class capacities at 12.`);
-}
-
 async function main() {
   await seedProducts();
-  await capCapacities();
+  await seedCoaches();
 
   const existingUsers = await prisma.user.count();
   if (existingUsers > 0 && !(await resetIfOutdatedSchedule())) {
     await ensureAdmin();
+    await seedRecurringSlots();
     console.log("Database already has users — skipping seed.");
     return;
   }
@@ -567,6 +667,8 @@ async function main() {
       author: "Atheneum Staff",
     },
   });
+
+  await seedRecurringSlots();
 
   console.log("Seed complete.");
 }

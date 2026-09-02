@@ -21,6 +21,13 @@ export function startOfWeek(date: Date) {
   return d;
 }
 
+export function coachInitials(name: string) {
+  const parts = name.replace(/^(Assistant )?Coach /, "").split(" ");
+  const letters =
+    parts.length === 1 ? parts[0].slice(0, 2) : parts.map((part) => part[0]).slice(0, 2).join("");
+  return letters.toUpperCase();
+}
+
 export const programColors: Record<string, string> = {
   blue: "bg-blue-100 text-blue-800",
   red: "bg-red-100 text-red-800",

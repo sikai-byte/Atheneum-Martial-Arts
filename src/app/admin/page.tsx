@@ -80,6 +80,40 @@ export default async function AdminPage() {
         </div>
       </section>
 
+      <section aria-labelledby="edit-content">
+        <h2 id="edit-content" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Edit site content
+        </h2>
+        <div className="mt-2 grid gap-3 sm:grid-cols-3">
+          {[
+            {
+              href: "/admin/coaches",
+              title: "Coaches",
+              blurb: "Names, bios, disciplines, and photos on the Coaches page.",
+            },
+            {
+              href: "/admin/shop",
+              title: "Shop products",
+              blurb: "Prices, sizes, descriptions, and adding or retiring items.",
+            },
+            {
+              href: "/admin/schedule",
+              title: "Schedule & classes",
+              blurb: "Weekly time slots, class details, capacity, and cancellations.",
+            },
+          ].map((card) => (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="rounded-xl border border-stone-200 bg-white p-4 transition hover:border-brand/40 hover:shadow-sm"
+            >
+              <p className="font-semibold text-brand">{card.title} &rarr;</p>
+              <p className="mt-1 text-xs text-stone-500">{card.blurb}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section aria-labelledby="create-account">
         <h2 id="create-account" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
           Create an account

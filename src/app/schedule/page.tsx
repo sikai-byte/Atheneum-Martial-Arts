@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
 import { formatDay, formatTime, programColors } from "@/lib/format";
 import { bookingLimit } from "@/lib/capacity";
+import { ensureUpcomingSessions } from "@/lib/scheduleGen";
 import BookingControls from "@/components/BookingControls";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export default async function SchedulePage({
   searchParams: { program?: string; age?: string; level?: string; view?: string; error?: string };
 }) {
   const user = await requireUser();
+  await ensureUpcomingSessions();
   const profiles = householdProfiles(user);
   const isCoach = user.role === "COACH" || user.role === "ADMIN";
 

@@ -63,6 +63,18 @@ model MemberProfile {
   milestones      Milestone[]
 }
 
+model CoachProfile {
+  id             String    @id @default(cuid())
+  name           String
+  role           String    @default("MAIN") // MAIN | ASSISTANT
+  disciplines    String    @default("") // comma-separated
+  bio            String    @default("")
+  photoType      String    @default("") // mime type of uploaded photo; empty = none
+  photoUpdatedAt DateTime?
+  sortOrder      Int       @default(0)
+  active         Boolean   @default(true)
+}
+
 model Program {
   id          String  @id @default(cuid())
   name        String  @unique
@@ -83,6 +95,18 @@ model ClassTemplate {
   programId   String
   program     Program @relation(fields: [programId], references: [id])
   sessions    ClassSession[]
+  slots       RecurringSlot[]
+}
+
+model RecurringSlot {
+  id         String  @id @default(cuid())
+  dayOfWeek  Int // 0=Sun ... 6=Sat
+  hour       Int
+  minute     Int
+  instructor String  @default("Atheneum Coaches")
+  active     Boolean @default(true)
+  templateId String
+  template   ClassTemplate @relation(fields: [templateId], references: [id])
 }
 
 model ClassSession {
