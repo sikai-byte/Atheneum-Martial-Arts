@@ -10,7 +10,7 @@ import { prisma } from "./db";
 import { getSession } from "./session";
 import { requireAdmin, requireCoach, requireUser } from "./auth";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
-import { formatTime } from "./format";
+import { formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
 import { trialEndOfDay } from "./trial";
 import {
@@ -118,6 +118,10 @@ async function assertProfileInHousehold(userId: string, profileId: string) {
 
 function failTo(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+function succeedTo(path: string, message: string): never {
+  redirect(`${path}?success=${encodeURIComponent(message)}`);
 }
 
 export async function bookClass(
@@ -390,26 +394,37 @@ export async function createMemberAccount(formData: FormData) {
   }
 
   revalidatePath("/admin");
-  redirect(`/admin/member/${profile.id}`);
+  succeedTo(
+    `/admin/member/${profile.id}`,
+    isTrial
+      ? "Account created — the welcome email with sign-in details is on its way. Next: book their first class below."
+      : "Account created. Next: set up their membership below."
+  );
 }
 
-async function notifyTrialBooking(profileId: string, className: string, startsAt: Date) {
+async function notifyTrialBooking(
+  profileId: string,
+  className: string,
+  startsAt: Date
+): Promise<boolean> {
   try {
     const profile = await prisma.memberProfile.findUnique({
       where: { id: profileId },
       include: { user: true, household: { include: { users: true } } },
     });
-    if (!profile || profile.membershipType !== "TRIAL") return;
+    if (!profile || profile.membershipType !== "TRIAL") return false;
     const recipient = profile.user ?? profile.household.users[0];
-    if (!recipient) return;
+    if (!recipient) return false;
     await sendTrialBookingEmail(
       recipient.email,
       profile.name.split(" ")[0],
       className,
       startsAt
     );
+    return true;
   } catch (err) {
     console.error("[email] trial booking email failed:", err);
+    return false;
   }
 }
 
@@ -420,19 +435,35 @@ export async function adminBookClass(profileId: string, formData: FormData) {
   if (!sessionId) failTo(memberPath, "Please pick a class.");
   await bookClass(profileId, sessionId, memberPath);
   const booking = await prisma.booking.findFirst({
-    where: { profileId, sessionId, status: "BOOKED" },
+    where: { profileId, sessionId, status: { in: ["BOOKED", "WAITLISTED"] } },
     include: { session: { include: { template: true } } },
   });
-  if (booking) {
-    await notifyTrialBooking(profileId, booking.session.template.name, booking.session.startsAt);
-  }
   revalidatePath(memberPath);
+  if (booking) {
+    const when = `${formatDay(booking.session.startsAt)} at ${formatTime(booking.session.startsAt)}`;
+    if (booking.status === "WAITLISTED") {
+      succeedTo(
+        memberPath,
+        `That class is full — added to the waitlist for ${booking.session.template.name} on ${when}.`
+      );
+    }
+    const emailed = await notifyTrialBooking(
+      profileId,
+      booking.session.template.name,
+      booking.session.startsAt
+    );
+    succeedTo(
+      memberPath,
+      `Booked ${booking.session.template.name} on ${when}.${emailed ? " A confirmation email is on its way." : ""}`
+    );
+  }
 }
 
 export async function adminCancelBooking(profileId: string, sessionId: string) {
   await requireAdmin();
   await cancelBooking(profileId, sessionId);
   revalidatePath(`/admin/member/${profileId}`);
+  succeedTo(`/admin/member/${profileId}`, "Booking cancelled.");
 }
 
 const TRIAL_CLASS_TYPES = ["BOTH", "GROUP", "PRIVATE"];
@@ -529,11 +560,15 @@ export async function adminBookPrivateTrial(profileId: string, formData: FormDat
     data: { profileId, sessionId: session.id, status: "BOOKED" },
   });
 
-  await notifyTrialBooking(profileId, templateName, startsAt);
+  const emailed = await notifyTrialBooking(profileId, templateName, startsAt);
 
   revalidatePath(`/admin/member/${profileId}`);
   revalidatePath("/");
   revalidatePath("/schedule");
+  succeedTo(
+    memberPath,
+    `Booked a ${duration}-minute private trial on ${formatDay(startsAt)} at ${formatTime(startsAt)}.${emailed ? " A confirmation email is on its way." : ""}`
+  );
 }
 
 export async function addChildProfile(householdId: string, formData: FormData) {
@@ -601,7 +636,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/");
-  redirect("/admin");
+  succeedTo(`/admin/member/${profileId}`, "Membership saved.");
 }
 
 export async function changeOwnPassword(formData: FormData) {
@@ -692,10 +727,15 @@ export async function deleteComment(commentId: string) {
   revalidatePath("/community");
 }
 
-export async function resetMemberPassword(userId: string, formData: FormData) {
+export async function resetMemberPassword(
+  userId: string,
+  profileId: string,
+  formData: FormData
+) {
   await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
   const password = String(formData.get("password") ?? "");
-  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+  if (password.length < 8) failTo(memberPath, "Password must be at least 8 characters.");
 
   await prisma.user.update({
     where: { id: userId },
@@ -703,4 +743,5 @@ export async function resetMemberPassword(userId: string, formData: FormData) {
   });
 
   revalidatePath("/admin");
+  succeedTo(memberPath, "Password updated — share it with the member directly.");
 }

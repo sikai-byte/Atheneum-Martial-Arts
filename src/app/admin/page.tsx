@@ -29,7 +29,11 @@ function membershipSummary(p: {
   return p.membershipPlan;
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: { q?: string };
+}) {
   const admin = await requireAdmin();
 
   const [households, memberCount, coachCount, openOrders] = await Promise.all([
@@ -48,6 +52,18 @@ export default async function AdminPage() {
   const memberHouseholds = households.filter((h) =>
     h.users.some((u) => u.role === "MEMBER" || u.role === "PARENT")
   );
+  const query = (searchParams.q ?? "").trim().toLowerCase();
+  const visibleHouseholds = query
+    ? memberHouseholds.filter(
+        (h) =>
+          h.name.toLowerCase().includes(query) ||
+          h.users.some(
+            (u) =>
+              u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query)
+          ) ||
+          h.profiles.some((p) => p.name.toLowerCase().includes(query))
+      )
+    : memberHouseholds;
   const childCount = households.reduce(
     (n, h) => n + h.profiles.filter((p) => p.isChild).length,
     0
@@ -239,13 +255,49 @@ export default async function AdminPage() {
         <h2 id="households" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
           Members &amp; households
         </h2>
+        <form action="/admin" className="mt-2 flex flex-wrap items-center gap-2">
+          <label htmlFor="member-search" className="sr-only">
+            Search members
+          </label>
+          <input
+            id="member-search"
+            name="q"
+            type="search"
+            defaultValue={searchParams.q ?? ""}
+            placeholder="Search by name or email…"
+            className="w-full max-w-sm rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+          />
+          <button
+            type="submit"
+            className="rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
+          >
+            Search
+          </button>
+          {query && (
+            <Link href="/admin" className="text-sm font-medium text-brand hover:underline">
+              Clear
+            </Link>
+          )}
+        </form>
+        {query && (
+          <p className="mt-2 text-sm text-stone-500">
+            {visibleHouseholds.length}{" "}
+            {visibleHouseholds.length === 1 ? "household matches" : "households match"} “
+            {searchParams.q?.trim()}”
+          </p>
+        )}
         <div className="mt-2 space-y-3">
           {memberHouseholds.length === 0 && (
             <p className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-sm text-stone-600">
               No member households yet — create the first account above.
             </p>
           )}
-          {memberHouseholds.map((h) => (
+          {memberHouseholds.length > 0 && visibleHouseholds.length === 0 && (
+            <p className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-sm text-stone-600">
+              No members match that search — check the spelling or clear the search.
+            </p>
+          )}
+          {visibleHouseholds.map((h) => (
             <div key={h.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">{h.name}</p>

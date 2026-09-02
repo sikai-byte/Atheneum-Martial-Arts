@@ -21,7 +21,7 @@ export default async function AdminMemberPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { error?: string };
+  searchParams: { error?: string; success?: string };
 }) {
   await requireAdmin();
 
@@ -91,6 +91,14 @@ export default async function AdminMemberPage({
             {searchParams.error}
           </p>
         )}
+        {searchParams.success && (
+          <p
+            role="status"
+            className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800"
+          >
+            {searchParams.success}
+          </p>
+        )}
         <p className="mt-1 text-stone-600">
           {profile.household.name}
           {profile.isChild
@@ -100,6 +108,42 @@ export default async function AdminMemberPage({
               : ""}
         </p>
       </section>
+
+      {isTrial && (
+        <section aria-labelledby="trial-setup">
+          <h2 id="trial-setup" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Trial setup
+          </h2>
+          <ol className="mt-2 space-y-1.5 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-sm">
+            {[
+              { done: true, label: "Account created — welcome email sent with sign-in details" },
+              {
+                done: upcomingBookings.length > 0,
+                label:
+                  upcomingBookings.length > 0
+                    ? `First class booked — ${upcomingBookings[0].session.template.name}, ${formatDay(upcomingBookings[0].session.startsAt)}`
+                    : "Book their first class below (group or private)",
+              },
+              {
+                done: false,
+                label: "Optional: text them the sign-in details via your lead bot",
+              },
+            ].map((step, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    step.done ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-500"
+                  }`}
+                >
+                  {step.done ? "\u2713" : i + 1}
+                </span>
+                <span className={step.done ? "text-stone-700" : "text-stone-600"}>{step.label}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <section aria-labelledby="membership">
         <h2 id="membership" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
@@ -380,7 +424,7 @@ export default async function AdminMemberPage({
             Reset password
           </h2>
           <form
-            action={resetMemberPassword.bind(null, profile.user.id)}
+            action={resetMemberPassword.bind(null, profile.user.id, profile.id)}
             className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
           >
             <p className="text-sm text-stone-600">
