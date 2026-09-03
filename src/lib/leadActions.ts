@@ -26,6 +26,7 @@ import {
 } from "./leads/engine";
 import { investigateAndSave } from "./leads/investigate";
 import { KNOWLEDGE_AUDIENCES, KNOWLEDGE_CATEGORIES } from "./leads/knowledge";
+import { retryOutbound } from "./leads/outbox";
 
 export type FormState = { error?: string; message?: string };
 
@@ -168,6 +169,25 @@ export async function approveDraftAction(
     await approveAgentDraft(messageId, coach.name, String(formData.get("body") ?? ""));
     refreshLead(leadId);
     return { message: "Sent." };
+  } catch (error) {
+    return { error: errorMessage(error) };
+  }
+}
+
+/**
+ * Sends a message that failed or was held, without the coach retyping it. Blocked messages are
+ * re-checked rather than forced through, so retry can never become a way past an opt-out.
+ */
+export async function retryMessageAction(leadId: string, messageId: string): Promise<FormState> {
+  const coach = await requireCoach();
+  try {
+    const outcome = await retryOutbound(messageId, coach.name);
+    refreshLead(leadId);
+    if (outcome.status === "SENT") return { message: "Sent." };
+    if (outcome.status === "DEFERRED") return { message: outcome.reason };
+    if (outcome.status === "BLOCKED") return { error: outcome.reason };
+    if (outcome.status === "FAILED") return { error: outcome.error };
+    return { error: "That message is already sending." };
   } catch (error) {
     return { error: errorMessage(error) };
   }

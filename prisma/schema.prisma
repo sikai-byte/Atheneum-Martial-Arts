@@ -318,12 +318,18 @@ model LeadMessage {
   id         String   @id @default(cuid())
   direction  String   // OUTBOUND | INBOUND
   body       String
-  status     String   @default("SENT") // SENT | FAILED | RECEIVED | DRAFT (agent reply awaiting a coach)
-  provider   String   @default("MOCK") // TWILIO | MOCK
+  // DRAFT | PENDING | SENDING | SENT | FAILED | BLOCKED (we refused to send) | RECEIVED (inbound)
+  status     String   @default("SENT")
+  provider   String   @default("MOCK") // GHL | TWILIO | MOCK
   providerId String?
   errorText  String?
+  attempts   Int      @default(0) // delivery attempts made, so retries stay bounded
+  lastAttemptAt DateTime?
+  sentAt     DateTime?
+  actor      String   @default("AUTOMATION") // AUTOMATION | STAFF — who is accountable for the send
   automated  Boolean  @default(false)
   agentAction String? // ANSWER | BOOK | UPSELL | HANDOFF — set when the sales agent wrote the message
+  agentAuthored Boolean @default(false) // model wrote the words, even if a coach edited them after
   staffEdited Boolean @default(false) // staff rewrote the agent's draft before it went out
   proposedSessionId String? // class the agent offered; booked for real when the message goes out
   stepOrder  Int?
@@ -333,6 +339,7 @@ model LeadMessage {
   lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId, createdAt])
+  @@index([status, createdAt])
 }
 
 model LeadEvent {
