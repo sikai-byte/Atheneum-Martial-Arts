@@ -97,6 +97,22 @@ export default async function AdminPage({
         </div>
       </section>
 
+      <section aria-labelledby="analytics-link">
+        <h2 id="analytics-link" className="sr-only">
+          Analytics
+        </h2>
+        <Link
+          href="/admin/analytics"
+          className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
+        >
+          <p className="font-semibold text-brand">Analytics &rarr;</p>
+          <p className="mt-1 text-xs text-stone-500">
+            Weekly active members, booking adoption, attendance, retention &amp; churn, absence
+            outreach lists, and staff time saved.
+          </p>
+        </Link>
+      </section>
+
       <section aria-labelledby="edit-content">
         <h2 id="edit-content" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
           Edit site content

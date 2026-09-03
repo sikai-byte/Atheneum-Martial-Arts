@@ -13,6 +13,7 @@ import { ensureUploadsDir, uploadsDir } from "./uploads";
 import { formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
 import { trialEndOfDay } from "./trial";
+import { trackEvent } from "./telemetry";
 import {
   appUrl,
   sendPasswordResetEmail,
@@ -32,6 +33,7 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   const session = await getSession();
   session.userId = user.id;
   await session.save();
+  await trackEvent("LOGIN", { userId: user.id });
   redirect(user.role === "ADMIN" ? "/admin" : user.role === "COACH" ? "/coach" : "/");
 }
 
@@ -101,6 +103,7 @@ export async function resetPassword(
     }),
   ]);
 
+  await trackEvent("SELF_PASSWORD_RESET", { userId: record.userId });
   redirect("/login?reset=1");
 }
 
@@ -154,7 +157,7 @@ export async function bookClass(
     }
   }
 
-  await prisma.$transaction(async (tx) => {
+  const bookedStatus = await prisma.$transaction(async (tx) => {
     // Take the write lock up front so the capacity check serializes.
     await tx.$executeRaw`UPDATE ClassSession SET status = status WHERE id = ${sessionId}`;
     const classSession = await tx.classSession.findUniqueOrThrow({
@@ -172,6 +175,13 @@ export async function bookClass(
       update: { status },
       create: { profileId, sessionId, status },
     });
+    return status;
+  });
+
+  await trackEvent(user.role === "ADMIN" ? "ADMIN_BOOKING" : "SELF_BOOKING", {
+    userId: user.id,
+    profileId,
+    metadata: bookedStatus,
   });
 
   revalidatePath("/");
@@ -182,7 +192,7 @@ export async function cancelBooking(profileId: string, sessionId: string) {
   const user = await requireUser();
   await assertProfileInHousehold(user.id, profileId);
 
-  await prisma.$transaction(async (tx) => {
+  const promotedProfileId = await prisma.$transaction(async (tx) => {
     await tx.booking.update({
       where: { profileId_sessionId: { profileId, sessionId } },
       data: { status: "CANCELLED" },
@@ -200,9 +210,19 @@ export async function cancelBooking(profileId: string, sessionId: string) {
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
       if (nextInLine) {
         await tx.booking.update({ where: { id: nextInLine.id }, data: { status: "BOOKED" } });
+        return nextInLine.profileId;
       }
     }
+    return null;
   });
+
+  await trackEvent(user.role === "ADMIN" ? "ADMIN_CANCELLATION" : "SELF_CANCELLATION", {
+    userId: user.id,
+    profileId,
+  });
+  if (promotedProfileId) {
+    await trackEvent("WAITLIST_PROMOTION", { profileId: promotedProfileId });
+  }
 
   revalidatePath("/");
   revalidatePath("/schedule");

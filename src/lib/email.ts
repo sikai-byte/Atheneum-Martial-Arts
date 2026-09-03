@@ -1,3 +1,5 @@
+import { trackEvent } from "./telemetry";
+
 const FROM = process.env.EMAIL_FROM ?? "Atheneum Martial Arts <onboarding@resend.dev>";
 
 export function appUrl(): string {
@@ -13,6 +15,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     }
     // Local development fallback: print the email so flows can be exercised without a key.
     console.log(`[email] RESEND_API_KEY not set — would send to ${to}: ${subject}\n${html}`);
+    await trackEvent("AUTOMATED_EMAIL", { metadata: subject });
     return;
   }
   const res = await fetch("https://api.resend.com/emails", {
@@ -27,6 +30,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     const detail = await res.text();
     throw new Error(`Email send failed (${res.status}): ${detail}`);
   }
+  await trackEvent("AUTOMATED_EMAIL", { metadata: subject });
 }
 
 const BRAND_WRAP = (inner: string) =>
