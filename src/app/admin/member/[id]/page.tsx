@@ -6,6 +6,7 @@ import {
   adminBookClass,
   adminBookPrivateTrial,
   adminCancelBooking,
+  impersonateUser,
   resetMemberPassword,
   updateMembership,
 } from "@/lib/actions";
@@ -108,6 +109,16 @@ export default async function AdminMemberPage({
               ? ` · ${profile.user.email} (${profile.user.role.toLowerCase()})`
               : ""}
         </p>
+        {profile.user && (
+          <form action={impersonateUser.bind(null, profile.user.id)} className="mt-3">
+            <SubmitButton
+              pendingLabel="Switching…"
+              className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+            >
+              View portal as {firstName}
+            </SubmitButton>
+          </form>
+        )}
       </section>
 
       {isTrial && (

@@ -33,6 +33,7 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   }
   const session = await getSession();
   session.userId = user.id;
+  session.impersonatorId = undefined;
   await session.save();
   await trackEvent("LOGIN", { userId: user.id });
   redirect(user.role === "ADMIN" ? "/admin" : user.role === "COACH" ? "/coach" : "/");
@@ -872,4 +873,41 @@ export async function resetMemberPassword(
 
   revalidatePath("/admin");
   succeedTo(memberPath, "Password updated — share it with the member directly.");
+}
+
+export async function impersonateUser(userId: string) {
+  const admin = await requireAdmin();
+  const target = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (target.id === admin.id) redirect("/admin");
+
+  const session = await getSession();
+  session.userId = target.id;
+  session.impersonatorId = admin.id;
+  await session.save();
+
+  await recordAudit(admin, "IMPERSONATION_STARTED", {
+    targetType: "User",
+    targetId: target.id,
+    summary: `Viewed the portal as ${target.name}`,
+  });
+
+  redirect(target.role === "COACH" ? "/coach" : "/");
+}
+
+export async function stopImpersonating() {
+  const session = await getSession();
+  const adminId = session.impersonatorId;
+  if (!adminId) redirect("/");
+
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin || admin.role !== "ADMIN") {
+    session.destroy();
+    redirect("/login");
+  }
+
+  session.userId = admin.id;
+  session.impersonatorId = undefined;
+  await session.save();
+
+  redirect("/admin");
 }

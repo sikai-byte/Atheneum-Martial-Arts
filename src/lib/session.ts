@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 export interface SessionData {
   userId?: string;
+  impersonatorId?: string;
 }
 
 export const sessionOptions: SessionOptions = {
