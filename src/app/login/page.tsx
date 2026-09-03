@@ -13,7 +13,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary w-full px-4 py-3 text-base font-semibold"
     >
       {pending ? "Signing in…" : "Sign in"}
     </button>
@@ -46,7 +46,7 @@ export default function LoginPage() {
       <h1 className="mt-3 text-center text-2xl font-bold tracking-tight text-brand">
         Atheneum Martial Arts
       </h1>
-      <p className="mt-1 text-center text-stone-600">
+      <p className="mt-1 text-center text-slate-600">
         Sign in to book classes and track your training.
       </p>
       <div className="relative mt-5 overflow-hidden rounded-2xl shadow-sm">
@@ -77,7 +77,7 @@ export default function LoginPage() {
             type="email"
             required
             autoComplete="email"
-            className="w-full rounded-lg border border-stone-300 px-3 py-3"
+            className="field-input py-3"
           />
         </div>
         <div>
@@ -90,7 +90,7 @@ export default function LoginPage() {
             type="password"
             required
             autoComplete="current-password"
-            className="w-full rounded-lg border border-stone-300 px-3 py-3"
+            className="field-input py-3"
           />
         </div>
         {state.error && (
@@ -105,8 +105,8 @@ export default function LoginPage() {
           </Link>
         </p>
       </form>
-      <div className="mt-8 rounded-lg border border-stone-200 bg-white p-4 text-sm text-stone-600">
-        <p className="font-semibold text-stone-800">Sample accounts (password: atheneum123)</p>
+      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        <p className="font-semibold text-slate-800">Sample accounts (password: atheneum123)</p>
         <ul className="mt-2 space-y-1">
           <li>member@example.com — adult member</li>
           <li>parent@example.com — parent with two kids</li>

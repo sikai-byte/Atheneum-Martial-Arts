@@ -19,12 +19,12 @@ export default async function NewLeadPage() {
         <Link href="/coach/leads" className="text-sm text-brand hover:underline">
           ← Leads
         </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">Add a lead</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title mt-2">Add a lead</h1>
+        <p className="mt-1 text-slate-600">
           The bot investigates the lead, drafts a personalized opener, and texts it immediately.
         </p>
       </div>
-      <div className="rounded-xl border border-stone-200 bg-white p-4">
+      <div className="card p-4">
         <NewLeadForm sequences={sequences} />
       </div>
     </div>

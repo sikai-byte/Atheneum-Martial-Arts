@@ -34,6 +34,13 @@ const STATUS_ACTIONS = [
   { status: "LOST", label: "Not interested" },
 ];
 
+function gap(from: Date, to: Date) {
+  const minutes = Math.max(0, Math.round((to.getTime() - from.getTime()) / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60 * 24) return `${(minutes / 60).toFixed(1)} h`;
+  return `${Math.round(minutes / (60 * 24))} d`;
+}
+
 function lines(value: string) {
   return value.split("\n").map((l) => l.trim()).filter(Boolean);
 }
@@ -93,34 +100,31 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           ← Leads
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">{lead.fullName}</h1>
+          <h1 className="page-title">{lead.fullName}</h1>
           <StatusBadge status={lead.status} />
           {lead.insight && (
             <TemperatureBadge temperature={lead.insight.temperature} score={lead.insight.score} />
           )}
         </div>
-        <p className="mt-1 text-stone-600">
+        <p className="mt-1 break-anywhere text-slate-600">
           <a href={`tel:${lead.phone}`} className="hover:underline">
             {formatPhone(lead.phone)}
           </a>
           {lead.email && ` · ${lead.email}`} · {lead.source.toLowerCase().replace("_", " ")}
           {lead.campaign && ` · ${lead.campaign}`}
         </p>
-        <p className="mt-1 text-sm text-stone-500">
+        <p className="mt-1 text-sm text-slate-500">
           Enquired {formatRelative(lead.submittedAt, now)}
           {lead.firstContactedAt
-            ? ` · first text ${Math.max(
-                0,
-                Math.round((lead.firstContactedAt.getTime() - lead.submittedAt.getTime()) / 60_000),
-              )} min later`
+            ? ` · first text ${gap(lead.submittedAt, lead.firstContactedAt)} later`
             : " · not texted yet"}
         </p>
       </div>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">Investigation</h2>
-          <div className="flex items-center gap-2 text-xs text-stone-500">
+      <section className="card p-4">
+        <div className="card-head">
+          <h2 className="card-title">Investigation</h2>
+          <div className="flex items-center gap-2 text-xs text-slate-500">
             {lead.insight && (
               <span>
                 {lead.insight.generatedBy === "AI"
@@ -132,7 +136,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <form action={investigateLeadAction.bind(null, lead.id)}>
               <button
                 type="submit"
-                className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
+                className="btn btn-secondary btn-sm"
               >
                 Re-investigate
               </button>
@@ -141,22 +145,22 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
         </div>
         {lead.insight ? (
           <div className="mt-3 space-y-3 text-sm">
-            <p className="text-stone-700">{lead.insight.summary}</p>
+            <p className="text-slate-700">{lead.insight.summary}</p>
             <dl className="grid gap-3 sm:grid-cols-2">
               <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                <dt className="eyebrow">
                   What they want
                 </dt>
                 <dd className="mt-1">{lead.insight.intent || "—"}</dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                <dt className="eyebrow">
                   Recommended program
                 </dt>
                 <dd className="mt-1">{lead.insight.recommendedProgram || "—"}</dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                <dt className="eyebrow">
                   Talking points
                 </dt>
                 <dd className="mt-1">
@@ -168,7 +172,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                <dt className="eyebrow">
                   Likely objections
                 </dt>
                 <dd className="mt-1">
@@ -182,10 +186,10 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             </dl>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-stone-600">Not investigated yet.</p>
+          <p className="mt-2 text-sm text-slate-600">Not investigated yet.</p>
         )}
         {(lead.interest || lead.notes || answers.length > 0) && (
-          <div className="mt-4 space-y-1 border-t border-stone-200 pt-3 text-sm text-stone-600">
+          <div className="mt-4 space-y-1 border-t border-slate-200 pt-3 text-sm text-slate-600">
             {lead.interest && <p>Stated interest: {lead.interest}</p>}
             {lead.notes && <p>Staff notes: {lead.notes}</p>}
             {answers.map(([key, value]) => (
@@ -209,14 +213,14 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
         </section>
       )}
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">Conversation</h2>
+      <section className="card p-4">
+        <div className="card-head">
+          <h2 className="card-title">Conversation</h2>
           {!lead.optedOutAt && (
             <form action={draftAgentReplyAction.bind(null, lead.id)}>
               <button
                 type="submit"
-                className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
+                className="btn btn-secondary btn-sm"
               >
                 Ask the agent for a reply
               </button>
@@ -224,7 +228,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           )}
         </div>
         {thread.length === 0 ? (
-          <p className="mt-2 text-sm text-stone-600">No texts yet.</p>
+          <p className="mt-2 text-sm text-slate-600">No texts yet.</p>
         ) : (
           <ul className="mt-3 space-y-3">
             {thread.map((message) => {
@@ -232,19 +236,19 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               return (
                 <li
                   key={message.id}
-                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-card ${
                     message.direction === "INBOUND"
-                      ? "bg-stone-100 text-stone-800"
+                      ? "bg-slate-100 text-slate-800"
                       : undelivered
-                        ? "ml-auto border border-red-200 bg-red-50 text-stone-800"
+                        ? "ml-auto border border-red-200 bg-red-50 text-slate-800"
                         : "ml-auto bg-brand text-white"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.body}</p>
+                  <p className="whitespace-pre-wrap break-anywhere">{message.body}</p>
                   <p
                     className={`mt-1 text-xs ${
                       message.direction === "INBOUND" || undelivered
-                        ? "text-stone-500"
+                        ? "text-slate-500"
                         : "text-white/70"
                     }`}
                   >
@@ -290,7 +294,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           </div>
         )}
 
-        <div className="mt-4 border-t border-stone-200 pt-4">
+        <div className="mt-4 border-t border-slate-200 pt-4">
           <SmsComposer
             leadId={lead.id}
             suggestion={thread.length === 0 ? lead.insight?.suggestedFirstText : undefined}
@@ -304,9 +308,9 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 
       <TimeOnLead leadId={lead.id} />
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Follow-up</h2>
-        <p className="mt-1 text-sm text-stone-600">
+      <section className="card p-4">
+        <h2 className="card-title">Follow-up</h2>
+        <p className="mt-1 text-sm text-slate-600">
           {lead.optedOutAt
             ? "Stopped — the lead opted out."
             : lead.pausedAt
@@ -316,7 +320,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                 : "Not in a cadence."}
         </p>
         {lead.tasks.length > 0 && (
-          <ul className="mt-2 space-y-1 text-sm text-stone-600">
+          <ul className="mt-2 space-y-1 text-sm text-slate-600">
             {lead.tasks.map((task) => (
               <li key={task.id}>
                 Step {task.stepOrder} queued for {formatDateTime(task.dueAt)} (
@@ -333,7 +337,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               <form action={resumeLeadAction.bind(null, lead.id)}>
                 <button
                   type="submit"
-                  className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark"
+                  className="btn btn-primary btn-md"
                 >
                   Resume follow-up
                 </button>
@@ -342,7 +346,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               <form action={pauseLeadAction.bind(null, lead.id)}>
                 <button
                   type="submit"
-                  className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+                  className="btn btn-secondary btn-md"
                 >
                   Pause follow-up
                 </button>
@@ -352,7 +356,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <form key={sequence.key} action={enrollLeadAction.bind(null, lead.id, sequence.key)}>
               <button
                 type="submit"
-                className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+                className="btn btn-secondary btn-md"
               >
                 Restart: {sequence.name} ({sequence.steps.length} texts)
               </button>
@@ -360,8 +364,8 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           ))}
         </div>
 
-        <div className="mt-4 border-t border-stone-200 pt-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Outcome</p>
+        <div className="mt-4 border-t border-slate-200 pt-3">
+          <p className="eyebrow">Outcome</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {STATUS_ACTIONS.map((action) => (
               <form
@@ -371,7 +375,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                 <button
                   type="submit"
                   disabled={lead.status === action.status}
-                  className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100 disabled:opacity-50"
+                  className="btn btn-secondary btn-md"
                 >
                   {action.label}
                 </button>
@@ -381,7 +385,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               <form action={optOutLeadAction.bind(null, lead.id)}>
                 <button
                   type="submit"
-                  className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                  className="btn btn-danger btn-md"
                 >
                   Do not text
                 </button>
@@ -391,10 +395,10 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
         </div>
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Membership</h2>
+      <section className="card p-4">
+        <h2 className="card-title">Membership</h2>
         {lead.profile ? (
-          <p className="mt-2 text-sm text-stone-600">
+          <p className="mt-2 text-sm text-slate-600">
             Signed up as{" "}
             <Link
               href={`/coach/members/${lead.profile.id}`}
@@ -406,7 +410,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           </p>
         ) : (
           <>
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-slate-500">
               Creating the member keeps this lead attached, so every payment they make is credited
               back to {lead.source.toLowerCase().replace("_", " ")}
               {lead.campaign && ` · ${lead.campaign}`}.
@@ -424,14 +428,14 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Timeline</h2>
+      <section className="card p-4">
+        <h2 className="card-title">Timeline</h2>
         <ul className="mt-3 space-y-2 text-sm">
           {lead.events.map((event) => (
-            <li key={event.id} className="border-l-2 border-stone-200 pl-3">
-              <p className="font-medium text-stone-800">{event.summary}</p>
-              {event.detail && <p className="text-stone-600">{event.detail}</p>}
-              <p className="text-xs text-stone-500">{formatDateTime(event.createdAt)}</p>
+            <li key={event.id} className="border-l-2 border-slate-200 pl-3">
+              <p className="font-medium text-slate-800">{event.summary}</p>
+              {event.detail && <p className="text-slate-600">{event.detail}</p>}
+              <p className="text-xs text-slate-500">{formatDateTime(event.createdAt)}</p>
             </li>
           ))}
         </ul>

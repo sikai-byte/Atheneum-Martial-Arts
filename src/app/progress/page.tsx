@@ -36,8 +36,8 @@ export default async function ProgressPage({
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-bold tracking-tight">Progress</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title">Progress</h1>
+        <p className="mt-1 text-slate-600">
           Consistency builds skill. Here&apos;s how training is going.
         </p>
       </section>
@@ -51,7 +51,7 @@ export default async function ProgressPage({
               className={`rounded-full px-3 py-1.5 text-sm font-medium ${
                 p.id === selected.id
                   ? "bg-brand text-white"
-                  : "border border-stone-300 bg-white text-stone-700"
+                  : "border border-slate-300 bg-white text-slate-700"
               }`}
             >
               {p.name}
@@ -61,29 +61,29 @@ export default async function ProgressPage({
       )}
 
       <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-stone-200 bg-white p-4">
+        <div className="card p-4">
           <p className="text-3xl font-bold">{thisWeek}</p>
-          <p className="mt-1 text-sm text-stone-600">
+          <p className="mt-1 text-sm text-slate-600">
             classes this week (goal: {selected.weeklyGoal})
           </p>
         </div>
-        <div className="rounded-xl border border-stone-200 bg-white p-4">
+        <div className="card p-4">
           <p className="text-3xl font-bold">{attendances.length}</p>
-          <p className="mt-1 text-sm text-stone-600">recent classes attended</p>
+          <p className="mt-1 text-sm text-slate-600">recent classes attended</p>
         </div>
       </section>
 
       {milestones.length > 0 && (
         <section aria-labelledby="milestones">
-          <h2 id="milestones" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          <h2 id="milestones" className="eyebrow text-xs">
             Milestones
           </h2>
           <div className="mt-2 space-y-3">
             {milestones.map((m) => (
-              <div key={m.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={m.id} className="card p-4">
                 <p className="font-medium">{m.title}</p>
-                {m.notes && <p className="mt-1 text-sm text-stone-600">{m.notes}</p>}
-                <p className="mt-2 text-xs text-stone-400">
+                {m.notes && <p className="mt-1 text-sm text-slate-600">{m.notes}</p>}
+                <p className="mt-2 text-xs text-slate-400">
                   {m.awardedBy} · {formatDay(m.awardedAt)}
                 </p>
               </div>
@@ -93,19 +93,19 @@ export default async function ProgressPage({
       )}
 
       <section aria-labelledby="history">
-        <h2 id="history" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="history" className="eyebrow text-xs">
           Recent training
         </h2>
         {attendances.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 card p-4 text-slate-600">
             No classes recorded yet. Your first session will show up here.
           </p>
         ) : (
           <ul className="mt-2 space-y-2">
             {attendances.map((a) => (
-              <li key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <li key={a.id} className="card p-4">
                 <p className="font-medium">{a.session.template.name}</p>
-                <p className="mt-1 text-sm text-stone-600">
+                <p className="mt-1 text-sm text-slate-600">
                   {formatDay(a.session.startsAt)} at {formatTime(a.session.startsAt)} ·{" "}
                   {a.session.instructor}
                 </p>

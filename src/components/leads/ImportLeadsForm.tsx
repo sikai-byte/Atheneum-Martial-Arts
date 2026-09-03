@@ -39,9 +39,9 @@ export default function ImportLeadsForm({
           rows={10}
           required
           placeholder={SAMPLE}
-          className="w-full rounded-lg border border-stone-300 px-3 py-2 font-mono text-sm"
+          className="field-input font-mono"
         />
-        <p className="mt-1 text-sm text-stone-500">
+        <p className="mt-1 text-sm text-slate-500">
           Recognized columns: name, phone, email, interest, notes, campaign, form, child name, age,
           submitted. Anything else is kept as an intake answer for the bot to read. Leads already in
           the system are refreshed rather than duplicated.
@@ -56,7 +56,7 @@ export default function ImportLeadsForm({
           id="sequenceKey"
           name="sequenceKey"
           defaultValue="REACTIVATION"
-          className="w-full rounded-lg border border-stone-300 px-3 py-2"
+          className="field-input"
         >
           {sequences.map((s) => (
             <option key={s.key} value={s.key}>

@@ -15,6 +15,12 @@ const geistMono = localFont({
   variable: "--font-geist-mono",
   weight: "100 900",
 });
+const archivo = localFont({
+  src: "./fonts/ArchivoVF.woff2",
+  variable: "--font-archivo",
+  weight: "400 700",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Atheneum Martial Arts",
@@ -37,11 +43,11 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-stone-50 font-sans text-stone-900 antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} min-h-screen bg-slate-50 font-sans text-slate-900 antialiased`}
       >
         <PwaRegister />
         {user && <Nav name={user.name} role={user.role} />}
-        <main className="mx-auto w-full max-w-3xl px-4 pb-24 pt-6 sm:pb-10">
+        <main className="mx-auto w-full max-w-3xl px-4 pb-24 pt-6 sm:pb-10 lg:max-w-5xl">
           {children}
         </main>
       </body>

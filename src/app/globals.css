@@ -6,6 +6,16 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-archivo), var(--font-geist-sans), system-ui, sans-serif;
+    letter-spacing: -0.018em;
+    overflow-wrap: anywhere;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -16,12 +26,71 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid #1c1917;
+  outline: 2px solid #0039b7;
   outline-offset: 2px;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-slate-200/80 bg-white shadow-card;
+  }
+
+  .card-head {
+    @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2;
+  }
+
+  .card-title {
+    @apply min-w-0 text-base font-semibold tracking-tight text-slate-900;
+  }
+
+  .eyebrow {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-500;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.75rem];
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5;
+  }
+
+  .btn-md {
+    @apply px-3.5 py-2;
+  }
+
+  .btn-secondary {
+    @apply border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50;
+  }
+
+  .btn-primary {
+    @apply bg-brand text-white shadow-card hover:bg-brand-dark;
+  }
+
+  .btn-danger {
+    @apply border border-red-300 bg-white text-red-700 hover:bg-red-50;
+  }
+
+  .field-label {
+    @apply block text-sm font-medium text-slate-700;
+  }
+
+  .field-input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20;
+  }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Long unbroken strings (emails, campaign ids) must not push a card wide. */
+  .break-anywhere {
+    overflow-wrap: anywhere;
   }
 }

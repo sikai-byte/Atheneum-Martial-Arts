@@ -9,7 +9,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary btn-md"
     >
       {pending ? "Saving…" : "Record spend"}
     </button>
@@ -36,7 +36,7 @@ export default function AdSpendForm({
 
   return (
     <div className="space-y-6">
-      <form action={formAction} className="grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
+      <form action={formAction} className="grid gap-3 card p-4 sm:grid-cols-2">
         <label className="text-sm">
           <span className="font-medium">Source</span>
           <input
@@ -44,7 +44,7 @@ export default function AdSpendForm({
             list="spend-sources"
             required
             placeholder="FACEBOOK_ADS"
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
           <datalist id="spend-sources">
             {sources.map((source) => (
@@ -57,7 +57,7 @@ export default function AdSpendForm({
           <input
             name="campaign"
             placeholder="Leave blank for all spend on this source"
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <label className="text-sm">
@@ -67,7 +67,7 @@ export default function AdSpendForm({
             required
             inputMode="decimal"
             placeholder="450"
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <label className="text-sm">
@@ -75,7 +75,7 @@ export default function AdSpendForm({
           <input
             name="note"
             placeholder="Optional"
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <label className="text-sm">
@@ -84,7 +84,7 @@ export default function AdSpendForm({
             type="date"
             name="periodStart"
             required
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <label className="text-sm">
@@ -93,7 +93,7 @@ export default function AdSpendForm({
             type="date"
             name="periodEnd"
             required
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
@@ -107,10 +107,10 @@ export default function AdSpendForm({
         </div>
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
+      <div className="overflow-x-auto card">
         <table className="w-full text-sm">
           <caption className="sr-only">Recorded ad spend</caption>
-          <thead className="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-500">
+          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Source</th>
               <th className="px-4 py-3">Period</th>
@@ -119,19 +119,19 @@ export default function AdSpendForm({
               <th className="px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100">
+          <tbody className="divide-y divide-slate-100">
             {rows.map((row) => (
               <tr key={row.id}>
                 <td className="px-4 py-3">
                   <span className="font-medium">{row.source.toLowerCase().replace(/_/g, " ")}</span>
-                  {row.campaign && <span className="text-stone-500"> · {row.campaign}</span>}
+                  {row.campaign && <span className="text-slate-500"> · {row.campaign}</span>}
                 </td>
                 <td className="px-4 py-3">{row.period}</td>
                 <td className="px-4 py-3 font-semibold">{row.amount}</td>
-                <td className="px-4 py-3 text-stone-600">{row.note}</td>
+                <td className="px-4 py-3 text-slate-600">{row.note}</td>
                 <td className="px-4 py-3 text-right">
                   <form action={deleteAdSpendAction.bind(null, row.id)}>
-                    <button type="submit" className="text-xs text-stone-500 underline hover:text-stone-700">
+                    <button type="submit" className="text-xs text-slate-500 underline hover:text-slate-700">
                       Remove
                     </button>
                   </form>
@@ -140,7 +140,7 @@ export default function AdSpendForm({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-4 text-stone-600">
+                <td colSpan={5} className="px-4 py-4 text-slate-600">
                   No spend recorded yet, so cost per lead and cost per member stay blank.
                 </td>
               </tr>

@@ -13,7 +13,7 @@ function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary btn-md"
     >
       {pending ? pendingLabel : label}
     </button>
@@ -63,7 +63,7 @@ export default function SmsComposer({
   return (
     <div className="space-y-4">
       <form action={sendFormAction} className="space-y-2">
-        <label htmlFor="body" className="block text-sm font-medium">
+        <label htmlFor="body" className="field-label">
           Text this lead
         </label>
         <textarea
@@ -72,7 +72,7 @@ export default function SmsComposer({
           rows={3}
           required
           defaultValue={suggestion}
-          className="w-full rounded-lg border border-stone-300 px-3 py-2"
+          className="field-input"
         />
         <div className="flex items-center gap-3">
           <Submit label="Send text" pendingLabel="Sending…" />
@@ -83,12 +83,12 @@ export default function SmsComposer({
       {allowSimulatedReply && (
         <form
           action={inboundFormAction}
-          className="space-y-2 rounded-lg border border-dashed border-stone-300 p-3"
+          className="space-y-2 rounded-lg border border-dashed border-slate-300 p-3"
         >
-          <label htmlFor="inboundBody" className="block text-sm font-medium">
+          <label htmlFor="inboundBody" className="field-label">
             Simulate a reply from the lead
           </label>
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-slate-500">
             Twilio isn&apos;t connected yet. Use this to exercise reply handling: the drip pauses,
             the lead moves to <em>replied</em>, and the auto-acknowledgement goes out.
           </p>
@@ -97,7 +97,7 @@ export default function SmsComposer({
             name="body"
             required
             placeholder="Yes! What times do you have Saturday?"
-            className="w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="field-input"
           />
           <div className="flex items-center gap-3">
             <Submit label="Record reply" pendingLabel="Recording…" />

@@ -16,7 +16,7 @@ function Submit() {
   );
 }
 
-const inputClass = "w-full rounded-lg border border-stone-300 px-3 py-2";
+const inputClass = "field-input";
 
 export default function NewLeadForm({ sequences }: { sequences: { key: string; name: string }[] }) {
   const [state, formAction] = useFormState<FormState, FormData>(createLeadAction, {});
@@ -45,7 +45,7 @@ export default function NewLeadForm({ sequences }: { sequences: { key: string; n
         </div>
         <div>
           <label htmlFor="email" className="mb-1 block text-sm font-medium">
-            Email <span className="text-stone-500">(optional)</span>
+            Email <span className="text-slate-500">(optional)</span>
           </label>
           <input id="email" name="email" type="email" className={inputClass} />
         </div>
@@ -61,7 +61,7 @@ export default function NewLeadForm({ sequences }: { sequences: { key: string; n
         </div>
         <div>
           <label htmlFor="childName" className="mb-1 block text-sm font-medium">
-            Child&apos;s name <span className="text-stone-500">(optional)</span>
+            Child&apos;s name <span className="text-slate-500">(optional)</span>
           </label>
           <input id="childName" name="childName" className={inputClass} />
         </div>
@@ -89,7 +89,7 @@ export default function NewLeadForm({ sequences }: { sequences: { key: string; n
         </div>
         <div>
           <label htmlFor="submittedAt" className="mb-1 block text-sm font-medium">
-            Date they enquired <span className="text-stone-500">(blank = now)</span>
+            Date they enquired <span className="text-slate-500">(blank = now)</span>
           </label>
           <input id="submittedAt" name="submittedAt" type="date" className={inputClass} />
         </div>

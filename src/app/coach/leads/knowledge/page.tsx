@@ -19,8 +19,8 @@ export default async function KnowledgePage() {
         <Link href="/coach/leads/settings" className="text-sm text-brand hover:underline">
           ← Bot settings
         </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">What the agent knows</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title mt-2">What the agent knows</h1>
+        <p className="mt-1 text-slate-600">
           The agent sells only from what&apos;s written here. It never invents a price, a class time
           or a policy — if the answer isn&apos;t on this page it tells the lead a coach will confirm.
         </p>
@@ -34,7 +34,7 @@ export default async function KnowledgePage() {
         </p>
       )}
 
-      <div className="rounded-xl border border-stone-200 bg-white p-4">
+      <div className="card p-4">
         <KnowledgeEditor
           items={items.map((item) => ({
             id: item.id,

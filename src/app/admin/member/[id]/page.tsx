@@ -25,8 +25,8 @@ export default async function AdminMemberPage({ params }: { params: { id: string
         <Link href="/admin" className="text-sm text-brand hover:underline">
           &larr; Back to Admin
         </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">{profile.name}</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title mt-2">{profile.name}</h1>
+        <p className="mt-1 text-slate-600">
           {profile.household.name}
           {profile.isChild
             ? " · child profile"
@@ -37,12 +37,12 @@ export default async function AdminMemberPage({ params }: { params: { id: string
       </section>
 
       <section aria-labelledby="membership">
-        <h2 id="membership" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="membership" className="eyebrow text-xs">
           Membership
         </h2>
         <form
           action={updateMembership.bind(null, profile.id)}
-          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+          className="mt-2 space-y-3 card p-4"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -55,7 +55,7 @@ export default async function AdminMemberPage({ params }: { params: { id: string
                 maxLength={80}
                 defaultValue={profile.membershipPlan ?? ""}
                 placeholder="e.g. Adult Unlimited"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               />
             </div>
             <div>
@@ -66,7 +66,7 @@ export default async function AdminMemberPage({ params }: { params: { id: string
                 id="membership-type"
                 name="membershipType"
                 defaultValue={profile.membershipType ?? ""}
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               >
                 <option value="">None</option>
                 <option value="MONTHLY">Monthly (renews on a date)</option>
@@ -82,7 +82,7 @@ export default async function AdminMemberPage({ params }: { params: { id: string
                 name="membershipRenewsAt"
                 type="date"
                 defaultValue={renewsAtValue}
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -97,7 +97,7 @@ export default async function AdminMemberPage({ params }: { params: { id: string
                   min={1}
                   max={100}
                   defaultValue={profile.punchPassTotal ?? 10}
-                  className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                  className="field-input py-2.5"
                 />
               </div>
               <div>
@@ -111,12 +111,12 @@ export default async function AdminMemberPage({ params }: { params: { id: string
                   min={0}
                   max={100}
                   defaultValue={profile.punchPassUsed}
-                  className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                  className="field-input py-2.5"
                 />
               </div>
             </div>
           </div>
-          <p className="text-xs text-stone-500">
+          <p className="text-xs text-slate-500">
             Punch-pass fields only apply to punch-pass memberships; the renewal date only applies
             to monthly plans.
           </p>
@@ -133,15 +133,15 @@ export default async function AdminMemberPage({ params }: { params: { id: string
         <section aria-labelledby="reset-password">
           <h2
             id="reset-password"
-            className="text-sm font-semibold uppercase tracking-wide text-stone-500"
+            className="eyebrow text-xs"
           >
             Reset password
           </h2>
           <form
             action={resetMemberPassword.bind(null, profile.user.id)}
-            className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+            className="mt-2 space-y-3 card p-4"
           >
-            <p className="text-sm text-stone-600">
+            <p className="text-sm text-slate-600">
               Sets a new password for {profile.user.email}. Share it with the member directly.
             </p>
             <div className="sm:max-w-xs">
@@ -155,7 +155,7 @@ export default async function AdminMemberPage({ params }: { params: { id: string
                 required
                 minLength={8}
                 placeholder="At least 8 characters"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               />
             </div>
             <button

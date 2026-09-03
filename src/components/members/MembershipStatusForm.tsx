@@ -16,7 +16,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md border border-stone-300 px-3 py-2 text-sm font-medium hover:bg-stone-100 disabled:opacity-60"
+      className="btn btn-secondary btn-md"
     >
       {pending ? "Updating…" : "Update membership"}
     </button>
@@ -40,7 +40,7 @@ export default function MembershipStatusForm({
         <select
           name="status"
           defaultValue={status}
-          className="mt-1 rounded-lg border border-stone-300 px-3 py-2"
+          className="mt-1 rounded-lg border border-slate-300 px-3 py-2"
         >
           {STATUSES.map(([value, label]) => (
             <option key={value} value={value}>
@@ -52,7 +52,7 @@ export default function MembershipStatusForm({
       <input
         name="reason"
         placeholder="Cancel reason (optional)"
-        className="rounded-lg border border-stone-300 px-3 py-2 text-sm"
+        className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
       />
       <Submit />
       {state.error && (

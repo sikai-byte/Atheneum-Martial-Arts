@@ -13,7 +13,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryStyles: Record<string, string> = {
-  GENERAL: "bg-stone-100 text-stone-700",
+  GENERAL: "bg-slate-100 text-slate-700",
   QUESTION: "bg-purple-100 text-purple-800",
   NEWS: "bg-blue-100 text-blue-800",
 };
@@ -37,13 +37,13 @@ export default async function CommunityPage() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-bold tracking-tight">Community</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title">Community</h1>
+        <p className="mt-1 text-slate-600">
           Share pictures, ask questions, and post news for the whole Atheneum tribe.
         </p>
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5" aria-labelledby="new-post">
+      <section className="card p-5" aria-labelledby="new-post">
         <h2 id="new-post" className="text-lg font-semibold">
           Start a post
         </h2>
@@ -57,7 +57,7 @@ export default async function CommunityPage() {
                 id="post-title"
                 name="title"
                 maxLength={120}
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
                 placeholder="e.g. Great rolls this morning!"
               />
             </div>
@@ -68,7 +68,7 @@ export default async function CommunityPage() {
               <select
                 id="post-category"
                 name="category"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               >
                 <option value="GENERAL">General</option>
                 <option value="QUESTION">Question</option>
@@ -86,7 +86,7 @@ export default async function CommunityPage() {
               required
               rows={3}
               maxLength={4000}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+              className="field-input py-2.5"
               placeholder="Share something with the community…"
             />
           </div>
@@ -99,7 +99,7 @@ export default async function CommunityPage() {
               name="photo"
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              className="block w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-stone-700"
+              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700"
             />
           </div>
           <button
@@ -112,11 +112,11 @@ export default async function CommunityPage() {
       </section>
 
       <section aria-labelledby="feed">
-        <h2 id="feed" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="feed" className="eyebrow text-xs">
           Latest posts
         </h2>
         {posts.length === 0 ? (
-          <p className="mt-3 rounded-xl border border-dashed border-stone-300 bg-white p-6 text-center text-sm text-stone-500">
+          <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
             No posts yet — be the first to share something with the tribe!
           </p>
         ) : (
@@ -124,7 +124,7 @@ export default async function CommunityPage() {
             {posts.map((post) => {
               const canDeletePost = isStaff || post.author.id === user.id;
               return (
-                <article key={post.id} className="rounded-xl border border-stone-200 bg-white p-4">
+                <article key={post.id} className="card p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -141,18 +141,18 @@ export default async function CommunityPage() {
                             Staff
                           </span>
                         )}
-                        <p className="text-xs text-stone-400">
+                        <p className="text-xs text-slate-400">
                           {formatDay(post.createdAt)} · {formatTime(post.createdAt)}
                         </p>
                       </div>
                       {post.title && <p className="mt-2 font-semibold">{post.title}</p>}
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-stone-700">{post.body}</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{post.body}</p>
                     </div>
                     {canDeletePost && (
                       <form action={deletePost.bind(null, post.id)}>
                         <button
                           type="submit"
-                          className="text-xs text-stone-400 hover:text-red-600"
+                          className="text-xs text-slate-400 hover:text-red-600"
                           aria-label="Delete post"
                         >
                           Delete
@@ -169,7 +169,7 @@ export default async function CommunityPage() {
                     />
                   )}
 
-                  <div className="mt-4 border-t border-stone-100 pt-3">
+                  <div className="mt-4 border-t border-slate-100 pt-3">
                     {post.comments.length > 0 && (
                       <ul className="space-y-2">
                         {post.comments.map((c) => {
@@ -178,13 +178,13 @@ export default async function CommunityPage() {
                             <li key={c.id} className="flex items-start justify-between gap-3">
                               <p className="text-sm">
                                 <span className="font-medium">{c.author.name}</span>{" "}
-                                <span className="text-stone-600">{c.body}</span>
+                                <span className="text-slate-600">{c.body}</span>
                               </p>
                               {canDeleteComment && (
                                 <form action={deleteComment.bind(null, c.id)}>
                                   <button
                                     type="submit"
-                                    className="text-xs text-stone-400 hover:text-red-600"
+                                    className="text-xs text-slate-400 hover:text-red-600"
                                     aria-label="Delete comment"
                                   >
                                     Delete
@@ -205,11 +205,11 @@ export default async function CommunityPage() {
                         required
                         maxLength={2000}
                         placeholder="Write a comment…"
-                        className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                        className="field-input"
                       />
                       <button
                         type="submit"
-                        className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100"
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
                       >
                         Reply
                       </button>

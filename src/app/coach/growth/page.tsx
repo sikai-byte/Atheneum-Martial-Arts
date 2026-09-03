@@ -31,10 +31,10 @@ function duration(minutes: number | null) {
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
-      {hint && <p className="text-xs text-stone-500">{hint}</p>}
+    <div className="card p-4">
+      <p className="eyebrow">{label}</p>
+      <p className="mt-1 font-display text-2xl font-bold tabular-nums text-slate-900">{value}</p>
+      {hint && <p className="text-xs text-slate-500">{hint}</p>}
     </div>
   );
 }
@@ -64,8 +64,8 @@ export default async function GrowthPage({
     <div className="space-y-8">
       <section className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Growth</h1>
-          <p className="mt-1 text-stone-600">
+          <h1 className="page-title">Growth</h1>
+          <p className="mt-1 text-slate-600">
             Every stage of the funnel, for leads that arrived in the selected period.
           </p>
         </div>
@@ -79,8 +79,8 @@ export default async function GrowthPage({
                 href={`/coach/growth?days=${key}`}
                 className={
                   active
-                    ? "rounded-md bg-stone-900 px-3 py-2 text-sm font-medium text-white"
-                    : "rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+                    ? "btn btn-md bg-brand text-white shadow-card"
+                    : "btn btn-secondary btn-md"
                 }
               >
                 {range.label}
@@ -89,7 +89,7 @@ export default async function GrowthPage({
           })}
           <Link
             href="/coach/growth/spend"
-            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+            className="btn btn-secondary btn-md"
           >
             Ad spend
           </Link>
@@ -97,7 +97,7 @@ export default async function GrowthPage({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">Speed</h2>
+        <h2 className="eyebrow text-xs">Speed</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Leads" value={String(metrics.leads)} hint={`${metrics.firstContact.neverContacted} never contacted`} />
           <Stat
@@ -111,7 +111,7 @@ export default async function GrowthPage({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">Funnel</h2>
+        <h2 className="eyebrow text-xs">Funnel</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="Replied" value={pct(metrics.responseRate)} hint={ofBase(metrics.responseRate)} />
           <Stat label="Lead → trial" value={pct(metrics.leadToTrial)} hint={ofBase(metrics.leadToTrial)} />
@@ -139,7 +139,7 @@ export default async function GrowthPage({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 className="eyebrow text-xs">
           Agent vs. humans
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -162,7 +162,7 @@ export default async function GrowthPage({
             hint={`${metrics.staffTime.totalMinutes} min over ${metrics.staffTime.leadsTouched} leads`}
           />
         </div>
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-slate-500">
           While the agent runs in draft mode, &ldquo;fully automated&rdquo; stays at 0% by design —
           it is the number to watch before trusting autopilot, alongside how often drafts need
           editing.
@@ -170,7 +170,7 @@ export default async function GrowthPage({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 className="eyebrow text-xs">
           Reactivation
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -182,7 +182,7 @@ export default async function GrowthPage({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">Money</h2>
+        <h2 className="eyebrow text-xs">Money</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Ad spend" value={formatPrice(spendCents)} hint="entered by hand" />
           <Stat
@@ -197,10 +197,10 @@ export default async function GrowthPage({
           <Stat label="Average member LTV" value={formatPrice(studio.avgLtvCents)} hint="whole studio" />
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm tabular-nums">
             <caption className="sr-only">Cost and return by source and campaign</caption>
-            <thead className="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-500">
+            <thead className="border-b border-slate-200 bg-slate-50/80 text-left text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
               <tr>
                 <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Leads</th>
@@ -213,12 +213,12 @@ export default async function GrowthPage({
                 <th className="px-4 py-3">ROAS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-100">
+            <tbody className="divide-y divide-slate-100">
               {economics.map((row) => (
-                <tr key={`${row.source}-${row.campaign ?? ""}`}>
-                  <td className="px-4 py-3">
+                <tr key={`${row.source}-${row.campaign ?? ""}`} className="hover:bg-slate-50/60">
+                  <td className="whitespace-nowrap px-4 py-3">
                     <span className="font-medium">{row.source.toLowerCase().replace(/_/g, " ")}</span>
-                    {row.campaign && <span className="text-stone-500"> · {row.campaign}</span>}
+                    {row.campaign && <span className="text-slate-500"> · {row.campaign}</span>}
                   </td>
                   <td className="px-4 py-3">{row.leads}</td>
                   <td className="px-4 py-3">{row.trials}</td>
@@ -236,7 +236,7 @@ export default async function GrowthPage({
               ))}
               {economics.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-4 text-stone-600">
+                  <td colSpan={9} className="px-4 py-4 text-slate-600">
                     No leads in this period.
                   </td>
                 </tr>
@@ -244,7 +244,7 @@ export default async function GrowthPage({
             </tbody>
           </table>
         </div>
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-slate-500">
           Cost per member is blank until spend is recorded for that source —{" "}
           <Link href="/coach/growth/spend" className="underline">
             add it here

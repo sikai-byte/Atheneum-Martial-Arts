@@ -45,8 +45,8 @@ export default async function MemberDetailPage({
     <div className="space-y-6">
       <section className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{profile.name}</h1>
-          <p className="mt-1 text-stone-600">
+          <h1 className="page-title">{profile.name}</h1>
+          <p className="mt-1 text-slate-600">
             {current ? `${current.plan.name} · ${formatPrice(current.priceCents)}/mo` : "No plan"} ·
             joined {formatRelative(profile.joinedAt, now)}
             {profile.leftAt && ` · left ${formatRelative(profile.leftAt, now)}`}
@@ -54,7 +54,7 @@ export default async function MemberDetailPage({
         </div>
         <Link
           href="/coach/members"
-          className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+          className="btn btn-secondary btn-md"
         >
           All members
         </Link>
@@ -78,51 +78,51 @@ export default async function MemberDetailPage({
           },
           { label: "Payments recorded", value: String(paid.length) },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-stone-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+          <div key={stat.label} className="card p-4">
+            <p className="eyebrow">
               {stat.label}
             </p>
-            <p className="mt-1 text-2xl font-bold">{stat.value}</p>
+            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-slate-900">{stat.value}</p>
           </div>
         ))}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Membership</h2>
+      <section className="card p-4">
+        <h2 className="card-title">Membership</h2>
         {current ? (
           <>
             <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
               <div className="flex gap-2">
-                <dt className="text-stone-500">Status</dt>
+                <dt className="text-slate-500">Status</dt>
                 <dd className="font-medium">{current.status.toLowerCase().replace("_", " ")}</dd>
               </div>
               <div className="flex gap-2">
-                <dt className="text-stone-500">Started</dt>
+                <dt className="text-slate-500">Started</dt>
                 <dd className="font-medium">{formatDateTime(current.startedAt)}</dd>
               </div>
               <div className="flex gap-2">
-                <dt className="text-stone-500">Next invoice</dt>
+                <dt className="text-slate-500">Next invoice</dt>
                 <dd className="font-medium">
                   {current.nextInvoiceAt ? formatDateTime(current.nextInvoiceAt) : "—"}
                 </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="text-stone-500">Stripe subscription</dt>
+                <dt className="text-slate-500">Stripe subscription</dt>
                 <dd className="font-medium">{current.stripeSubscriptionId ?? "not linked"}</dd>
               </div>
             </dl>
-            <div className="mt-3 border-t border-stone-200 pt-3">
+            <div className="mt-3 border-t border-slate-200 pt-3">
               <MembershipStatusForm membershipId={current.id} status={current.status} />
             </div>
           </>
         ) : (
-          <p className="mt-2 text-sm text-stone-600">No membership on file.</p>
+          <p className="mt-2 text-sm text-slate-600">No membership on file.</p>
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Record a payment</h2>
-        <p className="mt-1 text-xs text-stone-500">
+      <section className="card p-4">
+        <h2 className="card-title">Record a payment</h2>
+        <p className="mt-1 text-xs text-slate-500">
           {stripeConfigured()
             ? "Stripe invoices are ingested automatically; use this for cash and card-terminal payments."
             : "Stripe isn't connected yet, so every payment is recorded here by hand."}
@@ -132,12 +132,12 @@ export default async function MemberDetailPage({
         </div>
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Payment history</h2>
+      <section className="card p-4">
+        <h2 className="card-title">Payment history</h2>
         {profile.payments.length === 0 ? (
-          <p className="mt-2 text-sm text-stone-600">Nothing collected yet.</p>
+          <p className="mt-2 text-sm text-slate-600">Nothing collected yet.</p>
         ) : (
-          <ul className="mt-2 divide-y divide-stone-100 text-sm">
+          <ul className="mt-2 divide-y divide-slate-100 text-sm">
             {profile.payments.map((payment) => (
               <li key={payment.id} className="flex flex-wrap justify-between gap-2 py-2">
                 <span>
@@ -150,7 +150,7 @@ export default async function MemberDetailPage({
                     </span>
                   )}
                 </span>
-                <span className="text-stone-500">
+                <span className="text-slate-500">
                   {formatDateTime(payment.paidAt)} · {payment.method.toLowerCase()} ·{" "}
                   {payment.recordedBy}
                 </span>
@@ -160,10 +160,10 @@ export default async function MemberDetailPage({
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Where they came from</h2>
+      <section className="card p-4">
+        <h2 className="card-title">Where they came from</h2>
         {lead ? (
-          <div className="mt-2 space-y-1 text-sm text-stone-600">
+          <div className="mt-2 space-y-1 text-sm text-slate-600">
             <p>
               <Link href={`/coach/leads/${lead.id}`} className="font-medium text-brand underline">
                 {lead.fullName}
@@ -190,29 +190,29 @@ export default async function MemberDetailPage({
               days from first inquiry to member.
             </p>
             {lead.insight && (
-              <p className="text-stone-500">
+              <p className="text-slate-500">
                 Investigation scored them {lead.insight.score} ({lead.insight.temperature}
                 ).
               </p>
             )}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-stone-600">
+          <p className="mt-2 text-sm text-slate-600">
             No lead attached — this member predates lead tracking, so their revenue isn&apos;t
             attributed to a source.
           </p>
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Household</h2>
-        <p className="mt-2 text-sm text-stone-600">
+      <section className="card p-4">
+        <h2 className="card-title">Household</h2>
+        <p className="mt-2 text-sm text-slate-600">
           {profile.household.name}
           {profile.household.users.length > 0 &&
             ` · ${profile.household.users.map((u) => u.email).join(", ")}`}
         </p>
         {profile.attendances.length > 0 && (
-          <p className="mt-2 text-sm text-stone-600">
+          <p className="mt-2 text-sm text-slate-600">
             Last check-in {formatRelative(profile.attendances[0].checkedInAt, now)} (
             {profile.attendances[0].session.startsAt.toLocaleDateString("en-US")}).
           </p>

@@ -11,13 +11,13 @@ export default async function AccountPage({
   return (
     <div className="space-y-6">
       <section>
-        <h1 className="text-2xl font-bold tracking-tight">My account</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title">My account</h1>
+        <p className="mt-1 text-slate-600">
           {user.name} — {user.email}
         </p>
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5">
+      <section className="card p-5">
         <h2 className="text-lg font-semibold">Change password</h2>
         {searchParams.updated === "1" && (
           <p className="mt-2 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
@@ -35,7 +35,7 @@ export default async function AccountPage({
               type="password"
               required
               autoComplete="current-password"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+              className="field-input py-2.5"
             />
           </div>
           <div>
@@ -49,7 +49,7 @@ export default async function AccountPage({
               required
               minLength={8}
               autoComplete="new-password"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+              className="field-input py-2.5"
             />
           </div>
           <button

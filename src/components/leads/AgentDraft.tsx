@@ -16,7 +16,7 @@ function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary btn-md"
     >
       {pending ? pendingLabel : label}
     </button>
@@ -49,17 +49,17 @@ export default function AgentDraft({
 
   return (
     <div className="rounded-xl border border-dashed border-brand/50 bg-brand/5 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="card-head">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand">
           Agent draft{action ? ` · ${ACTION_LABELS[action] ?? action}` : ""}
         </p>
         <form action={discardDraftAction.bind(null, leadId, messageId)}>
-          <button type="submit" className="text-xs text-stone-500 underline hover:text-stone-700">
+          <button type="submit" className="text-xs text-slate-500 underline hover:text-slate-700">
             Discard
           </button>
         </form>
       </div>
-      {reason && <p className="mt-1 text-xs text-stone-600">{reason}</p>}
+      {reason && <p className="mt-1 text-xs text-slate-600">{reason}</p>}
       {booksClass && (
         <p className="mt-1 text-xs font-medium text-brand">
           Sending this also books them into {booksClass}.
@@ -71,7 +71,7 @@ export default function AgentDraft({
           rows={3}
           required
           defaultValue={body}
-          className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+          className="field-input"
         />
         <div className="flex items-center gap-3">
           <Submit label="Approve & send" pendingLabel="Sending…" />

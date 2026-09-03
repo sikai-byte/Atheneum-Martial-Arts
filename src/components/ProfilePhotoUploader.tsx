@@ -67,7 +67,7 @@ export default function ProfilePhotoUploader({
         disabled={pending}
         aria-label={`${photoUrl ? "Change" : "Add"} photo for ${name}`}
         title={photoUrl ? "Change photo" : "Add photo"}
-        className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-stone-200 bg-brand-light disabled:opacity-60"
+        className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-brand-light disabled:opacity-60"
       >
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

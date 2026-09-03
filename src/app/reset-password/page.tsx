@@ -13,7 +13,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary w-full px-4 py-3 text-base font-semibold"
     >
       {pending ? "Updating…" : "Set new password"}
     </button>
@@ -50,9 +50,9 @@ function ResetPasswordForm() {
           required
           minLength={8}
           autoComplete="new-password"
-          className="w-full rounded-lg border border-stone-300 px-3 py-3"
+          className="field-input py-3"
         />
-        <p className="mt-1 text-xs text-stone-500">At least 8 characters.</p>
+        <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
       </div>
       {state.error && (
         <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
