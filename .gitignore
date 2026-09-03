@@ -8,6 +8,10 @@
 
 # testing
 /coverage
+prisma/test.db*
+/test-uploads
+/test-results
+/playwright-report
 
 # next.js
 /.next/

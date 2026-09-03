@@ -10,6 +10,8 @@
     "postinstall": "prisma generate",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:e2e": "next build && playwright test",
+    "test:e2e:only": "playwright test",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed"
   },
@@ -28,6 +30,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",

@@ -72,6 +72,10 @@ Open http://localhost:3000 and sign in with a sample account above.
 
 Scripts: `npm run lint`, `npm run typecheck`, `npm run build`, `npm run db:push`, `npm run db:seed`. E2E testing guidance lives in `.agents/skills/testing-atheneum-portal/SKILL.md`.
 
+### Automated test suite
+
+`npm run test:e2e` builds the app and runs the Playwright suite in `tests/e2e/` (auth & role access, booking/waitlist/promotion, trial restrictions, admin tools & audit history) against a production server on port 3199 with a dedicated database (`prisma/test.db`) that is reset and re-seeded on every run — it never touches your dev or production data. Use `npm run test:e2e:only` to skip the rebuild when the build is fresh. One-time setup: `npx playwright install chromium`.
+
 ## Deployment (Railway)
 
 `railway.json` defines the deploy. The Railway service needs:

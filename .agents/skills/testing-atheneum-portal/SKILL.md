@@ -1,0 +1,41 @@
+---
+name: testing-atheneum-portal
+description: How to run and E2E-test the Atheneum Martial Arts member portal (Next.js 14 + Prisma/SQLite + iron-session) — accounts, roles, and how to reach the waitlist/promotion and coach check-in flows.
+---
+
+# Testing the Atheneum member portal
+
+## Setup / run
+- Repo root: Next.js 14 App Router app. `cp -n .env.example .env && npm install && npm run db:push && npm run db:seed && npm run dev` → http://localhost:3000. Re-seeding is safe and resets all bookings/attendance.
+- All sample accounts use password `atheneum123`:
+  - `member@example.com` (Jordan Lee, adult) → lands on `/`
+  - `parent@example.com` (Casey Smith; child profiles Riley & Avery) → lands on `/`
+  - `coach@example.com` (Coach Sam) → login redirects to `/coach`
+- Unauthenticated access to any page redirects to `/login`.
+
+## Reaching key flows via UI
+- Booking controls on `/schedule` only render for eligible profiles (adults on ADULTS classes, children on KIDS classes); the parent account sees a per-child Book button, the member sees "You".
+- Waitlist: seed data has no full class. Temporarily shrink a class capacity with Prisma (no sqlite3 CLI needed), e.g.:
+  ```bash
+  node -e "const {PrismaClient}=require('@prisma/client');const p=new PrismaClient();(async()=>{const t=await p.classTemplate.findFirst({where:{name:'Competition Training'}});await p.classTemplate.update({where:{id:t.id},data:{capacity:1}});await p.\$disconnect();})()"
+  ```
+  Then fill it as one user; the second user's button becomes "Join waitlist" and shows "You: on the waitlist". Cancelling the booked user's spot auto-promotes the earliest waitlisted booking to BOOKED. Restore capacity afterwards.
+- Coach check-in: log in as coach → `/coach` Today dashboard → click a session card → roster "Check in" button. This immediately updates the member's Home "This week" count and `/progress` Recent training (revalidated paths).
+- Profile photos: Home → Membership section → circular avatar button (initials) opens a native file picker (`accept="image/*"`). Prepare test images with Python/PIL in /tmp; a non-image file (select via "All Files" in the picker) must show the red "Couldn't save that photo" error and leave the previous photo intact. Files land in `./uploads/<profileId>` (or `$UPLOAD_DIR`) and are served by authenticated `/api/profile-photo/[id]` (curl without cookies → 401). Cross-household authz: temporarily render an extra `<ProfilePhotoUploader profileId="<other household id>" .../>` in `src/app/page.tsx`, upload as another user, expect the error + no DB/file change; revert with `git checkout src/app/page.tsx`.
+- Coach announcements: `/coach` bottom has a "Post an update" form + Delete buttons; posts/deletes revalidate `/` so they appear/disappear on member Home immediately. Members/parents never see `/coach` (redirects to `/`).
+- Brand color check: sample pixels of the Sign in button / active nav pill; expected `#0039b7`. Screenshots are saved at 1600x1200 while the computer-use coordinate space is 1024x768 — scale coordinates by 1.5625 when sampling pixels.
+- Trial accounts: `admin@example.com` / `atheneum123` → `/admin` has a "Create account" form with a Trial checkbox (MEMBER/PARENT only). Submitting redirects to `/admin/member/[id]` which has Group-class + Private-trial booking forms, an Upcoming-bookings list with Cancel, and a copyable lead-bot invite text. Trial end date defaults to +7 days. The trial member's Home shows an amber "Trial" badge; "Private Trial (…)" template sessions must never appear on `/schedule` or in the group-class dropdown.
+- Clipboard verification of the Copy button: `navigator.clipboard.readText()` via the devtools console fails with "Document is not focused" — click the page first, trigger the copy, then read the clipboard through an async assignment to `window.__clip` and poll it; Chrome will show a clipboard permission prompt the first time (click Allow).
+
+## Gotchas
+- `sqlite3` CLI is not installed; use the Prisma client via `node -e` from the repo root instead.
+- Server actions drive all mutations (login/book/cancel/check-in); avoid curl with session cookies — just use the UI.
+- Seed data includes an existing Jordan booking (BJJ Fundamentals) and Riley Kids BJJ booking; cancel or re-seed if you need a clean "Nothing booked yet." home state.
+- PWA: `/manifest.webmanifest` and `/sw.js` return 200 and Chrome shows the omnibox install icon, but on this Linux/Chrome test box the registered service worker may stay stuck at Running Status `STARTING` / Installation Status `NEW` in `chrome://serviceworker-internals` without any console error. Verify manifest + registration + install affordance and report the worker state honestly rather than claiming an ACTIVE worker.
+- The coach "Post an update" form keeps its text after a successful submit (server-action form is not reset) — the post still succeeds; check the announcements list below the form.
+- The local server may be running a production build (`next start`, logs in `/tmp/server.log`) rather than `npm run dev`. In that mode, server-action validation errors that are thrown (not returned) render Next's generic "Application error: a server-side exception has occurred" page with a digest — confirm the intended message in `/tmp/server.log` and verify via Prisma that no invalid row was persisted before deciding pass/fail.
+- Booking-validation errors (private trial after 8 PM / overlapping a class, trial member booking past trial end) now redirect back with `?error=<message>` and render an inline red `role="alert"` banner: on `/admin/member/[id]` under the member's name for admin actions, on `/schedule` under the title for member actions. Assert the URL contains `?error=` and the banner text; verify via Prisma that no booking row was added.
+- If the DB has leftover scripted-test household profiles (Harness Kid 0–4, "BY …"), member `/schedule` cards balloon with one Book row per profile. Use the "Adult classes (for me)" view toggle (`?view=adults`) plus a program filter to get a clean single "You" row per class; `npm run db:seed` fully resets the DB.
+- Leaderboard (`/leaderboard`, "Leaders" nav tab for all roles): counts coach check-in Attendance rows grouped by profile — NOT bookings. Monthly view is default (`?month=YYYY-MM`, Next → is a grey `<span>` on the current month, a link otherwise); `?view=alltime` for all-time. To make the current-month board change on camera, check a booked member in from `/coach` and reload `/leaderboard`. Seed/leftover attendance may all live in a previous month, making the current month a natural empty-state (`No check-ins yet — the first class attended starts the race.`).
+- Rebuilding the prod server: make sure no `npm run build` is still running in the background before `npm start` — if a build finishes after the server starts, the server's in-memory chunk manifest goes stale and client navigations fail with `ChunkLoadError` / "Application error: a client-side exception". Fix: kill next-server, run one clean build to completion, then start.
+- Scripted harness runs may leave corrupt profile-photo files in `uploads/` (PNG magic bytes + zeros) with `photoType` set — avatars then render as broken-image icons (`naturalWidth 0`) even though `/api/profile-photo/[id]` returns 200. `photoType` is NOT nullable, so fix by overwriting the upload file with a real image (copy a known-good JPEG from `uploads/`), then hard-reload (Ctrl+Shift+R — the broken image is cached).
