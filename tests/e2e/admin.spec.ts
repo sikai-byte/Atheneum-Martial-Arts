@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { db, login } from "./helpers";
+import { createMember, db, login } from "./helpers";
 
 test.describe("admin tools & audit history", () => {
   test("admin can create a member account, book and cancel a class for them", async ({ page }) => {
@@ -59,6 +59,40 @@ test.describe("admin tools & audit history", () => {
     ]) {
       await expect(page.getByText(section).first()).toBeVisible();
     }
+  });
+
+  test("converting a trial to a paid membership records the conversion", async ({ page }) => {
+    const { profile } = await createMember("convert.trial@test.local", "Connie Convert");
+    await db.memberProfile.update({
+      where: { id: profile.id },
+      data: {
+        membershipPlan: "Trial",
+        membershipType: "TRIAL",
+        membershipRenewsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        trialStartedAt: new Date(),
+      },
+    });
+
+    await login(page, "admin@example.com");
+    await page.goto(`/admin/member/${profile.id}`);
+    await page.locator('select[name="membershipType"]').selectOption("MONTHLY");
+    await page.fill('input[name="membershipPlan"]', "Adult Unlimited");
+    await page.getByRole("button", { name: "Save membership" }).click();
+    await expect(page.getByRole("status")).toContainText(/membership/i);
+
+    const updated = await db.memberProfile.findUniqueOrThrow({ where: { id: profile.id } });
+    expect(updated.membershipType).toBe("MONTHLY");
+    expect(updated.trialConvertedAt).not.toBeNull();
+
+    const event = await db.telemetryEvent.findFirst({
+      where: { type: "TRIAL_CONVERTED", profileId: profile.id },
+    });
+    expect(event).not.toBeNull();
+
+    // The conversion shows up on the analytics dashboard.
+    await page.goto("/admin/analytics");
+    await expect(page.getByText(/trial conversion/i).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Connie Convert/ })).toBeVisible();
   });
 
   test("admin membership update is audited", async ({ page }) => {

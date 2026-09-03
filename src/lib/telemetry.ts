@@ -8,7 +8,9 @@ export type TelemetryType =
   | "ADMIN_CANCELLATION"
   | "WAITLIST_PROMOTION"
   | "AUTOMATED_EMAIL"
-  | "SELF_PASSWORD_RESET";
+  | "SELF_PASSWORD_RESET"
+  | "TRIAL_STARTED"
+  | "TRIAL_CONVERTED";
 
 /** Records a telemetry event. Best-effort: never throws, so instrumented flows can't fail because of analytics. */
 export async function trackEvent(
@@ -39,6 +41,8 @@ export const MINUTES_SAVED: Record<TelemetryType, number> = {
   WAITLIST_PROMOTION: 5,
   AUTOMATED_EMAIL: 4,
   SELF_PASSWORD_RESET: 10,
+  TRIAL_STARTED: 0,
+  TRIAL_CONVERTED: 0,
 };
 
 export const TIME_SAVED_LABELS: Partial<Record<TelemetryType, string>> = {

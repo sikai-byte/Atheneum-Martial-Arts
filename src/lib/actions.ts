@@ -428,12 +428,14 @@ export async function createMemberAccount(formData: FormData) {
             membershipType: "TRIAL",
             membershipRenewsAt: trialEndsAt,
             trialClassType,
+            trialStartedAt: new Date(),
           }
         : {}),
     },
   });
 
   if (isTrial) {
+    await trackEvent("TRIAL_STARTED", { userId: user.id, profileId: profile.id });
     try {
       await sendTrialWelcomeEmail(email, name.split(" ")[0], password, trialEndsAt);
     } catch (err) {
@@ -672,10 +674,15 @@ export async function addChildProfile(householdId: string, formData: FormData) {
             membershipType: "TRIAL",
             membershipRenewsAt: trialProfile.membershipRenewsAt,
             trialClassType: trialProfile.trialClassType,
+            trialStartedAt: new Date(),
           }
         : {}),
     },
   });
+
+  if (trialProfile) {
+    await trackEvent("TRIAL_STARTED", { profileId: child.id });
+  }
 
   await recordAudit(admin, "CHILD_ADDED", {
     targetType: "MemberProfile",
@@ -704,6 +711,12 @@ export async function updateMembership(profileId: string, formData: FormData) {
   const trialClassType = String(formData.get("trialClassType") ?? "BOTH");
   if (!TRIAL_CLASS_TYPES.includes(trialClassType)) throw new Error("Invalid trial class type.");
 
+  const existing = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+  const converted =
+    existing.membershipType === "TRIAL" &&
+    (membershipType === "MONTHLY" || membershipType === "PUNCH_PASS");
+  const becameTrial = existing.membershipType !== "TRIAL" && membershipType === "TRIAL";
+
   const updated = await prisma.memberProfile.update({
     where: { id: profileId },
     data: {
@@ -714,8 +727,14 @@ export async function updateMembership(profileId: string, formData: FormData) {
       punchPassTotal: membershipType === "PUNCH_PASS" ? punchPassTotal ?? 10 : null,
       punchPassUsed: membershipType === "PUNCH_PASS" ? punchPassUsed : 0,
       trialClassType: membershipType === "TRIAL" ? trialClassType : "BOTH",
+      ...(converted ? { trialConvertedAt: new Date() } : {}),
+      ...(becameTrial && !existing.trialStartedAt ? { trialStartedAt: new Date() } : {}),
     },
   });
+
+  if (converted) {
+    await trackEvent("TRIAL_CONVERTED", { profileId, metadata: membershipType });
+  }
 
   await recordAudit(admin, "MEMBERSHIP_UPDATED", {
     targetType: "MemberProfile",

@@ -53,6 +53,8 @@ model MemberProfile {
   punchPassTotal  Int?
   punchPassUsed   Int      @default(0)
   trialClassType  String   @default("BOTH") // BOTH | GROUP | PRIVATE — which trial class types can be booked
+  trialStartedAt  DateTime? // set when the profile is created as (or becomes) a trial
+  trialConvertedAt DateTime? // set when a trial converts to a paid membership
   photoType       String   @default("") // mime type of uploaded photo; empty = none
   photoUpdatedAt  DateTime?
   userId          String?  @unique

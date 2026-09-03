@@ -43,6 +43,7 @@ export default async function AnalyticsPage() {
     bookings30d,
     pastBookings30d,
     pastAttendance30d,
+    trialProfiles,
   ] = await Promise.all([
     prisma.telemetryEvent.findMany({
       where: { type: "LOGIN", createdAt: { gte: weekStarts[0] } },
@@ -80,6 +81,20 @@ export default async function AnalyticsPage() {
     prisma.attendance.findMany({
       where: { session: { startsAt: { gte: daysAgo(30), lt: now } } },
       select: { profileId: true, sessionId: true },
+    }),
+    prisma.memberProfile.findMany({
+      where: { trialStartedAt: { not: null } },
+      select: {
+        id: true,
+        name: true,
+        isChild: true,
+        membershipType: true,
+        membershipPlan: true,
+        membershipRenewsAt: true,
+        trialStartedAt: true,
+        trialConvertedAt: true,
+      },
+      orderBy: { trialStartedAt: "desc" },
     }),
   ]);
 
@@ -146,6 +161,35 @@ export default async function AnalyticsPage() {
     { label: "Absent 7–13 days", items: absent.filter((p) => p.days >= 7 && p.days < 14) },
   ];
   const neverAttended = profiles.filter((p) => !lastByProfile.has(p.id)).length;
+
+  // --- Trial conversion (revenue attribution precursor) ---
+  const conversions = trialProfiles.filter((p) => p.trialConvertedAt);
+  const activeTrials = trialProfiles.filter(
+    (p) =>
+      p.membershipType === "TRIAL" &&
+      (!p.membershipRenewsAt || p.membershipRenewsAt.getTime() >= now.getTime())
+  );
+  const lapsedTrials = trialProfiles.filter(
+    (p) =>
+      !p.trialConvertedAt &&
+      p.membershipType === "TRIAL" &&
+      p.membershipRenewsAt &&
+      p.membershipRenewsAt.getTime() < now.getTime()
+  );
+  const decidedTrials = conversions.length + lapsedTrials.length;
+  const avgDaysToConvert =
+    conversions.length > 0
+      ? (
+          conversions.reduce(
+            (n, p) =>
+              n + (p.trialConvertedAt!.getTime() - p.trialStartedAt!.getTime()) / DAY_MS,
+            0
+          ) / conversions.length
+        ).toFixed(1)
+      : "—";
+  const recentConversions = [...conversions]
+    .sort((a, b) => b.trialConvertedAt!.getTime() - a.trialConvertedAt!.getTime())
+    .slice(0, 10);
 
   // --- Admin time & manual messages eliminated (all-time since tracking began) ---
   const countsAll = Object.fromEntries(
@@ -338,6 +382,95 @@ export default async function AnalyticsPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section aria-labelledby="trial-conversion">
+        <h2
+          id="trial-conversion"
+          className="text-sm font-semibold uppercase tracking-wide text-stone-500"
+        >
+          Trial conversion
+        </h2>
+        <div className="mt-2 grid gap-3 sm:grid-cols-4">
+          {[
+            { label: "Trials started (since tracking began)", value: trialProfiles.length },
+            { label: "Converted to members", value: conversions.length },
+            {
+              label: "Conversion rate (of decided trials)",
+              value: pct(conversions.length, decidedTrials),
+            },
+            { label: "Avg days to convert", value: avgDaysToConvert },
+          ].map((s) => (
+            <div key={s.label} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+              <p className="text-xl font-bold text-brand">{s.value}</p>
+              <p className="mt-1 text-xs text-stone-500">{s.label}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+            <p className="text-sm font-semibold">
+              Recent conversions{" "}
+              <span className="font-normal text-stone-400">({conversions.length})</span>
+            </p>
+            <ul className="mt-2 space-y-1.5 text-sm">
+              {recentConversions.length === 0 && (
+                <li className="text-stone-400">No conversions recorded yet.</li>
+              )}
+              {recentConversions.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2">
+                  <Link
+                    href={`/admin/member/${p.id}`}
+                    className="truncate font-medium text-brand hover:underline"
+                  >
+                    {p.name}
+                    {p.isChild && <span className="ml-1 text-xs text-stone-400">(child)</span>}
+                  </Link>
+                  <span className="shrink-0 text-xs text-stone-500">
+                    {p.membershipPlan ?? p.membershipType}
+                    {" \u00b7 "}
+                    {formatDay(p.trialConvertedAt!)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+            <p className="text-sm font-semibold">
+              Trials in flight{" "}
+              <span className="font-normal text-stone-400">({activeTrials.length})</span>
+            </p>
+            <ul className="mt-2 space-y-1.5 text-sm">
+              {activeTrials.length === 0 && <li className="text-stone-400">No active trials.</li>}
+              {activeTrials.slice(0, 10).map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2">
+                  <Link
+                    href={`/admin/member/${p.id}`}
+                    className="truncate font-medium text-brand hover:underline"
+                  >
+                    {p.name}
+                    {p.isChild && <span className="ml-1 text-xs text-stone-400">(child)</span>}
+                  </Link>
+                  <span className="shrink-0 text-xs text-stone-500">
+                    {p.membershipRenewsAt ? `ends ${formatDay(p.membershipRenewsAt)}` : "no end date"}
+                  </span>
+                </li>
+              ))}
+              {activeTrials.length > 10 && (
+                <li className="text-xs text-stone-400">+ {activeTrials.length - 10} more</li>
+              )}
+            </ul>
+            {lapsedTrials.length > 0 && (
+              <p className="mt-3 text-xs text-stone-400">
+                {lapsedTrials.length} expired trial(s) haven&apos;t converted — worth a follow-up.
+              </p>
+            )}
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-stone-400">
+          Conversion rate counts only trials that reached a decision (converted or expired) —
+          trials still in flight aren&apos;t held against it.
+        </p>
       </section>
 
       <section aria-labelledby="time-saved">
