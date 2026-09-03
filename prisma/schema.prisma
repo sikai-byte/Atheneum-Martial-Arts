@@ -20,6 +20,7 @@ model User {
   posts        Post[]
   comments     Comment[]
   resetTokens  PasswordResetToken[]
+  deactivatedAt DateTime? // leaver hold: sign-in blocked, data retained
   createdAt    DateTime @default(now())
 }
 
@@ -58,6 +59,7 @@ model MemberProfile {
   photoType       String   @default("") // mime type of uploaded photo; empty = none
   photoUpdatedAt  DateTime?
   pinHash         String   @default("") // bcrypt hash of the 4-digit kiosk check-in PIN; empty = not set
+  deactivatedAt   DateTime? // leaver hold: hidden from rosters/kiosk/booking, data retained
   userId          String?  @unique
   user            User?    @relation(fields: [userId], references: [id])
   householdId     String
@@ -181,6 +183,16 @@ model Product {
   sortOrder   Int     @default(0)
   stockCount  Int?    // null = inventory not tracked; 0 = out of stock
   orders      Order[]
+  images      ProductImage[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  mimeType  String
+  sortOrder Int      @default(0) // lowest = cover image
+  createdAt DateTime @default(now())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Order {

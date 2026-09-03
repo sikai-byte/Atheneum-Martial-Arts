@@ -73,7 +73,10 @@ export default async function RosterPage({
   const checkedInCount = session.attendances.length;
   const rosterIds = new Set(session.bookings.map((b) => b.profileId));
   const otherMembers = await prisma.memberProfile.findMany({
-    where: { id: { notIn: Array.from(rosterIds).concat(Array.from(attendedIds)) } },
+    where: {
+      id: { notIn: Array.from(rosterIds).concat(Array.from(attendedIds)) },
+      deactivatedAt: null,
+    },
     orderBy: { name: "asc" },
     select: { id: true, name: true, isChild: true },
   });

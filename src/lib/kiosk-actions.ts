@@ -124,10 +124,12 @@ export async function kioskCheckIn(
 
   let profile = null;
   if (profileId) {
-    profile = await prisma.memberProfile.findUnique({ where: { id: profileId } });
+    profile = await prisma.memberProfile.findFirst({
+      where: { id: profileId, deactivatedAt: null },
+    });
   } else {
     const matches = await prisma.memberProfile.findMany({
-      where: { name: { equals: typedName, mode: "insensitive" } },
+      where: { name: { equals: typedName, mode: "insensitive" }, deactivatedAt: null },
     });
     if (matches.length > 1) {
       return { error: "More than one member has that name — ask a coach to check you in." };
@@ -284,10 +286,11 @@ export async function kioskRegister(
     summary: `${memberName} self-registered (${source.toLowerCase()}) — waiver signed`,
   });
 
-  await sendEmail(
-    email,
-    "Welcome to Atheneum Martial Arts",
-    `
+  try {
+    await sendEmail(
+      email,
+      "Welcome to Atheneum Martial Arts",
+      `
 <p>Hi ${name.split(" ")[0]},</p>
 <p>Thanks for registering at Atheneum Martial Arts — your waiver is signed and you're ready to train.</p>
 <p><strong>Your member portal:</strong> <a href="${appUrl()}">${appUrl()}</a><br/>
@@ -296,7 +299,10 @@ To set your password: on the login page tap <strong>Forgot password?</strong>, e
 <p>At the gym, check in on the front-desk iPad with ${isChild ? `${childName.split(" ")[0]}'s name` : "your name"} and your 4-digit PIN.</p>
 <p>See you on the mats!<br/>Atheneum Martial Arts</p>
 `
-  );
+    );
+  } catch (err) {
+    console.error("Walk-in welcome email failed", err);
+  }
 
   revalidatePath("/admin");
   return { success: { name: memberName } };

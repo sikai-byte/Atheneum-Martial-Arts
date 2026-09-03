@@ -32,7 +32,7 @@ function membershipSummary(p: {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: { q?: string };
+  searchParams: { q?: string; success?: string };
 }) {
   const admin = await requireAdmin();
 
@@ -50,7 +50,7 @@ export default async function AdminPage({
   ]);
 
   const memberHouseholds = households.filter((h) =>
-    h.users.some((u) => u.role === "MEMBER" || u.role === "PARENT")
+    h.users.some((u) => u.role === "MEMBER" || u.role === "PARENT" || u.role === "COACH")
   );
   const query = (searchParams.q ?? "").trim().toLowerCase();
   const visibleHouseholds = query
@@ -76,6 +76,14 @@ export default async function AdminPage({
         <p className="mt-1 text-stone-600">
           Welcome, {admin.name}. Manage member accounts, households, and memberships.
         </p>
+        {searchParams.success && (
+          <p
+            role="status"
+            className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800"
+          >
+            {searchParams.success}
+          </p>
+        )}
       </section>
 
       <section aria-labelledby="admin-stats">
@@ -374,6 +382,11 @@ export default async function AdminPage({
                         {p.isChild && (
                           <span className="ml-2 rounded bg-brand-light px-1.5 py-0.5 text-xs text-brand">
                             Child
+                          </span>
+                        )}
+                        {p.deactivatedAt && (
+                          <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                            Leaver hold
                           </span>
                         )}
                       </p>

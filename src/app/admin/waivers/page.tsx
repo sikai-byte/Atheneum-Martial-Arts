@@ -20,7 +20,7 @@ export default async function WaiversPage() {
   });
 
   const signed = profiles.filter((p) => p.waiver);
-  const unsigned = profiles.filter((p) => !p.waiver);
+  const unsigned = profiles.filter((p) => !p.waiver && !p.deactivatedAt);
 
   return (
     <div className="space-y-6">

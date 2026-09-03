@@ -5,13 +5,15 @@ import { getSession } from "./session";
 export async function getCurrentUser() {
   const session = await getSession();
   if (!session.userId) return null;
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: session.userId },
     include: {
       profile: true,
       household: { include: { profiles: true } },
     },
   });
+  if (user?.deactivatedAt) return null;
+  return user;
 }
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
@@ -35,5 +37,6 @@ export async function requireAdmin(): Promise<CurrentUser> {
 }
 
 export function householdProfiles(user: CurrentUser) {
-  return user.household?.profiles ?? (user.profile ? [user.profile] : []);
+  const profiles = user.household?.profiles ?? (user.profile ? [user.profile] : []);
+  return profiles.filter((p) => !p.deactivatedAt);
 }

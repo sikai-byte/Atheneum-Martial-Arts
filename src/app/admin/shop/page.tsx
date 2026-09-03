@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { createProduct, deleteProduct, saveAllProducts } from "@/lib/adminContent";
+import {
+  addProductImage,
+  createProduct,
+  deleteProduct,
+  makeProductImageCover,
+  removeProductImage,
+  saveAllProducts,
+} from "@/lib/adminContent";
 import Flash from "@/components/Flash";
 import SubmitButton from "@/components/SubmitButton";
 import UnifiedSaveForm from "@/components/UnifiedSaveForm";
@@ -168,6 +175,7 @@ export default async function AdminShopPage({
   await requireAdmin();
   const products = await prisma.product.findMany({
     orderBy: [{ active: "desc" }, { sortOrder: "asc" }, { name: "asc" }],
+    include: { images: { orderBy: { sortOrder: "asc" } } },
   });
 
   return (
@@ -225,6 +233,70 @@ export default async function AdminShopPage({
                 />
                 Show in shop
               </label>
+            </div>
+            <div className="mt-3 border-t border-stone-100 pt-3">
+              <p className="text-xs font-medium text-stone-600">
+                Photos ({product.images.length}/5)
+                {product.images.length === 0 && (
+                  <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                    Needs at least 1 photo
+                  </span>
+                )}
+              </p>
+              {product.images.length > 0 && (
+                <ul className="mt-2 flex flex-wrap gap-3">
+                  {product.images.map((image, index) => (
+                    <li key={image.id} className="w-24">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/product-photo/${image.id}`}
+                        alt={`${product.name} photo ${index + 1}`}
+                        className="h-24 w-24 rounded-lg border border-stone-200 object-cover"
+                      />
+                      {index === 0 ? (
+                        <p className="mt-1 text-center text-xs font-semibold text-brand">Cover</p>
+                      ) : (
+                        <form action={makeProductImageCover.bind(null, image.id)}>
+                          <SubmitButton
+                            pendingLabel="…"
+                            className="mt-1 w-full rounded border border-stone-300 px-1 py-0.5 text-xs text-stone-600 hover:bg-stone-50"
+                          >
+                            Make cover
+                          </SubmitButton>
+                        </form>
+                      )}
+                      <form action={removeProductImage.bind(null, image.id)}>
+                        <SubmitButton
+                          pendingLabel="…"
+                          className="mt-1 w-full rounded border border-red-200 px-1 py-0.5 text-xs text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </SubmitButton>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {product.images.length < 5 && (
+                <form
+                  action={addProductImage.bind(null, product.id)}
+                  className="mt-2 flex flex-wrap items-center gap-2"
+                >
+                  <input
+                    type="file"
+                    name="photo"
+                    accept="image/jpeg,image/png,image/webp"
+                    required
+                    className="max-w-full text-xs"
+                  />
+                  <SubmitButton
+                    pendingLabel="Uploading…"
+                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                  >
+                    Add photo
+                  </SubmitButton>
+                </form>
+              )}
             </div>
             <form action={deleteProduct.bind(null, product.id)} className="mt-3 border-t border-stone-100 pt-3">
               <SubmitButton

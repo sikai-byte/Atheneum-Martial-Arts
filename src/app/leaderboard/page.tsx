@@ -50,7 +50,7 @@ async function topAttendance(range?: { gte: Date; lt: Date }): Promise<Entry[]> 
   if (grouped.length === 0) return [];
 
   const profiles = await prisma.memberProfile.findMany({
-    where: { id: { in: grouped.map((g) => g.profileId) } },
+    where: { id: { in: grouped.map((g) => g.profileId) }, deactivatedAt: null },
   });
   const byId = new Map(profiles.map((p) => [p.id, p]));
 

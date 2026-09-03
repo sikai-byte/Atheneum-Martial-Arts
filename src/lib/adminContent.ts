@@ -255,7 +255,7 @@ export async function deleteProduct(productId: string) {
   const admin = await requireAdmin();
   const product = await prisma.product.findUniqueOrThrow({
     where: { id: productId },
-    include: { _count: { select: { orders: true } } },
+    include: { _count: { select: { orders: true } }, images: true },
   });
   if (product._count.orders > 0) {
     await prisma.product.update({ where: { id: productId }, data: { active: false } });
@@ -271,6 +271,9 @@ export async function deleteProduct(productId: string) {
     );
   }
   await prisma.product.delete({ where: { id: productId } });
+  for (const image of product.images) {
+    await fs.rm(path.join(uploadsDir(), `product-image-${image.id}`), { force: true });
+  }
   await recordAudit(admin, "PRODUCT_DELETED", {
     targetType: "Product",
     targetId: productId,
@@ -278,6 +281,85 @@ export async function deleteProduct(productId: string) {
   });
   revalidateShop();
   doneTo("/admin/shop", `${product.name} deleted.`);
+}
+
+const MAX_PRODUCT_IMAGES = 5;
+
+export async function addProductImage(productId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const file = formData.get("photo");
+  if (!(file instanceof Blob) || file.size === 0) {
+    failTo("/admin/shop", "Please choose a photo.");
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    failTo("/admin/shop", "Photo is too large — please use one under 8 MB.");
+  }
+  if (!PHOTO_TYPES.includes(file.type)) {
+    failTo("/admin/shop", "Please use a JPEG, PNG, or WebP photo.");
+  }
+
+  const product = await prisma.product.findUniqueOrThrow({
+    where: { id: productId },
+    include: { images: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (product.images.length >= MAX_PRODUCT_IMAGES) {
+    failTo("/admin/shop", `${product.name} already has ${MAX_PRODUCT_IMAGES} photos — remove one first.`);
+  }
+
+  await ensureUploadsDir();
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const image = await prisma.productImage.create({
+    data: {
+      productId,
+      mimeType: file.type,
+      sortOrder: (product.images[product.images.length - 1]?.sortOrder ?? -1) + 1,
+    },
+  });
+  await fs.writeFile(path.join(uploadsDir(), `product-image-${image.id}`), buffer);
+  await recordAudit(admin, "PRODUCT_PHOTO_ADDED", {
+    targetType: "Product",
+    targetId: productId,
+    summary: `Added a photo to ${product.name} (${product.images.length + 1} of ${MAX_PRODUCT_IMAGES})`,
+  });
+  revalidateShop();
+  doneTo("/admin/shop", `Photo added to ${product.name}.`);
+}
+
+export async function removeProductImage(imageId: string) {
+  const admin = await requireAdmin();
+  const image = await prisma.productImage.delete({
+    where: { id: imageId },
+    include: { product: true },
+  });
+  await fs.rm(path.join(uploadsDir(), `product-image-${imageId}`), { force: true });
+  await recordAudit(admin, "PRODUCT_PHOTO_REMOVED", {
+    targetType: "Product",
+    targetId: image.productId,
+    summary: `Removed a photo from ${image.product.name}`,
+  });
+  revalidateShop();
+  doneTo("/admin/shop", `Photo removed from ${image.product.name}.`);
+}
+
+export async function makeProductImageCover(imageId: string) {
+  const admin = await requireAdmin();
+  const image = await prisma.productImage.findUniqueOrThrow({
+    where: { id: imageId },
+    include: { product: { include: { images: { orderBy: { sortOrder: "asc" } } } } },
+  });
+  const reordered = [image.id, ...image.product.images.map((i) => i.id).filter((id) => id !== image.id)];
+  await prisma.$transaction(
+    reordered.map((id, index) =>
+      prisma.productImage.update({ where: { id }, data: { sortOrder: index } })
+    )
+  );
+  await recordAudit(admin, "PRODUCT_PHOTO_UPDATED", {
+    targetType: "Product",
+    targetId: image.productId,
+    summary: `Changed the cover photo for ${image.product.name}`,
+  });
+  revalidateShop();
+  doneTo("/admin/shop", `Cover photo updated for ${image.product.name}.`);
 }
 
 function revalidateSchedule() {

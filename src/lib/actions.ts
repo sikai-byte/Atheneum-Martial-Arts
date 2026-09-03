@@ -16,6 +16,7 @@ import { trialEndOfDay } from "./trial";
 import { trackEvent } from "./telemetry";
 import { recordAudit } from "./audit";
 import { isLockedOut, rateLimit, recordFailure } from "./rateLimit";
+import { RETENTION_YEARS, purgeDueAt, purgeProfileData } from "./leavers";
 import {
   appUrl,
   sendPasswordResetEmail,
@@ -35,6 +36,9 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     recordFailure(`login:${email}`, 5 * 60 * 1000);
     return { error: "That email and password combination doesn't match our records." };
+  }
+  if (user.deactivatedAt) {
+    return { error: "This account has been deactivated — please speak to the front desk." };
   }
   const session = await getSession();
   session.userId = user.id;
@@ -63,7 +67,7 @@ export async function requestPasswordReset(
   if (!email) return { error: "Enter your email address." };
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (user) {
+  if (user && !user.deactivatedAt) {
     const token = crypto.randomBytes(32).toString("base64url");
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
@@ -181,6 +185,12 @@ export async function bookClass(
 
 async function bookProfileIntoSession(profileId: string, sessionId: string) {
   return prisma.$transaction(async (tx) => {
+    const bookingProfile = await tx.memberProfile.findUniqueOrThrow({
+      where: { id: profileId },
+    });
+    if (bookingProfile.deactivatedAt) {
+      throw new Error("This account is deactivated and can't be booked into classes.");
+    }
     // Lock the session row up front so the capacity check serializes.
     await tx.$queryRaw`SELECT id FROM "ClassSession" WHERE id = ${sessionId} FOR UPDATE`;
     const classSession = await tx.classSession.findUniqueOrThrow({
@@ -374,46 +384,51 @@ export async function coachRemoveFromRoster(profileId: string, sessionId: string
 export async function placeOrder(productId: string, formData: FormData) {
   const user = await requireUser();
   const product = await prisma.product.findUniqueOrThrow({ where: { id: productId } });
-  if (!product.active) throw new Error("This item is not available right now.");
+  if (!product.active) failTo("/shop", "This item is not available right now.");
 
   const sizeOptions = product.sizes ? product.sizes.split(",") : [];
   const size = String(formData.get("size") ?? "");
   if (sizeOptions.length > 0 && !sizeOptions.includes(size)) {
-    throw new Error("Please choose a size.");
+    failTo("/shop", "Please choose a size.");
   }
   const quantity = Math.min(Math.max(Number(formData.get("quantity") ?? 1) || 1, 1), 10);
 
-  await prisma.$transaction(async (tx) => {
-    // Lock the product row so concurrent orders can't oversell tracked stock.
-    await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${productId} FOR UPDATE`;
-    const fresh = await tx.product.findUniqueOrThrow({ where: { id: productId } });
-    if (fresh.stockCount !== null) {
-      if (fresh.stockCount < quantity) {
-        throw new Error(
-          fresh.stockCount === 0
-            ? "This item is out of stock."
-            : `Only ${fresh.stockCount} left in stock.`
-        );
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Lock the product row so concurrent orders can't oversell tracked stock.
+      await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${productId} FOR UPDATE`;
+      const fresh = await tx.product.findUniqueOrThrow({ where: { id: productId } });
+      if (fresh.stockCount !== null) {
+        if (fresh.stockCount < quantity) {
+          throw new Error(
+            fresh.stockCount === 0
+              ? "This item is out of stock."
+              : `Only ${fresh.stockCount} left in stock.`
+          );
+        }
+        await tx.product.update({
+          where: { id: productId },
+          data: { stockCount: { decrement: quantity } },
+        });
       }
-      await tx.product.update({
-        where: { id: productId },
-        data: { stockCount: { decrement: quantity } },
+      await tx.order.create({
+        data: {
+          userId: user.id,
+          productId: product.id,
+          size: sizeOptions.length > 0 ? size : "",
+          quantity,
+          priceCents: product.priceCents,
+        },
       });
-    }
-    await tx.order.create({
-      data: {
-        userId: user.id,
-        productId: product.id,
-        size: sizeOptions.length > 0 ? size : "",
-        quantity,
-        priceCents: product.priceCents,
-      },
     });
-  });
+  } catch (err) {
+    failTo("/shop", err instanceof Error ? err.message : "Couldn't place the order — please try again.");
+  }
 
   revalidatePath("/shop");
   revalidatePath("/admin/shop");
   revalidatePath("/coach/orders");
+  succeedTo("/shop", `Order placed — pay for your ${product.name} at the front desk at pickup.`);
 }
 
 async function restockCancelledOrder(orderId: string) {
@@ -1018,7 +1033,7 @@ export async function resetMemberPassword(
 export async function impersonateUser(userId: string) {
   const admin = await requireAdmin();
   const target = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  if (target.id === admin.id) redirect("/admin");
+  if (target.id === admin.id || target.deactivatedAt) redirect("/admin");
 
   const session = await getSession();
   session.userId = target.id;
@@ -1050,4 +1065,110 @@ export async function stopImpersonating() {
   await session.save();
 
   redirect("/admin");
+}
+
+export async function deactivateAccount(profileId: string) {
+  const admin = await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
+  const profile = await prisma.memberProfile.findUniqueOrThrow({
+    where: { id: profileId },
+    include: { user: true },
+  });
+  if (profile.user?.id === admin.id) failTo(memberPath, "You can't deactivate your own account.");
+  if (profile.deactivatedAt) failTo(memberPath, `${profile.name} is already on leaver hold.`);
+
+  const now = new Date();
+  const upcoming = await prisma.booking.findMany({
+    where: {
+      profileId,
+      status: { in: ["BOOKED", "WAITLISTED"] },
+      session: { startsAt: { gt: now } },
+    },
+    select: { sessionId: true },
+  });
+  for (const booking of upcoming) {
+    const promotedProfileId = await cancelProfileBooking(profileId, booking.sessionId);
+    if (promotedProfileId) {
+      await trackEvent("WAITLIST_PROMOTION", { profileId: promotedProfileId });
+    }
+  }
+
+  await prisma.memberProfile.update({
+    where: { id: profileId },
+    data: { deactivatedAt: now },
+  });
+  if (profile.user) {
+    await prisma.user.update({
+      where: { id: profile.user.id },
+      data: { deactivatedAt: now },
+    });
+  }
+
+  await recordAudit(admin, "ACCOUNT_DEACTIVATED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Placed ${profile.name} on leaver hold (data retained ${RETENTION_YEARS} years)`,
+  });
+
+  revalidatePath("/admin");
+  succeedTo(
+    memberPath,
+    `${profile.name} is now on leaver hold — access revoked, data retained until ${purgeDueAt(now).toLocaleDateString("en-US")}.`
+  );
+}
+
+export async function reactivateAccount(profileId: string) {
+  const admin = await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
+  const profile = await prisma.memberProfile.findUniqueOrThrow({
+    where: { id: profileId },
+    include: { user: true },
+  });
+  if (!profile.deactivatedAt) failTo(memberPath, `${profile.name} is already active.`);
+
+  await prisma.memberProfile.update({
+    where: { id: profileId },
+    data: { deactivatedAt: null },
+  });
+  if (profile.user) {
+    await prisma.user.update({
+      where: { id: profile.user.id },
+      data: { deactivatedAt: null },
+    });
+  }
+
+  await recordAudit(admin, "ACCOUNT_REACTIVATED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Reactivated ${profile.name} from leaver hold`,
+  });
+
+  revalidatePath("/admin");
+  succeedTo(memberPath, `${profile.name} is active again — access restored with all their history intact.`);
+}
+
+export async function deleteAccountData(profileId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
+  const profile = await prisma.memberProfile.findUniqueOrThrow({
+    where: { id: profileId },
+    include: { user: true },
+  });
+  if (profile.user?.id === admin.id) failTo(memberPath, "You can't delete your own account.");
+
+  const confirmName = String(formData.get("confirmName") ?? "").trim();
+  if (confirmName.toLowerCase() !== profile.name.toLowerCase()) {
+    failTo(memberPath, `Type "${profile.name}" exactly to confirm permanent deletion.`);
+  }
+
+  const name = await purgeProfileData(profileId);
+
+  await recordAudit(admin, "ACCOUNT_DELETED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Permanently deleted all data for ${name ?? profile.name}`,
+  });
+
+  revalidatePath("/admin");
+  succeedTo("/admin", `All data for ${name ?? profile.name} has been permanently deleted.`);
 }

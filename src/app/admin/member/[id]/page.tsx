@@ -6,10 +6,14 @@ import {
   adminBookClass,
   adminBookPrivateTrial,
   adminCancelBooking,
+  deactivateAccount,
+  deleteAccountData,
   impersonateUser,
+  reactivateAccount,
   resetMemberPassword,
   updateMembership,
 } from "@/lib/actions";
+import { purgeDueAt, RETENTION_YEARS } from "@/lib/leavers";
 import { adminRecordWaiver, adminSetPin } from "@/lib/kiosk-actions";
 import { formatDay, formatTime } from "@/lib/format";
 import { appUrl } from "@/lib/email";
@@ -26,7 +30,7 @@ export default async function AdminMemberPage({
   params: { id: string };
   searchParams: { error?: string; success?: string };
 }) {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const profile = await prisma.memberProfile.findUnique({
     where: { id: params.id },
@@ -110,7 +114,14 @@ export default async function AdminMemberPage({
               ? ` · ${profile.user.email} (${profile.user.role.toLowerCase()})`
               : ""}
         </p>
-        {profile.user && (
+        {profile.deactivatedAt && (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <span className="font-semibold">On leaver hold</span> since{" "}
+            {formatDay(profile.deactivatedAt)} — access revoked, data retained until{" "}
+            {formatDay(purgeDueAt(profile.deactivatedAt))}, then deleted automatically.
+          </p>
+        )}
+        {profile.user && !profile.deactivatedAt && (
           <form action={impersonateUser.bind(null, profile.user.id)} className="mt-3">
             <SubmitButton
               pendingLabel="Switching…"
@@ -481,6 +492,79 @@ export default async function AdminMemberPage({
               Reset password
             </SubmitButton>
           </form>
+        </section>
+      )}
+
+      {profile.user?.id !== admin.id && (
+        <section aria-labelledby="account-status">
+          <h2
+            id="account-status"
+            className="text-sm font-semibold uppercase tracking-wide text-stone-500"
+          >
+            Account status
+          </h2>
+          <div className="mt-2 space-y-4 rounded-xl border border-red-200 bg-white p-4 shadow-sm">
+            {profile.deactivatedAt ? (
+              <div className="space-y-3">
+                <p className="text-sm text-stone-600">
+                  {firstName} is on <span className="font-semibold">leaver hold</span> since{" "}
+                  {formatDay(profile.deactivatedAt)}: they can&apos;t sign in, book, or check in,
+                  but all their history is retained. Data is deleted automatically on{" "}
+                  {formatDay(purgeDueAt(profile.deactivatedAt))} ({RETENTION_YEARS} years).
+                </p>
+                <form action={reactivateAccount.bind(null, profile.id)}>
+                  <SubmitButton
+                    pendingLabel="Reactivating…"
+                    className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Reactivate {firstName}
+                  </SubmitButton>
+                </form>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-stone-600">
+                  Leaving the gym? Place {firstName} on leaver hold: access is revoked immediately
+                  and any future bookings are cancelled, but all data is kept for {RETENTION_YEARS}{" "}
+                  years in case they come back.
+                </p>
+                <form action={deactivateAccount.bind(null, profile.id)}>
+                  <SubmitButton
+                    pendingLabel="Deactivating…"
+                    className="rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50"
+                  >
+                    Place on leaver hold
+                  </SubmitButton>
+                </form>
+              </div>
+            )}
+
+            <div className="space-y-3 border-t border-red-100 pt-4">
+              <p className="text-sm text-stone-600">
+                <span className="font-semibold text-red-700">Permanently delete all data</span> —
+                removes {firstName}&apos;s account, bookings, attendance, waiver, photos, posts,
+                and orders. This cannot be undone. Type their full name to confirm.
+              </p>
+              <form
+                action={deleteAccountData.bind(null, profile.id)}
+                className="flex flex-wrap items-center gap-3"
+              >
+                <input
+                  name="confirmName"
+                  required
+                  placeholder={profile.name}
+                  autoComplete="off"
+                  className="w-full max-w-xs rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                />
+                <SubmitButton
+                  pendingLabel="Deleting…"
+                  className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+                >
+                  Delete all data
+                </SubmitButton>
+              </form>
+            </div>
+          </div>
         </section>
       )}
     </div>

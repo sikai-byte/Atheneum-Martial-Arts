@@ -20,13 +20,18 @@ const statusStyles: Record<string, string> = {
   CANCELLED: "bg-stone-100 text-stone-400",
 };
 
-export default async function ShopPage() {
+export default async function ShopPage({
+  searchParams,
+}: {
+  searchParams: { success?: string; error?: string };
+}) {
   const user = await requireUser();
 
   const [products, orders] = await Promise.all([
     prisma.product.findMany({
       where: { active: true },
       orderBy: { sortOrder: "asc" },
+      include: { images: { orderBy: { sortOrder: "asc" } } },
     }),
     prisma.order.findMany({
       where: { userId: user.id },
@@ -43,6 +48,22 @@ export default async function ShopPage() {
         <p className="mt-1 text-stone-600">
           Order Atheneum gear here — pay at the front desk when you pick it up.
         </p>
+        {searchParams.success && (
+          <p
+            role="status"
+            className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800"
+          >
+            {searchParams.success}
+          </p>
+        )}
+        {searchParams.error && (
+          <p
+            role="alert"
+            className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            {searchParams.error}
+          </p>
+        )}
       </section>
 
       <section aria-labelledby="gear">
@@ -57,7 +78,22 @@ export default async function ShopPage() {
             return (
               <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  {p.images.length > 0 && (
+                    <a
+                      href={`/api/product-photo/${p.images[0].id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/product-photo/${p.images[0].id}`}
+                        alt={p.name}
+                        className="h-20 w-20 rounded-lg border border-stone-200 object-cover sm:h-24 sm:w-24"
+                      />
+                    </a>
+                  )}
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold">{p.name}</p>
                       {outOfStock && (
@@ -73,6 +109,25 @@ export default async function ShopPage() {
                     </div>
                     {p.description && (
                       <p className="mt-1 text-sm text-stone-600">{p.description}</p>
+                    )}
+                    {p.images.length > 1 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {p.images.slice(1).map((image, i) => (
+                          <a
+                            key={image.id}
+                            href={`/api/product-photo/${image.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/product-photo/${image.id}`}
+                              alt={`${p.name} photo ${i + 2}`}
+                              className="h-12 w-12 rounded-md border border-stone-200 object-cover"
+                            />
+                          </a>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <p className="whitespace-nowrap font-semibold text-brand">
