@@ -206,6 +206,38 @@ export function verifyAgainstFacts(
 }
 
 /**
+ * Whether a message that books a class describes a different slot than the one it books. The
+ * schedule check on its own is satisfied by any real class, so the agent could truthfully name
+ * "Monday at 6:15" from the corpus while attaching a booking to Friday's 6:15 class — the lead then
+ * turns up on the wrong day. Returns the offending phrase, or null when the text and the booking
+ * agree (or the text names no day or time at all, which is fine).
+ */
+export function describesOtherSlot(
+  message: string,
+  startsAt: Date,
+  timezone: string,
+): string | null {
+  const slot = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone,
+  })
+    .format(startsAt)
+    .toLowerCase();
+
+  const day = message.match(new RegExp(WEEKDAY.source, "i"))?.[0];
+  if (day && !slot.includes(day.toLowerCase())) return day;
+
+  const time = message.match(new RegExp(CLOCK.source, "i"))?.[0];
+  if (time && !slot.replace(/\s/g, "").includes(time.toLowerCase().replace(/\s/g, ""))) {
+    return time;
+  }
+
+  return null;
+}
+
+/**
  * The lead has to have said yes before a booking is real. Without this the model happily attaches
  * a `sessionId` to "how about Monday 6:15?", which would book someone who never agreed.
  */

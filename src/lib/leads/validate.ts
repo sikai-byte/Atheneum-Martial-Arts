@@ -1,6 +1,6 @@
 import type { Lead } from "@prisma/client";
 import { prisma } from "../db";
-import { verifyAgainstFacts, upcomingClasses } from "./agent";
+import { describesOtherSlot, verifyAgainstFacts, upcomingClasses } from "./agent";
 import { getBotConfig, isQuietHour, type BotSettings } from "./config";
 import { knowledgeForLead, renderKnowledge } from "./knowledge";
 import { IN_FLIGHT_STATUSES } from "./messageStatus";
@@ -73,6 +73,13 @@ export async function validateOutbound(candidate: OutboundCandidate): Promise<Ou
     });
     if (!session || session.status !== "SCHEDULED" || session.startsAt < now) {
       return { ok: false, reason: "The class this message books is no longer on the schedule." };
+    }
+    const other = describesOtherSlot(body, session.startsAt, config.timezone);
+    if (other) {
+      return {
+        ok: false,
+        reason: `The message says ${other} but books a class at another time — the lead would come on the wrong day.`,
+      };
     }
   }
 
