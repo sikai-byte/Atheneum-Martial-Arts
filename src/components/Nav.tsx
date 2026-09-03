@@ -85,14 +85,14 @@ export default function Nav({ name, role }: { name: string; role: string }) {
         </div>
       </header>
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 flex overflow-x-auto border-t border-stone-200 bg-white lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 flex overflow-x-auto border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
         aria-label="Primary mobile"
       >
         {[...links, { href: "/account", label: "Me" }].map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            className={`flex-1 whitespace-nowrap px-3 py-4 text-center text-sm font-medium ${
+            className={`min-w-[76px] flex-1 whitespace-nowrap px-3 py-4 text-center text-sm font-medium ${
               pathname === l.href ? "text-brand" : "text-stone-500"
             }`}
           >
