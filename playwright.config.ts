@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // The suite runs against a production build (`next build` first) with a
-// dedicated SQLite database (prisma/test.db) that is reset before every run.
-export const TEST_DATABASE_URL = "file:./test.db";
+// dedicated Postgres database (atheneum_test) that is reset before every run.
+export const TEST_DATABASE_URL =
+  process.env.TEST_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/atheneum_test";
 const PORT = 3199;
 
 export default defineConfig({

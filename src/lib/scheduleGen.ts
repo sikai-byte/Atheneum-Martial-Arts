@@ -42,8 +42,8 @@ export async function ensureUpcomingSessions() {
   horizon.setDate(horizon.getDate() + (WEEKS_AHEAD + 1) * 7);
 
   await prisma.$transaction(async (tx) => {
-    // Take the write lock up front so concurrent generation serializes.
-    await tx.$executeRaw`UPDATE RecurringSlot SET id = id WHERE id = ${slots[0].id}`;
+    // Lock the slot row up front so concurrent generation serializes.
+    await tx.$queryRaw`SELECT id FROM "RecurringSlot" WHERE id = ${slots[0].id} FOR UPDATE`;
     const existing = await tx.classSession.findMany({
       where: {
         templateId: { in: slots.map((s) => s.templateId) },

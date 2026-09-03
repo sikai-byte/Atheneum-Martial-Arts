@@ -7,7 +7,7 @@ A full member portal for **Atheneum Martial Arts** (825 Meander Court, Medina, M
 ## Tech stack
 
 - **Next.js 14** (App Router, server components + server actions) with TypeScript and Tailwind CSS
-- **Prisma + SQLite** (single-file DB on a Railway persistent volume at `/data/atheneum.db`)
+- **Prisma + PostgreSQL** (versioned migrations in `prisma/migrations`, applied with `prisma migrate deploy` on boot)
 - **iron-session** cookie auth, **bcryptjs** password hashing
 - **Resend** (HTTP API) for transactional email from `portal@atheneummartialarts.com` (verified domain)
 - **sharp** for server-side image processing; uploads stored on the `/data/uploads` volume
@@ -49,7 +49,7 @@ Sample accounts (local dev, password `atheneum123`): `member@example.com`, `pare
 - **Site content editors** (Squarespace-style, no code): coaches (bios/disciplines/photos with drag/zoom crop), shop products (prices/sizes/add/retire — order history preserved), and schedule/classes (weekly slots, capacity, instructors, cancel/restore sessions)
 
 ### Operations
-- **Nightly SQLite backups** to `/data/backups` (14 most recent kept), started via Next.js instrumentation
+- **Nightly JSON database backups** to `BACKUP_DIR` (14 most recent kept), started via Next.js instrumentation; restore any dump with `npm run db:import -- <file>` (see `docs/backup-restore.md`)
 - Trial bookings are blocked past the trial end date server-side; validation errors surface as inline banners (`?error=...`), successes as green banners (`?success=...`) — never generic error pages
 
 ## Data model (Prisma, `prisma/schema.prisma`)
@@ -63,27 +63,28 @@ Business rules (programs, templates, capacities, age groups) live in the databas
 ```bash
 npm install
 cp .env.example .env   # set a real SESSION_SECRET; RESEND_API_KEY optional locally (emails log to console)
-npm run db:push        # create the SQLite database
-npm run db:seed        # load sample data
+docker run -d --name atheneum-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16   # local Postgres
+npx prisma migrate dev # create the database and apply migrations (also seeds)
 npm run dev
 ```
 
 Open http://localhost:3000 and sign in with a sample account above.
 
-Scripts: `npm run lint`, `npm run typecheck`, `npm run build`, `npm run db:push`, `npm run db:seed`. E2E testing guidance lives in `.agents/skills/testing-atheneum-portal/SKILL.md`.
+Scripts: `npm run lint`, `npm run typecheck`, `npm run build`, `npm run db:seed`, `npm run db:export` / `npm run db:import` (JSON backup/restore). Schema changes go through `npx prisma migrate dev --name <change>`. E2E testing guidance lives in `.agents/skills/testing-atheneum-portal/SKILL.md`.
 
 ### Automated test suite
 
-`npm run test:e2e` builds the app and runs the Playwright suite in `tests/e2e/` (auth & role access, booking/waitlist/promotion, trial restrictions, admin tools & audit history) against a production server on port 3199 with a dedicated database (`prisma/test.db`) that is reset and re-seeded on every run — it never touches your dev or production data. Use `npm run test:e2e:only` to skip the rebuild when the build is fresh. One-time setup: `npx playwright install chromium`.
+`npm run test:e2e` builds the app and runs the Playwright suite in `tests/e2e/` (auth & role access, booking/waitlist/promotion, trial restrictions, admin tools & audit history) against a production server on port 3199 with a dedicated Postgres database (`atheneum_test`) that is reset and re-seeded on every run — it never touches your dev or production data. Use `npm run test:e2e:only` to skip the rebuild when the build is fresh. One-time setup: `npx playwright install chromium`.
 
 ## Deployment (Railway)
 
 `railway.json` defines the deploy. The Railway service needs:
 
-1. A **volume** mounted at `/data` (database, uploads, backups)
-2. Env vars: `DATABASE_URL=file:/data/atheneum.db`, `SESSION_SECRET` (32+ random chars), `UPLOAD_DIR=/data/uploads`, `RESEND_API_KEY`, `EMAIL_FROM="Atheneum Martial Arts <portal@atheneummartialarts.com>"`, `APP_URL=https://portal.atheneummartialarts.com`
+1. A **PostgreSQL database** service in the same Railway project
+2. A **volume** mounted at `/data` (uploads, backups)
+3. Env vars: `DATABASE_URL` (the Railway Postgres connection string), `SESSION_SECRET` (32+ random chars), `UPLOAD_DIR=/data/uploads`, `BACKUP_DIR=/data/backups`, `RESEND_API_KEY`, `EMAIL_FROM="Atheneum Martial Arts <portal@atheneummartialarts.com>"`, `APP_URL=https://portal.atheneummartialarts.com`
 
-The start command pushes the Prisma schema, seeds only if the DB is empty, and `exec`s `next start` directly (clean SIGTERM shutdown on redeploys; Node prefers IPv4 DNS so server-action redirects resolve correctly).
+The start command applies pending Prisma migrations, seeds only if the DB is empty, and `exec`s `next start` directly (clean SIGTERM shutdown on redeploys; Node prefers IPv4 DNS so server-action redirects resolve correctly).
 
 Deploy from a local checkout with `railway up --service web`.
 

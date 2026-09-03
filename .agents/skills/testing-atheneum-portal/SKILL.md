@@ -1,12 +1,12 @@
 ---
 name: testing-atheneum-portal
-description: How to run and E2E-test the Atheneum Martial Arts member portal (Next.js 14 + Prisma/SQLite + iron-session) — accounts, roles, and how to reach the waitlist/promotion and coach check-in flows.
+description: How to run and E2E-test the Atheneum Martial Arts member portal (Next.js 14 + Prisma/PostgreSQL + iron-session) — accounts, roles, and how to reach the waitlist/promotion and coach check-in flows.
 ---
 
 # Testing the Atheneum member portal
 
 ## Setup / run
-- Repo root: Next.js 14 App Router app. `cp -n .env.example .env && npm install && npm run db:push && npm run db:seed && npm run dev` → http://localhost:3000. Re-seeding is safe and resets all bookings/attendance.
+- Repo root: Next.js 14 App Router app on PostgreSQL. Start Postgres first (`docker start atheneum-pg` if the container exists, else `docker run -d --name atheneum-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16`), then `cp -n .env.example .env && npm install && npx prisma migrate dev && npm run dev` → http://localhost:3000. Re-seeding (`npm run db:seed`) is safe and resets all bookings/attendance. Schema changes: `npx prisma migrate dev --name <change>` (never `db push` — migrations are versioned and applied in prod by `prisma migrate deploy`).
 - All sample accounts use password `atheneum123`:
   - `member@example.com` (Jordan Lee, adult) → lands on `/`
   - `parent@example.com` (Casey Smith; child profiles Riley & Avery) → lands on `/`
@@ -29,7 +29,7 @@ description: How to run and E2E-test the Atheneum Martial Arts member portal (Ne
 - Clipboard verification of the Copy button: `navigator.clipboard.readText()` via the devtools console fails with "Document is not focused" — click the page first, trigger the copy, then read the clipboard through an async assignment to `window.__clip` and poll it; Chrome will show a clipboard permission prompt the first time (click Allow).
 
 ## Gotchas
-- `sqlite3` CLI is not installed; use the Prisma client via `node -e` from the repo root instead.
+- No `psql` CLI on the box; use the Prisma client via `node -e` from the repo root, or `docker exec atheneum-pg psql -U postgres`. The Playwright suite (`npm run test:e2e`) uses its own `atheneum_test` database (created/reset automatically by global-setup) — it never touches dev data. Backups are JSON dumps (`npm run db:export` / `db:import`, docs in `docs/backup-restore.md`).
 - Server actions drive all mutations (login/book/cancel/check-in); avoid curl with session cookies — just use the UI.
 - Seed data includes an existing Jordan booking (BJJ Fundamentals) and Riley Kids BJJ booking; cancel or re-seed if you need a clean "Nothing booked yet." home state.
 - PWA: `/manifest.webmanifest` and `/sw.js` return 200 and Chrome shows the omnibox install icon, but on this Linux/Chrome test box the registered service worker may stay stuck at Running Status `STARTING` / Installation Status `NEW` in `chrome://serviceworker-internals` without any console error. Verify manifest + registration + install affordance and report the worker state honestly rather than claiming an ACTIVE worker.

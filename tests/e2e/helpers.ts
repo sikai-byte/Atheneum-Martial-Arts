@@ -1,13 +1,13 @@
-import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { Page, expect } from "@playwright/test";
+import { TEST_DATABASE_URL } from "../../playwright.config";
 
 export const PASSWORD = "atheneum123";
 
 // Direct DB access for fixtures/assertions, bound to the test database.
 export const db = new PrismaClient({
-  datasources: { db: { url: `file:${path.join(process.cwd(), "prisma", "test.db")}` } },
+  datasources: { db: { url: TEST_DATABASE_URL } },
 });
 
 export async function login(page: Page, email: string, password = PASSWORD) {

@@ -6,14 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "start:prod": "prisma db push --skip-generate && prisma db seed && NODE_OPTIONS=--dns-result-order=ipv4first next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "start:prod": "prisma migrate deploy && prisma db seed && NODE_OPTIONS=--dns-result-order=ipv4first next start -H 0.0.0.0 -p ${PORT:-3000}",
     "postinstall": "prisma generate",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:e2e": "next build && playwright test",
     "test:e2e:only": "playwright test",
     "db:push": "prisma db push",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:export": "tsx scripts/export-data.ts",
+    "db:import": "tsx scripts/import-data.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

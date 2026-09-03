@@ -1,35 +1,28 @@
 import path from "path";
 import fs from "fs/promises";
 import { prisma } from "./db";
+import { exportAll } from "./datadump";
 
 const KEEP_COUNT = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function databaseFile(): string | null {
-  const url = process.env.DATABASE_URL ?? "";
-  if (!url.startsWith("file:")) return null;
-  const file = url.slice("file:".length).split("?")[0];
-  return path.isAbsolute(file) ? file : path.join(process.cwd(), "prisma", file);
-}
-
 export function backupDir(): string | null {
-  if (process.env.BACKUP_DIR) return process.env.BACKUP_DIR;
-  const file = databaseFile();
-  return file ? path.join(path.dirname(file), "backups") : null;
+  return process.env.BACKUP_DIR || null;
 }
 
+/** Writes a full JSON dump of the database (restorable with `npm run db:import`). */
 export async function runBackup(): Promise<string | null> {
   const dir = backupDir();
   if (!dir) return null;
   await fs.mkdir(dir, { recursive: true });
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const target = path.join(dir, `atheneum-${stamp}.db`);
-  // VACUUM INTO writes a consistent, compacted snapshot without locking writers out.
-  await prisma.$executeRawUnsafe(`VACUUM INTO '${target.replace(/'/g, "''")}'`);
+  const target = path.join(dir, `atheneum-${stamp}.json`);
+  const dump = await exportAll(prisma);
+  await fs.writeFile(target, JSON.stringify(dump));
 
   const entries = (await fs.readdir(dir))
-    .filter((f) => f.startsWith("atheneum-") && f.endsWith(".db"))
+    .filter((f) => f.startsWith("atheneum-") && f.endsWith(".json"))
     .sort()
     .reverse();
   for (const stale of entries.slice(KEEP_COUNT)) {
