@@ -223,7 +223,7 @@ async function seedRecurringSlots() {
 }
 
 async function ensureAdmin() {
-  const existing = await prisma.user.findUnique({ where: { email: "admin@example.com" } });
+  const existing = await prisma.user.findFirst({ where: { role: "ADMIN" } });
   if (existing) return;
   const household = await prisma.household.create({ data: { name: "Admin Household" } });
   const admin = await prisma.user.create({
