@@ -15,6 +15,7 @@ import { bookingLimit } from "./capacity";
 import { trialEndOfDay } from "./trial";
 import { trackEvent } from "./telemetry";
 import { recordAudit } from "./audit";
+import { isLockedOut, rateLimit, recordFailure } from "./rateLimit";
 import {
   appUrl,
   sendPasswordResetEmail,
@@ -27,8 +28,12 @@ export type LoginState = { error?: string };
 export async function login(_prevState: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  if (isLockedOut(`login:${email}`, 10)) {
+    return { error: "Too many failed sign-in attempts. Please wait a few minutes and try again." };
+  }
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    recordFailure(`login:${email}`, 5 * 60 * 1000);
     return { error: "That email and password combination doesn't match our records." };
   }
   const session = await getSession();
@@ -51,6 +56,9 @@ export async function requestPasswordReset(
   _prevState: ForgotPasswordState,
   formData: FormData
 ): Promise<ForgotPasswordState> {
+  if (!rateLimit("pw-reset", 5, 15 * 60 * 1000)) {
+    return { error: "Too many reset requests. Please wait a few minutes and try again." };
+  }
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) return { error: "Enter your email address." };
 
@@ -159,7 +167,20 @@ export async function bookClass(
     }
   }
 
-  const bookedStatus = await prisma.$transaction(async (tx) => {
+  const bookedStatus = await bookProfileIntoSession(profileId, sessionId);
+
+  await trackEvent(user.role === "ADMIN" ? "ADMIN_BOOKING" : "SELF_BOOKING", {
+    userId: user.id,
+    profileId,
+    metadata: bookedStatus,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/schedule");
+}
+
+async function bookProfileIntoSession(profileId: string, sessionId: string) {
+  return prisma.$transaction(async (tx) => {
     // Lock the session row up front so the capacity check serializes.
     await tx.$queryRaw`SELECT id FROM "ClassSession" WHERE id = ${sessionId} FOR UPDATE`;
     const classSession = await tx.classSession.findUniqueOrThrow({
@@ -179,22 +200,10 @@ export async function bookClass(
     });
     return status;
   });
-
-  await trackEvent(user.role === "ADMIN" ? "ADMIN_BOOKING" : "SELF_BOOKING", {
-    userId: user.id,
-    profileId,
-    metadata: bookedStatus,
-  });
-
-  revalidatePath("/");
-  revalidatePath("/schedule");
 }
 
-export async function cancelBooking(profileId: string, sessionId: string) {
-  const user = await requireUser();
-  await assertProfileInHousehold(user.id, profileId);
-
-  const promotedProfileId = await prisma.$transaction(async (tx) => {
+async function cancelProfileBooking(profileId: string, sessionId: string) {
+  return prisma.$transaction(async (tx) => {
     await tx.booking.update({
       where: { profileId_sessionId: { profileId, sessionId } },
       data: { status: "CANCELLED" },
@@ -217,6 +226,13 @@ export async function cancelBooking(profileId: string, sessionId: string) {
     }
     return null;
   });
+}
+
+export async function cancelBooking(profileId: string, sessionId: string) {
+  const user = await requireUser();
+  await assertProfileInHousehold(user.id, profileId);
+
+  const promotedProfileId = await cancelProfileBooking(profileId, sessionId);
 
   await trackEvent(user.role === "ADMIN" ? "ADMIN_CANCELLATION" : "SELF_CANCELLATION", {
     userId: user.id,
@@ -272,6 +288,89 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
   revalidatePath("/");
 }
 
+export async function coachWalkInCheckIn(sessionId: string, formData: FormData) {
+  await requireCoach();
+  const profileId = String(formData.get("profileId") ?? "");
+  if (!profileId) return;
+  const existing = await prisma.attendance.findUnique({
+    where: { profileId_sessionId: { profileId, sessionId } },
+  });
+  if (existing) {
+    redirect(`/coach/session/${sessionId}`);
+  }
+  await toggleAttendance(profileId, sessionId);
+  redirect(`/coach/session/${sessionId}`);
+}
+
+export async function coachAddToRoster(sessionId: string, formData: FormData) {
+  const coach = await requireCoach();
+  const profileId = String(formData.get("profileId") ?? "");
+  const sessionPath = `/coach/session/${sessionId}`;
+  if (!profileId) redirect(sessionPath);
+
+  const [profile, session] = await Promise.all([
+    prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } }),
+    prisma.classSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: { template: true },
+    }),
+  ]);
+
+  let status: string;
+  try {
+    status = await bookProfileIntoSession(profileId, sessionId);
+  } catch (err) {
+    failTo(sessionPath, err instanceof Error ? err.message : "Couldn't add that member.");
+  }
+
+  await trackEvent("ADMIN_BOOKING", { userId: coach.id, profileId, metadata: status });
+  await recordAudit(coach, "BOOKING_CREATED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `${status === "WAITLISTED" ? "Waitlisted" : "Added"} ${profile.name} ${status === "WAITLISTED" ? "for" : "to"} ${session.template.name}`,
+  });
+
+  revalidatePath(sessionPath);
+  revalidatePath("/coach");
+  revalidatePath("/schedule");
+  succeedTo(
+    sessionPath,
+    status === "WAITLISTED"
+      ? `Class is full — ${profile.name} was added to the waitlist.`
+      : `${profile.name} added to the class.`
+  );
+}
+
+export async function coachRemoveFromRoster(profileId: string, sessionId: string) {
+  const coach = await requireCoach();
+  const sessionPath = `/coach/session/${sessionId}`;
+
+  const [profile, session] = await Promise.all([
+    prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } }),
+    prisma.classSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: { template: true },
+    }),
+  ]);
+
+  const promotedProfileId = await cancelProfileBooking(profileId, sessionId);
+
+  await trackEvent("ADMIN_CANCELLATION", { userId: coach.id, profileId });
+  if (promotedProfileId) {
+    await trackEvent("WAITLIST_PROMOTION", { profileId: promotedProfileId });
+  }
+  await recordAudit(coach, "BOOKING_CANCELLED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Removed ${profile.name} from ${session.template.name}`,
+  });
+
+  revalidatePath(sessionPath);
+  revalidatePath("/coach");
+  revalidatePath("/schedule");
+  succeedTo(sessionPath, `${profile.name} removed from the class.`);
+}
+
 export async function placeOrder(productId: string, formData: FormData) {
   const user = await requireUser();
   const product = await prisma.product.findUniqueOrThrow({ where: { id: productId } });
@@ -284,18 +383,52 @@ export async function placeOrder(productId: string, formData: FormData) {
   }
   const quantity = Math.min(Math.max(Number(formData.get("quantity") ?? 1) || 1, 1), 10);
 
-  await prisma.order.create({
-    data: {
-      userId: user.id,
-      productId: product.id,
-      size: sizeOptions.length > 0 ? size : "",
-      quantity,
-      priceCents: product.priceCents,
-    },
+  await prisma.$transaction(async (tx) => {
+    // Lock the product row so concurrent orders can't oversell tracked stock.
+    await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${productId} FOR UPDATE`;
+    const fresh = await tx.product.findUniqueOrThrow({ where: { id: productId } });
+    if (fresh.stockCount !== null) {
+      if (fresh.stockCount < quantity) {
+        throw new Error(
+          fresh.stockCount === 0
+            ? "This item is out of stock."
+            : `Only ${fresh.stockCount} left in stock.`
+        );
+      }
+      await tx.product.update({
+        where: { id: productId },
+        data: { stockCount: { decrement: quantity } },
+      });
+    }
+    await tx.order.create({
+      data: {
+        userId: user.id,
+        productId: product.id,
+        size: sizeOptions.length > 0 ? size : "",
+        quantity,
+        priceCents: product.priceCents,
+      },
+    });
   });
 
   revalidatePath("/shop");
+  revalidatePath("/admin/shop");
   revalidatePath("/coach/orders");
+}
+
+async function restockCancelledOrder(orderId: string) {
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: { product: true },
+    });
+    if (order.product.stockCount !== null) {
+      await tx.product.update({
+        where: { id: order.productId },
+        data: { stockCount: { increment: order.quantity } },
+      });
+    }
+  });
 }
 
 export async function cancelOrder(orderId: string) {
@@ -305,8 +438,10 @@ export async function cancelOrder(orderId: string) {
   if (order.status !== "PLACED") throw new Error("This order can no longer be cancelled.");
 
   await prisma.order.update({ where: { id: orderId }, data: { status: "CANCELLED" } });
+  await restockCancelledOrder(orderId);
 
   revalidatePath("/shop");
+  revalidatePath("/admin/shop");
   revalidatePath("/coach/orders");
 }
 
@@ -315,11 +450,15 @@ export async function updateOrderStatus(orderId: string, status: string) {
   if (!["PLACED", "READY", "PICKED_UP", "CANCELLED"].includes(status)) {
     throw new Error("Invalid order status.");
   }
+  const previous = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
   const order = await prisma.order.update({
     where: { id: orderId },
     data: { status },
     include: { product: true },
   });
+  if (status === "CANCELLED" && previous.status !== "CANCELLED") {
+    await restockCancelledOrder(orderId);
+  }
   await recordAudit(coach, "ORDER_STATUS_UPDATED", {
     targetType: "Order",
     targetId: orderId,
@@ -327,6 +466,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
   });
 
   revalidatePath("/shop");
+  revalidatePath("/admin/shop");
   revalidatePath("/coach/orders");
 }
 

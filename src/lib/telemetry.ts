@@ -10,7 +10,9 @@ export type TelemetryType =
   | "AUTOMATED_EMAIL"
   | "SELF_PASSWORD_RESET"
   | "TRIAL_STARTED"
-  | "TRIAL_CONVERTED";
+  | "TRIAL_CONVERTED"
+  | "KIOSK_CHECKIN"
+  | "KIOSK_REGISTRATION";
 
 /** Records a telemetry event. Best-effort: never throws, so instrumented flows can't fail because of analytics. */
 export async function trackEvent(
@@ -43,6 +45,8 @@ export const MINUTES_SAVED: Record<TelemetryType, number> = {
   SELF_PASSWORD_RESET: 10,
   TRIAL_STARTED: 0,
   TRIAL_CONVERTED: 0,
+  KIOSK_CHECKIN: 2,
+  KIOSK_REGISTRATION: 10,
 };
 
 export const TIME_SAVED_LABELS: Partial<Record<TelemetryType, string>> = {
@@ -51,6 +55,8 @@ export const TIME_SAVED_LABELS: Partial<Record<TelemetryType, string>> = {
   WAITLIST_PROMOTION: "Automatic waitlist promotions",
   AUTOMATED_EMAIL: "Automated emails",
   SELF_PASSWORD_RESET: "Self-serve password resets",
+  KIOSK_CHECKIN: "Kiosk self check-ins",
+  KIOSK_REGISTRATION: "Kiosk self-registrations",
 };
 
 /** Event types that replace a manual text, email, or phone call. */

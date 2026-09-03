@@ -38,35 +38,53 @@ export default async function CoachTodayPage() {
     prisma.announcement.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
 
-  const renderSession = (s: (typeof todaySessions)[number], showDay = false) => (
-    <Link
-      key={s.id}
-      href={`/coach/session/${s.id}`}
-      className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm hover:border-stone-400"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="font-semibold">{s.template.name}</p>
-          <p className="mt-1 text-sm text-stone-600">
-            {showDay && `${formatDay(s.startsAt)} · `}
-            {formatTime(s.startsAt)} · {s.instructor}
-          </p>
+  const renderSession = (s: (typeof todaySessions)[number], showDay = false) => {
+    const bookedCount = s.bookings.filter((b) => b.status === "BOOKED").length;
+    const checkedIn = s.attendances.length;
+    const allIn = bookedCount > 0 && checkedIn >= bookedCount;
+    return (
+      <Link
+        key={s.id}
+        href={`/coach/session/${s.id}`}
+        className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm hover:border-stone-400"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate font-semibold">{s.template.name}</p>
+            <p className="mt-1 text-sm text-stone-600">
+              {showDay && `${formatDay(s.startsAt)} · `}
+              {formatTime(s.startsAt)} · {s.instructor}
+            </p>
+            <p className="mt-1 text-sm text-stone-500">
+              {bookedCount}/{s.template.capacity} booked
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <span
+              className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${
+                allIn
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-stone-100 text-stone-700"
+              }`}
+            >
+              {checkedIn}/{bookedCount} checked in
+            </span>
+            {!showDay && (
+              <p className="mt-2 text-sm font-semibold text-emerald-700">Check in &rarr;</p>
+            )}
+          </div>
         </div>
-        <div className="text-right text-sm text-stone-600">
-          <p>
-            {s.bookings.filter((b) => b.status === "BOOKED").length}/{s.template.capacity} booked
-          </p>
-          <p>{s.attendances.length} checked in</p>
-        </div>
-      </div>
-    </Link>
-  );
+      </Link>
+    );
+  };
 
   return (
     <div className="space-y-8">
       <section>
         <h1 className="text-2xl font-bold tracking-tight">Today</h1>
-        <p className="mt-1 text-stone-600">Welcome, {coach.name}. Tap a class to manage its roster.</p>
+        <p className="mt-1 text-stone-600">
+          Welcome, {coach.name}. Tap a class to check members in.
+        </p>
       </section>
 
       <section aria-labelledby="today-classes">

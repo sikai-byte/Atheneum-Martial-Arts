@@ -52,11 +52,25 @@ export default async function ShopPage() {
         <div className="mt-2 space-y-3">
           {products.map((p) => {
             const sizes = p.sizes ? p.sizes.split(",") : [];
+            const outOfStock = p.stockCount === 0;
+            const lowStock = p.stockCount !== null && p.stockCount > 0 && p.stockCount <= 5;
             return (
               <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold">{p.name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold">{p.name}</p>
+                      {outOfStock && (
+                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                          Out of stock
+                        </span>
+                      )}
+                      {lowStock && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                          Only {p.stockCount} left
+                        </span>
+                      )}
+                    </div>
                     {p.description && (
                       <p className="mt-1 text-sm text-stone-600">{p.description}</p>
                     )}
@@ -65,6 +79,11 @@ export default async function ShopPage() {
                     {formatPrice(p.priceCents)}
                   </p>
                 </div>
+                {outOfStock ? (
+                  <p className="mt-3 text-sm text-stone-500">
+                    Check back soon or ask at the front desk.
+                  </p>
+                ) : (
                 <form
                   action={placeOrder.bind(null, p.id)}
                   className="mt-3 flex flex-wrap items-center gap-2"
@@ -106,6 +125,7 @@ export default async function ShopPage() {
                     Order
                   </SubmitButton>
                 </form>
+                )}
               </div>
             );
           })}

@@ -6,12 +6,12 @@ import { ensureUpcomingSessions } from "@/lib/scheduleGen";
 import {
   createSlot,
   deleteSlot,
+  saveSchedule,
   setSessionStatus,
-  updateSlot,
-  updateTemplate,
 } from "@/lib/adminContent";
 import Flash from "@/components/Flash";
 import SubmitButton from "@/components/SubmitButton";
+import UnifiedSaveForm from "@/components/UnifiedSaveForm";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +27,14 @@ function SlotFields({
   slot,
   templates,
   idPrefix,
+  namePrefix = "",
+  formId,
 }: {
   slot?: { templateId: string; dayOfWeek: number; hour: number; minute: number; instructor: string };
   templates: { id: string; name: string }[];
   idPrefix: string;
+  namePrefix?: string;
+  formId?: string;
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-4">
@@ -40,7 +44,8 @@ function SlotFields({
         </label>
         <select
           id={`${idPrefix}-template`}
-          name="templateId"
+          name={`${namePrefix}templateId`}
+          form={formId}
           defaultValue={slot?.templateId ?? ""}
           required
           className={inputClass}
@@ -59,7 +64,8 @@ function SlotFields({
         </label>
         <select
           id={`${idPrefix}-day`}
-          name="dayOfWeek"
+          name={`${namePrefix}dayOfWeek`}
+          form={formId}
           defaultValue={slot?.dayOfWeek ?? 1}
           className={inputClass}
         >
@@ -76,7 +82,8 @@ function SlotFields({
         </label>
         <input
           id={`${idPrefix}-time`}
-          name="time"
+          name={`${namePrefix}time`}
+          form={formId}
           type="time"
           required
           defaultValue={slot ? timeValue(slot.hour, slot.minute) : ""}
@@ -89,7 +96,8 @@ function SlotFields({
         </label>
         <input
           id={`${idPrefix}-instructor`}
-          name="instructor"
+          name={`${namePrefix}instructor`}
+          form={formId}
           maxLength={80}
           defaultValue={slot?.instructor ?? ""}
           placeholder="Atheneum Coaches"
@@ -143,6 +151,7 @@ export default async function AdminSchedulePage({
         <Flash ok={searchParams.ok} error={searchParams.error} />
       </section>
 
+      <UnifiedSaveForm formId="schedule-save" action={saveSchedule}>
       <section aria-labelledby="weekly-slots" className="space-y-4">
         <div>
           <h2 id="weekly-slots" className="text-lg font-semibold">
@@ -167,23 +176,26 @@ export default async function AdminSchedulePage({
                 </span>
               )}
             </div>
-            <form action={updateSlot.bind(null, slot.id)} className="mt-3 space-y-3">
-              <SlotFields slot={slot} templates={templates} idPrefix={`slot-${slot.id}`} />
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    defaultChecked={slot.active}
-                    className="h-4 w-4 rounded border-stone-300"
-                  />
-                  Keep scheduling this class each week
-                </label>
-                <SubmitButton className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
-                  Save changes
-                </SubmitButton>
-              </div>
-            </form>
+            <div className="mt-3 space-y-3">
+              <input type="hidden" name="slotId" value={slot.id} form="schedule-save" />
+              <SlotFields
+                slot={slot}
+                templates={templates}
+                idPrefix={`slot-${slot.id}`}
+                namePrefix={`s_${slot.id}_`}
+                formId="schedule-save"
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name={`s_${slot.id}_active`}
+                  form="schedule-save"
+                  defaultChecked={slot.active}
+                  className="h-4 w-4 rounded border-stone-300"
+                />
+                Keep scheduling this class each week
+              </label>
+            </div>
             <form action={deleteSlot.bind(null, slot.id)} className="mt-2 text-right">
               <SubmitButton pendingLabel="Deleting…" className="text-xs text-red-600 hover:underline">
                 Delete this time slot
@@ -226,7 +238,8 @@ export default async function AdminSchedulePage({
                 {template.program.name}
               </span>
             </div>
-            <form action={updateTemplate.bind(null, template.id)} className="mt-3 space-y-3">
+            <div className="mt-3 space-y-3">
+              <input type="hidden" name="tplId" value={template.id} form="schedule-save" />
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label
@@ -237,7 +250,8 @@ export default async function AdminSchedulePage({
                   </label>
                   <input
                     id={`tpl-${template.id}-name`}
-                    name="name"
+                    name={`t_${template.id}_name`}
+                    form="schedule-save"
                     required
                     maxLength={120}
                     defaultValue={template.name}
@@ -254,7 +268,8 @@ export default async function AdminSchedulePage({
                     </label>
                     <select
                       id={`tpl-${template.id}-age`}
-                      name="ageGroup"
+                      name={`t_${template.id}_ageGroup`}
+                      form="schedule-save"
                       defaultValue={template.ageGroup}
                       className={inputClass}
                     >
@@ -272,7 +287,8 @@ export default async function AdminSchedulePage({
                     </label>
                     <select
                       id={`tpl-${template.id}-level`}
-                      name="level"
+                      name={`t_${template.id}_level`}
+                      form="schedule-save"
                       defaultValue={template.level}
                       className={inputClass}
                     >
@@ -293,7 +309,8 @@ export default async function AdminSchedulePage({
                   </label>
                   <input
                     id={`tpl-${template.id}-capacity`}
-                    name="capacity"
+                    name={`t_${template.id}_capacity`}
+                    form="schedule-save"
                     type="number"
                     min={1}
                     max={100}
@@ -311,7 +328,8 @@ export default async function AdminSchedulePage({
                   </label>
                   <input
                     id={`tpl-${template.id}-duration`}
-                    name="durationMin"
+                    name={`t_${template.id}_durationMin`}
+                    form="schedule-save"
                     type="number"
                     min={15}
                     max={240}
@@ -329,7 +347,8 @@ export default async function AdminSchedulePage({
                   </label>
                   <input
                     id={`tpl-${template.id}-gear`}
-                    name="gearNotes"
+                    name={`t_${template.id}_gearNotes`}
+                    form="schedule-save"
                     maxLength={300}
                     defaultValue={template.gearNotes}
                     className={inputClass}
@@ -345,22 +364,19 @@ export default async function AdminSchedulePage({
                 </label>
                 <textarea
                   id={`tpl-${template.id}-description`}
-                  name="description"
+                  name={`t_${template.id}_description`}
+                  form="schedule-save"
                   rows={2}
                   maxLength={500}
                   defaultValue={template.description}
                   className={inputClass}
                 />
               </div>
-              <div className="text-right">
-                <SubmitButton className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
-                  Save changes
-                </SubmitButton>
-              </div>
-            </form>
+            </div>
           </article>
         ))}
       </section>
+      </UnifiedSaveForm>
 
       <section aria-labelledby="upcoming-sessions" className="space-y-3">
         <div>

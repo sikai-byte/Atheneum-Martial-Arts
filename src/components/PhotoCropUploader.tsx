@@ -149,31 +149,29 @@ export default function PhotoCropUploader({
 
   return (
     <div>
-      <div className="flex items-center gap-2">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="max-w-52 text-xs"
-          onChange={(e) => onFileChosen(e.target.files)}
-        />
-        {!loaded && (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
-          >
-            {buttonLabel}
-          </button>
-        )}
-      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => onFileChosen(e.target.files)}
+      />
+      {!loaded && (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
+        >
+          {buttonLabel}
+        </button>
+      )}
       {loaded && (
         <div className="mt-3 space-y-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
           <p className="text-xs text-stone-500">
             Drag the photo to position it, and zoom until it fills the circle.
           </p>
           <div
-            className="relative touch-none overflow-hidden rounded-full border border-stone-300 bg-stone-200"
+            className="relative max-w-full touch-none overflow-hidden rounded-full border border-stone-300 bg-stone-200"
             style={{ width: FRAME, height: FRAME, cursor: "grab" }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}

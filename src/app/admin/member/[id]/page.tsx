@@ -10,6 +10,7 @@ import {
   resetMemberPassword,
   updateMembership,
 } from "@/lib/actions";
+import { adminRecordWaiver, adminSetPin } from "@/lib/kiosk-actions";
 import { formatDay, formatTime } from "@/lib/format";
 import { appUrl } from "@/lib/email";
 import CopyButton from "@/components/CopyButton";
@@ -29,7 +30,7 @@ export default async function AdminMemberPage({
 
   const profile = await prisma.memberProfile.findUnique({
     where: { id: params.id },
-    include: { user: true, household: true },
+    include: { user: true, household: true, waiver: true },
   });
   if (!profile) notFound();
 
@@ -328,6 +329,103 @@ export default async function AdminMemberPage({
             </ul>
           </div>
         )}
+      </section>
+
+      <section aria-labelledby="kiosk-checkin">
+        <h2
+          id="kiosk-checkin"
+          className="text-sm font-semibold uppercase tracking-wide text-stone-500"
+        >
+          Kiosk check-in PIN
+        </h2>
+        <form
+          action={adminSetPin.bind(null, profile.id)}
+          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
+        >
+          <p className="text-sm text-stone-600">
+            {profile.pinHash
+              ? `${firstName} has a PIN set — enter a new one to reset it.`
+              : `${firstName} has no PIN yet. Set a 4-digit PIN so they can self-check-in on the front-desk iPad.`}
+          </p>
+          <div className="sm:max-w-xs">
+            <label htmlFor="kiosk-pin" className="mb-1 block text-sm font-medium">
+              4-digit PIN
+            </label>
+            <input
+              id="kiosk-pin"
+              name="pin"
+              required
+              inputMode="numeric"
+              pattern="\d{4}"
+              maxLength={4}
+              autoComplete="off"
+              placeholder="e.g. 4821"
+              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+            />
+          </div>
+          <SubmitButton
+            pendingLabel="Saving…"
+            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+          >
+            {profile.pinHash ? "Reset PIN" : "Set PIN"}
+          </SubmitButton>
+        </form>
+      </section>
+
+      <section aria-labelledby="waiver">
+        <h2 id="waiver" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Waiver
+        </h2>
+        <div className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+          {profile.waiver ? (
+            <p className="text-sm text-stone-700">
+              <span className="font-semibold text-emerald-700">Signed</span> by{" "}
+              {profile.waiver.signedName}
+              {profile.waiver.guardianName && ` (guardian: ${profile.waiver.guardianName})`} on{" "}
+              {formatDay(profile.waiver.signedAt)} · {profile.waiver.source.toLowerCase()}
+            </p>
+          ) : (
+            <form action={adminRecordWaiver.bind(null, profile.id)} className="space-y-3">
+              <p className="text-sm text-stone-600">
+                <span className="font-semibold text-amber-700">Not signed.</span> Record a waiver
+                signed on paper or elsewhere, or have them sign at the kiosk / registration page.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="waiver-signed" className="mb-1 block text-sm font-medium">
+                    Name as signed
+                  </label>
+                  <input
+                    id="waiver-signed"
+                    name="signedName"
+                    required
+                    maxLength={80}
+                    className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                  />
+                </div>
+                {profile.isChild && (
+                  <div>
+                    <label htmlFor="waiver-guardian" className="mb-1 block text-sm font-medium">
+                      Guardian name
+                    </label>
+                    <input
+                      id="waiver-guardian"
+                      name="guardianName"
+                      maxLength={80}
+                      className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+              <SubmitButton
+                pendingLabel="Recording…"
+                className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+              >
+                Record signed waiver
+              </SubmitButton>
+            </form>
+          )}
+        </div>
       </section>
 
       {profile.user && (

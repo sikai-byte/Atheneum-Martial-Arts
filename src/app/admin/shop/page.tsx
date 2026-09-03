@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { createProduct, updateProduct } from "@/lib/adminContent";
+import { createProduct, deleteProduct, saveAllProducts } from "@/lib/adminContent";
 import Flash from "@/components/Flash";
 import SubmitButton from "@/components/SubmitButton";
+import UnifiedSaveForm from "@/components/UnifiedSaveForm";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ const categories = [
 function ProductFields({
   product,
   idPrefix,
+  namePrefix = "",
+  formId,
 }: {
   product?: {
     name: string;
@@ -31,8 +34,11 @@ function ProductFields({
     priceCents: number;
     sizes: string;
     sortOrder: number;
+    stockCount: number | null;
   };
   idPrefix: string;
+  namePrefix?: string;
+  formId?: string;
 }) {
   return (
     <>
@@ -43,7 +49,8 @@ function ProductFields({
           </label>
           <input
             id={`${idPrefix}-name`}
-            name="name"
+            name={`${namePrefix}name`}
+            form={formId}
             required
             maxLength={120}
             defaultValue={product?.name ?? ""}
@@ -57,7 +64,8 @@ function ProductFields({
             </label>
             <select
               id={`${idPrefix}-category`}
-              name="category"
+              name={`${namePrefix}category`}
+              form={formId}
               defaultValue={product?.category ?? "OTHER"}
               className={inputClass}
             >
@@ -74,7 +82,8 @@ function ProductFields({
             </label>
             <input
               id={`${idPrefix}-price`}
-              name="price"
+              name={`${namePrefix}price`}
+              form={formId}
               type="number"
               min={0}
               max={10000}
@@ -90,7 +99,8 @@ function ProductFields({
             </label>
             <input
               id={`${idPrefix}-sort`}
-              name="sortOrder"
+              name={`${namePrefix}sortOrder`}
+              form={formId}
               type="number"
               min={0}
               max={999}
@@ -100,18 +110,37 @@ function ProductFields({
           </div>
         </div>
       </div>
-      <div>
-        <label htmlFor={`${idPrefix}-sizes`} className="mb-1 block text-xs font-medium">
-          Sizes (comma-separated; leave blank for one-size)
-        </label>
-        <input
-          id={`${idPrefix}-sizes`}
-          name="sizes"
-          maxLength={200}
-          defaultValue={product?.sizes ?? ""}
-          placeholder="e.g. S, M, L, XL"
-          className={inputClass}
-        />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor={`${idPrefix}-sizes`} className="mb-1 block text-xs font-medium">
+            Sizes (comma-separated; leave blank for one-size)
+          </label>
+          <input
+            id={`${idPrefix}-sizes`}
+            name={`${namePrefix}sizes`}
+            form={formId}
+            maxLength={200}
+            defaultValue={product?.sizes ?? ""}
+            placeholder="e.g. S, M, L, XL"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={`${idPrefix}-stock`} className="mb-1 block text-xs font-medium">
+            In stock (leave blank to not track inventory)
+          </label>
+          <input
+            id={`${idPrefix}-stock`}
+            name={`${namePrefix}stockCount`}
+            form={formId}
+            type="number"
+            min={0}
+            max={100000}
+            defaultValue={product?.stockCount ?? ""}
+            placeholder="e.g. 12"
+            className={inputClass}
+          />
+        </div>
       </div>
       <div>
         <label htmlFor={`${idPrefix}-description`} className="mb-1 block text-xs font-medium">
@@ -119,7 +148,8 @@ function ProductFields({
         </label>
         <textarea
           id={`${idPrefix}-description`}
-          name="description"
+          name={`${namePrefix}description`}
+          form={formId}
           rows={2}
           maxLength={500}
           defaultValue={product?.description ?? ""}
@@ -154,6 +184,7 @@ export default async function AdminShopPage({
         <Flash ok={searchParams.ok} error={searchParams.error} />
       </section>
 
+      <UnifiedSaveForm formId="products-save" action={saveAllProducts}>
       <section className="space-y-4" aria-label="Products">
         {products.map((product) => (
           <article key={product.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
@@ -164,27 +195,52 @@ export default async function AdminShopPage({
                   Hidden from shop
                 </span>
               )}
+              {product.stockCount !== null && (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-xs ${
+                    product.stockCount === 0
+                      ? "bg-red-100 text-red-700"
+                      : "bg-stone-100 text-stone-600"
+                  }`}
+                >
+                  {product.stockCount === 0 ? "Out of stock" : `${product.stockCount} in stock`}
+                </span>
+              )}
             </div>
-            <form action={updateProduct.bind(null, product.id)} className="mt-3 space-y-3">
-              <ProductFields product={product} idPrefix={`product-${product.id}`} />
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    defaultChecked={product.active}
-                    className="h-4 w-4 rounded border-stone-300"
-                  />
-                  Show in shop
-                </label>
-                <SubmitButton className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
-                  Save changes
-                </SubmitButton>
-              </div>
+            <div className="mt-3 space-y-3">
+              <input type="hidden" name="productId" value={product.id} form="products-save" />
+              <ProductFields
+                product={product}
+                idPrefix={`product-${product.id}`}
+                namePrefix={`p_${product.id}_`}
+                formId="products-save"
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name={`p_${product.id}_active`}
+                  form="products-save"
+                  defaultChecked={product.active}
+                  className="h-4 w-4 rounded border-stone-300"
+                />
+                Show in shop
+              </label>
+            </div>
+            <form action={deleteProduct.bind(null, product.id)} className="mt-3 border-t border-stone-100 pt-3">
+              <SubmitButton
+                pendingLabel="Deleting…"
+                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+              >
+                Delete product
+              </SubmitButton>
+              <span className="ml-2 text-xs text-stone-500">
+                Items with past orders are hidden instead of deleted.
+              </span>
             </form>
           </article>
         ))}
       </section>
+      </UnifiedSaveForm>
 
       <section aria-labelledby="add-product">
         <h2

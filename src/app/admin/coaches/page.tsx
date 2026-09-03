@@ -5,11 +5,12 @@ import { coachInitials } from "@/lib/format";
 import PhotoCropUploader from "@/components/PhotoCropUploader";
 import Flash from "@/components/Flash";
 import SubmitButton from "@/components/SubmitButton";
+import UnifiedSaveForm from "@/components/UnifiedSaveForm";
 import {
   createCoach,
   deleteCoach,
   removeCoachPhoto,
-  updateCoach,
+  saveAllCoaches,
   updateCoachPhoto,
 } from "@/lib/adminContent";
 
@@ -20,9 +21,13 @@ const inputClass = "w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
 function CoachFields({
   coach,
   idPrefix,
+  namePrefix = "",
+  formId,
 }: {
   coach?: { name: string; role: string; disciplines: string; bio: string; sortOrder: number };
   idPrefix: string;
+  namePrefix?: string;
+  formId?: string;
 }) {
   return (
     <>
@@ -33,7 +38,8 @@ function CoachFields({
           </label>
           <input
             id={`${idPrefix}-name`}
-            name="name"
+            name={`${namePrefix}name`}
+            form={formId}
             required
             maxLength={80}
             defaultValue={coach?.name ?? ""}
@@ -48,7 +54,8 @@ function CoachFields({
             </label>
             <select
               id={`${idPrefix}-role`}
-              name="role"
+              name={`${namePrefix}role`}
+              form={formId}
               defaultValue={coach?.role ?? "MAIN"}
               className={inputClass}
             >
@@ -62,7 +69,8 @@ function CoachFields({
             </label>
             <input
               id={`${idPrefix}-sort`}
-              name="sortOrder"
+              name={`${namePrefix}sortOrder`}
+              form={formId}
               type="number"
               min={0}
               max={999}
@@ -78,7 +86,8 @@ function CoachFields({
         </label>
         <input
           id={`${idPrefix}-disciplines`}
-          name="disciplines"
+          name={`${namePrefix}disciplines`}
+          form={formId}
           maxLength={200}
           defaultValue={coach?.disciplines ?? ""}
           placeholder="e.g. Muay Thai, No-Gi BJJ, Kids BJJ"
@@ -91,7 +100,8 @@ function CoachFields({
         </label>
         <textarea
           id={`${idPrefix}-bio`}
-          name="bio"
+          name={`${namePrefix}bio`}
+          form={formId}
           rows={3}
           maxLength={1000}
           defaultValue={coach?.bio ?? ""}
@@ -126,6 +136,7 @@ export default async function AdminCoachesPage({
         <Flash ok={searchParams.ok} error={searchParams.error} />
       </section>
 
+      <UnifiedSaveForm formId="coaches-save" action={saveAllCoaches}>
       <section className="space-y-4" aria-label="Coaches">
         {coaches.map((coach) => (
           <article key={coach.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
@@ -172,23 +183,25 @@ export default async function AdminCoachesPage({
                 </div>
               </div>
             </div>
-            <form action={updateCoach.bind(null, coach.id)} className="mt-4 space-y-3">
-              <CoachFields coach={coach} idPrefix={`coach-${coach.id}`} />
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    defaultChecked={coach.active}
-                    className="h-4 w-4 rounded border-stone-300"
-                  />
-                  Show on the Coaches page
-                </label>
-                <SubmitButton className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
-                  Save changes
-                </SubmitButton>
-              </div>
-            </form>
+            <div className="mt-4 space-y-3">
+              <input type="hidden" name="coachId" value={coach.id} form="coaches-save" />
+              <CoachFields
+                coach={coach}
+                idPrefix={`coach-${coach.id}`}
+                namePrefix={`c_${coach.id}_`}
+                formId="coaches-save"
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name={`c_${coach.id}_active`}
+                  form="coaches-save"
+                  defaultChecked={coach.active}
+                  className="h-4 w-4 rounded border-stone-300"
+                />
+                Show on the Coaches page
+              </label>
+            </div>
             <form action={deleteCoach.bind(null, coach.id)} className="mt-3 text-right">
               <SubmitButton pendingLabel="Deleting…" className="text-xs text-red-600 hover:underline">
                 Delete this coach
@@ -197,6 +210,7 @@ export default async function AdminCoachesPage({
           </article>
         ))}
       </section>
+      </UnifiedSaveForm>
 
       <section aria-labelledby="add-coach">
         <h2 id="add-coach" className="text-sm font-semibold uppercase tracking-wide text-stone-500">

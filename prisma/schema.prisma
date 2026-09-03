@@ -57,6 +57,7 @@ model MemberProfile {
   trialConvertedAt DateTime? // set when a trial converts to a paid membership
   photoType       String   @default("") // mime type of uploaded photo; empty = none
   photoUpdatedAt  DateTime?
+  pinHash         String   @default("") // bcrypt hash of the 4-digit kiosk check-in PIN; empty = not set
   userId          String?  @unique
   user            User?    @relation(fields: [userId], references: [id])
   householdId     String
@@ -64,6 +65,18 @@ model MemberProfile {
   bookings        Booking[]
   attendances     Attendance[]
   milestones      Milestone[]
+  waiver          WaiverSignature?
+}
+
+model WaiverSignature {
+  id           String   @id @default(cuid())
+  signedName   String
+  guardianName String   @default("") // signing parent/guardian for minors
+  source       String   @default("KIOSK") // KIOSK | ONLINE | ADMIN
+  version      Int      @default(1)
+  signedAt     DateTime @default(now())
+  profileId    String   @unique
+  profile      MemberProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
 
 model CoachProfile {
@@ -166,6 +179,7 @@ model Product {
   sizes       String  @default("") // comma-separated size options; empty = one size
   active      Boolean @default(true)
   sortOrder   Int     @default(0)
+  stockCount  Int?    // null = inventory not tracked; 0 = out of stock
   orders      Order[]
 }
 

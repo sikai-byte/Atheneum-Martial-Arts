@@ -6,9 +6,19 @@ export interface SessionData {
   impersonatorId?: string;
 }
 
+export function sessionSecret(): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_SECRET must be set in production.");
+    }
+    return "dev-only-insecure-session-secret-change-me";
+  }
+  return secret;
+}
+
 export const sessionOptions: SessionOptions = {
-  password:
-    process.env.SESSION_SECRET ?? "dev-only-insecure-session-secret-change-me",
+  password: sessionSecret(),
   cookieName: "atheneum_session",
   cookieOptions: {
     secure: process.env.NODE_ENV === "production",

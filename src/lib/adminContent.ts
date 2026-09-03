@@ -25,20 +25,41 @@ function revalidateCoaches() {
 const COACH_ROLES = ["MAIN", "ASSISTANT"];
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-function coachFields(formData: FormData) {
-  const name = String(formData.get("name") ?? "").trim().slice(0, 80);
-  const role = String(formData.get("role") ?? "MAIN");
-  const disciplines = String(formData.get("disciplines") ?? "")
+function coachFields(formData: FormData, prefix = "") {
+  const name = String(formData.get(`${prefix}name`) ?? "").trim().slice(0, 80);
+  const role = String(formData.get(`${prefix}role`) ?? "MAIN");
+  const disciplines = String(formData.get(`${prefix}disciplines`) ?? "")
     .split(",")
     .map((d) => d.trim())
     .filter(Boolean)
     .slice(0, 12)
     .join(",");
-  const bio = String(formData.get("bio") ?? "").trim().slice(0, 1000);
-  const sortOrder = Number(formData.get("sortOrder") ?? 0) || 0;
+  const bio = String(formData.get(`${prefix}bio`) ?? "").trim().slice(0, 1000);
+  const sortOrder = Number(formData.get(`${prefix}sortOrder`) ?? 0) || 0;
   if (!name) failTo("/admin/coaches", "Please add the coach's name.");
   if (!COACH_ROLES.includes(role)) failTo("/admin/coaches", "Invalid coach role.");
   return { name, role, disciplines, bio, sortOrder };
+}
+
+export async function saveAllCoaches(formData: FormData) {
+  const admin = await requireAdmin();
+  const ids = formData.getAll("coachId").map(String);
+  const updates = ids.map((id) => ({
+    id,
+    data: {
+      ...coachFields(formData, `c_${id}_`),
+      active: formData.get(`c_${id}_active`) === "on",
+    },
+  }));
+  await prisma.$transaction(
+    updates.map((u) => prisma.coachProfile.update({ where: { id: u.id }, data: u.data }))
+  );
+  await recordAudit(admin, "COACHES_SAVED", {
+    targetType: "CoachProfile",
+    summary: `Saved ${updates.length} coach profile${updates.length === 1 ? "" : "s"}`,
+  });
+  revalidateCoaches();
+  doneTo("/admin/coaches", "All coach changes saved.");
 }
 
 export async function createCoach(formData: FormData) {
@@ -145,25 +166,38 @@ const PRODUCT_CATEGORIES = [
   "OTHER",
 ];
 
-function productFields(formData: FormData) {
-  const name = String(formData.get("name") ?? "").trim().slice(0, 120);
-  const description = String(formData.get("description") ?? "").trim().slice(0, 500);
-  const category = String(formData.get("category") ?? "OTHER");
-  const priceRaw = String(formData.get("price") ?? "").trim();
+function productFields(formData: FormData, prefix = "") {
+  const name = String(formData.get(`${prefix}name`) ?? "").trim().slice(0, 120);
+  const description = String(formData.get(`${prefix}description`) ?? "").trim().slice(0, 500);
+  const category = String(formData.get(`${prefix}category`) ?? "OTHER");
+  const priceRaw = String(formData.get(`${prefix}price`) ?? "").trim();
   const price = Number(priceRaw);
-  const sizes = String(formData.get("sizes") ?? "")
+  const sizes = String(formData.get(`${prefix}sizes`) ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
     .slice(0, 20)
     .join(",");
-  const sortOrder = Number(formData.get("sortOrder") ?? 0) || 0;
+  const sortOrder = Number(formData.get(`${prefix}sortOrder`) ?? 0) || 0;
+  const stockRaw = String(formData.get(`${prefix}stockCount`) ?? "").trim();
+  const stockCount = stockRaw === "" ? null : Number(stockRaw);
   if (!name) failTo("/admin/shop", "Please add a product name.");
   if (!PRODUCT_CATEGORIES.includes(category)) failTo("/admin/shop", "Invalid category.");
   if (!priceRaw || Number.isNaN(price) || price < 0 || price > 10000) {
     failTo("/admin/shop", "Please enter a price between $0 and $10,000.");
   }
-  return { name, description, category, priceCents: Math.round(price * 100), sizes, sortOrder };
+  if (stockCount !== null && (!Number.isInteger(stockCount) || stockCount < 0 || stockCount > 100000)) {
+    failTo("/admin/shop", "Stock must be a whole number (or blank to not track inventory).");
+  }
+  return {
+    name,
+    description,
+    category,
+    priceCents: Math.round(price * 100),
+    sizes,
+    sortOrder,
+    stockCount,
+  };
 }
 
 export async function createProduct(formData: FormData) {
@@ -196,6 +230,56 @@ export async function updateProduct(productId: string, formData: FormData) {
   doneTo("/admin/shop", `${data.name} saved.`);
 }
 
+export async function saveAllProducts(formData: FormData) {
+  const admin = await requireAdmin();
+  const ids = formData.getAll("productId").map(String);
+  const updates = ids.map((id) => ({
+    id,
+    data: {
+      ...productFields(formData, `p_${id}_`),
+      active: formData.get(`p_${id}_active`) === "on",
+    },
+  }));
+  await prisma.$transaction(
+    updates.map((u) => prisma.product.update({ where: { id: u.id }, data: u.data }))
+  );
+  await recordAudit(admin, "PRODUCTS_SAVED", {
+    targetType: "Product",
+    summary: `Saved ${updates.length} product${updates.length === 1 ? "" : "s"}`,
+  });
+  revalidateShop();
+  doneTo("/admin/shop", "All product changes saved.");
+}
+
+export async function deleteProduct(productId: string) {
+  const admin = await requireAdmin();
+  const product = await prisma.product.findUniqueOrThrow({
+    where: { id: productId },
+    include: { _count: { select: { orders: true } } },
+  });
+  if (product._count.orders > 0) {
+    await prisma.product.update({ where: { id: productId }, data: { active: false } });
+    await recordAudit(admin, "PRODUCT_RETIRED", {
+      targetType: "Product",
+      targetId: productId,
+      summary: `Hid ${product.name} (has ${product._count.orders} past orders, so it can't be deleted)`,
+    });
+    revalidateShop();
+    doneTo(
+      "/admin/shop",
+      `${product.name} has past orders, so it was hidden from the shop instead of deleted.`
+    );
+  }
+  await prisma.product.delete({ where: { id: productId } });
+  await recordAudit(admin, "PRODUCT_DELETED", {
+    targetType: "Product",
+    targetId: productId,
+    summary: `Deleted ${product.name}`,
+  });
+  revalidateShop();
+  doneTo("/admin/shop", `${product.name} deleted.`);
+}
+
 function revalidateSchedule() {
   revalidatePath("/schedule");
   revalidatePath("/admin/schedule");
@@ -205,15 +289,14 @@ function revalidateSchedule() {
 const AGE_GROUPS = ["ADULTS", "KIDS", "ALL"];
 const LEVELS = ["BEGINNER", "ALL", "ADVANCED"];
 
-export async function updateTemplate(templateId: string, formData: FormData) {
-  const admin = await requireAdmin();
-  const name = String(formData.get("name") ?? "").trim().slice(0, 120);
-  const description = String(formData.get("description") ?? "").trim().slice(0, 500);
-  const ageGroup = String(formData.get("ageGroup") ?? "ADULTS");
-  const level = String(formData.get("level") ?? "ALL");
-  const capacity = Number(formData.get("capacity") ?? 0);
-  const durationMin = Number(formData.get("durationMin") ?? 0);
-  const gearNotes = String(formData.get("gearNotes") ?? "").trim().slice(0, 300);
+function templateFields(formData: FormData, prefix = "") {
+  const name = String(formData.get(`${prefix}name`) ?? "").trim().slice(0, 120);
+  const description = String(formData.get(`${prefix}description`) ?? "").trim().slice(0, 500);
+  const ageGroup = String(formData.get(`${prefix}ageGroup`) ?? "ADULTS");
+  const level = String(formData.get(`${prefix}level`) ?? "ALL");
+  const capacity = Number(formData.get(`${prefix}capacity`) ?? 0);
+  const durationMin = Number(formData.get(`${prefix}durationMin`) ?? 0);
+  const gearNotes = String(formData.get(`${prefix}gearNotes`) ?? "").trim().slice(0, 300);
   if (!name) failTo("/admin/schedule", "Please add a class name.");
   if (!AGE_GROUPS.includes(ageGroup) || !LEVELS.includes(level)) {
     failTo("/admin/schedule", "Invalid age group or level.");
@@ -224,25 +307,31 @@ export async function updateTemplate(templateId: string, formData: FormData) {
   if (!Number.isInteger(durationMin) || durationMin < 15 || durationMin > 240) {
     failTo("/admin/schedule", "Duration must be between 15 and 240 minutes.");
   }
+  return { name, description, ageGroup, level, capacity, durationMin, gearNotes };
+}
+
+export async function updateTemplate(templateId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const data = templateFields(formData);
   await prisma.classTemplate.update({
     where: { id: templateId },
-    data: { name, description, ageGroup, level, capacity, durationMin, gearNotes },
+    data,
   });
   await recordAudit(admin, "CLASS_UPDATED", {
     targetType: "ClassTemplate",
     targetId: templateId,
-    summary: `Edited class ${name} (capacity ${capacity}, ${durationMin} min)`,
+    summary: `Edited class ${data.name} (capacity ${data.capacity}, ${data.durationMin} min)`,
   });
   revalidateSchedule();
-  doneTo("/admin/schedule", `${name} saved.`);
+  doneTo("/admin/schedule", `${data.name} saved.`);
 }
 
-function slotFields(formData: FormData) {
-  const templateId = String(formData.get("templateId") ?? "");
-  const dayOfWeek = Number(formData.get("dayOfWeek") ?? -1);
-  const timeRaw = String(formData.get("time") ?? "");
+function slotFields(formData: FormData, prefix = "") {
+  const templateId = String(formData.get(`${prefix}templateId`) ?? "");
+  const dayOfWeek = Number(formData.get(`${prefix}dayOfWeek`) ?? -1);
+  const timeRaw = String(formData.get(`${prefix}time`) ?? "");
   const instructor =
-    String(formData.get("instructor") ?? "").trim().slice(0, 80) || "Atheneum Coaches";
+    String(formData.get(`${prefix}instructor`) ?? "").trim().slice(0, 80) || "Atheneum Coaches";
   const match = /^(\d{2}):(\d{2})$/.exec(timeRaw);
   if (!templateId) failTo("/admin/schedule", "Please pick a class.");
   if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
@@ -304,6 +393,35 @@ export async function deleteSlot(slotId: string) {
   });
   revalidateSchedule();
   doneTo("/admin/schedule", "Time slot removed.");
+}
+
+export async function saveSchedule(formData: FormData) {
+  const admin = await requireAdmin();
+  const slotIds = formData.getAll("slotId").map(String);
+  const templateIds = formData.getAll("tplId").map(String);
+  const slotUpdates = slotIds.map((id) => ({
+    id,
+    data: {
+      ...slotFields(formData, `s_${id}_`),
+      active: formData.get(`s_${id}_active`) === "on",
+    },
+  }));
+  const templateUpdates = templateIds.map((id) => ({
+    id,
+    data: templateFields(formData, `t_${id}_`),
+  }));
+  await prisma.$transaction([
+    ...slotUpdates.map((u) => prisma.recurringSlot.update({ where: { id: u.id }, data: u.data })),
+    ...templateUpdates.map((u) =>
+      prisma.classTemplate.update({ where: { id: u.id }, data: u.data })
+    ),
+  ]);
+  await recordAudit(admin, "SCHEDULE_SAVED", {
+    targetType: "ClassTemplate",
+    summary: `Saved ${slotUpdates.length} weekly slots and ${templateUpdates.length} classes`,
+  });
+  revalidateSchedule();
+  doneTo("/admin/schedule", "All schedule changes saved.");
 }
 
 export async function setSessionStatus(sessionId: string, status: string) {

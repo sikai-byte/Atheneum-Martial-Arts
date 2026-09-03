@@ -103,6 +103,26 @@ export default async function AdminPage({
         </h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Link
+            href="/admin/activity"
+            className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
+          >
+            <p className="font-semibold text-brand">Member activity &rarr;</p>
+            <p className="mt-1 text-xs text-stone-500">
+              Who has signed in and used the app — last seen, bookings, and posts per person since
+              onboarding.
+            </p>
+          </Link>
+          <Link
+            href="/admin/kiosk"
+            className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
+          >
+            <p className="font-semibold text-brand">Front-desk kiosk &rarr;</p>
+            <p className="mt-1 text-xs text-stone-500">
+              Turn this device into the check-in kiosk and print the QR poster for walk-in
+              registration.
+            </p>
+          </Link>
+          <Link
             href="/admin/analytics"
             className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
           >
@@ -120,6 +140,15 @@ export default async function AdminPage({
             <p className="mt-1 text-xs text-stone-500">
               A complete record of every admin and coach action — accounts, bookings, memberships,
               content edits, and moderation.
+            </p>
+          </Link>
+          <Link
+            href="/admin/waivers"
+            className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
+          >
+            <p className="font-semibold text-brand">Waivers &rarr;</p>
+            <p className="mt-1 text-xs text-stone-500">
+              Who has a signed liability waiver on file — and who still needs one before training.
             </p>
           </Link>
         </div>
