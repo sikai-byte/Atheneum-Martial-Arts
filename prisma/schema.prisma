@@ -214,6 +214,21 @@ model TelemetryEvent {
   @@index([userId, createdAt])
 }
 
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorName  String
+  actorRole  String
+  action     String
+  targetType String   @default("")
+  targetId   String   @default("")
+  summary    String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+}
+
 model Announcement {
   id        String   @id @default(cuid())
   title     String

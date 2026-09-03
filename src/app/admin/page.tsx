@@ -99,18 +99,30 @@ export default async function AdminPage({
 
       <section aria-labelledby="analytics-link">
         <h2 id="analytics-link" className="sr-only">
-          Analytics
+          Analytics &amp; history
         </h2>
-        <Link
-          href="/admin/analytics"
-          className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
-        >
-          <p className="font-semibold text-brand">Analytics &rarr;</p>
-          <p className="mt-1 text-xs text-stone-500">
-            Weekly active members, booking adoption, attendance, retention &amp; churn, absence
-            outreach lists, and staff time saved.
-          </p>
-        </Link>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/admin/analytics"
+            className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
+          >
+            <p className="font-semibold text-brand">Analytics &rarr;</p>
+            <p className="mt-1 text-xs text-stone-500">
+              Weekly active members, booking adoption, attendance, retention &amp; churn, absence
+              outreach lists, and staff time saved.
+            </p>
+          </Link>
+          <Link
+            href="/admin/audit"
+            className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
+          >
+            <p className="font-semibold text-brand">Audit history &rarr;</p>
+            <p className="mt-1 text-xs text-stone-500">
+              A complete record of every admin and coach action — accounts, bookings, memberships,
+              content edits, and moderation.
+            </p>
+          </Link>
+        </div>
       </section>
 
       <section aria-labelledby="edit-content">

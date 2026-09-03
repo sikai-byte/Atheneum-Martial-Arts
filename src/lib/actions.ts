@@ -14,6 +14,7 @@ import { formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
 import { trialEndOfDay } from "./trial";
 import { trackEvent } from "./telemetry";
+import { recordAudit } from "./audit";
 import {
   appUrl,
   sendPasswordResetEmail,
@@ -230,7 +231,7 @@ export async function cancelBooking(profileId: string, sessionId: string) {
 
 export async function toggleAttendance(profileId: string, sessionId: string) {
   const coach = await requireCoach();
-  await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // Take the write lock up front so the punch-pass update serializes.
     await tx.$executeRaw`UPDATE MemberProfile SET id = id WHERE id = ${profileId}`;
     const existing = await tx.attendance.findUnique({
@@ -246,17 +247,23 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
           data: { punchPassUsed: { decrement: 1 } },
         });
       }
-    } else {
-      await tx.attendance.create({
-        data: { profileId, sessionId, recordedBy: coach.name },
-      });
-      if (isPunchPass) {
-        await tx.memberProfile.update({
-          where: { id: profileId },
-          data: { punchPassUsed: { increment: 1 } },
-        });
-      }
+      return { verb: "removed", memberName: profile.name };
     }
+    await tx.attendance.create({
+      data: { profileId, sessionId, recordedBy: coach.name },
+    });
+    if (isPunchPass) {
+      await tx.memberProfile.update({
+        where: { id: profileId },
+        data: { punchPassUsed: { increment: 1 } },
+      });
+    }
+    return { verb: "recorded", memberName: profile.name };
+  });
+  await recordAudit(coach, "ATTENDANCE_TOGGLED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Attendance ${result.verb} for ${result.memberName}`,
   });
   revalidatePath(`/coach/session/${sessionId}`);
   revalidatePath("/coach");
@@ -303,11 +310,20 @@ export async function cancelOrder(orderId: string) {
 }
 
 export async function updateOrderStatus(orderId: string, status: string) {
-  await requireCoach();
+  const coach = await requireCoach();
   if (!["PLACED", "READY", "PICKED_UP", "CANCELLED"].includes(status)) {
     throw new Error("Invalid order status.");
   }
-  await prisma.order.update({ where: { id: orderId }, data: { status } });
+  const order = await prisma.order.update({
+    where: { id: orderId },
+    data: { status },
+    include: { product: true },
+  });
+  await recordAudit(coach, "ORDER_STATUS_UPDATED", {
+    targetType: "Order",
+    targetId: orderId,
+    summary: `${order.product.name} order marked ${status}`,
+  });
 
   revalidatePath("/shop");
   revalidatePath("/coach/orders");
@@ -342,22 +358,34 @@ export async function postAnnouncement(formData: FormData) {
   const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
   if (!title || !body) throw new Error("Please add a title and a message.");
 
-  await prisma.announcement.create({ data: { title, body, author: coach.name } });
+  const announcement = await prisma.announcement.create({
+    data: { title, body, author: coach.name },
+  });
+  await recordAudit(coach, "ANNOUNCEMENT_POSTED", {
+    targetType: "Announcement",
+    targetId: announcement.id,
+    summary: `Posted \"${title}\"`,
+  });
 
   revalidatePath("/coach");
   revalidatePath("/");
 }
 
 export async function deleteAnnouncement(announcementId: string) {
-  await requireCoach();
-  await prisma.announcement.delete({ where: { id: announcementId } });
+  const coach = await requireCoach();
+  const announcement = await prisma.announcement.delete({ where: { id: announcementId } });
+  await recordAudit(coach, "ANNOUNCEMENT_DELETED", {
+    targetType: "Announcement",
+    targetId: announcementId,
+    summary: `Deleted \"${announcement.title}\"`,
+  });
 
   revalidatePath("/coach");
   revalidatePath("/");
 }
 
 export async function createMemberAccount(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
@@ -413,6 +441,12 @@ export async function createMemberAccount(formData: FormData) {
     }
   }
 
+  await recordAudit(admin, "ACCOUNT_CREATED", {
+    targetType: "User",
+    targetId: user.id,
+    summary: `Created ${isTrial ? "trial " : ""}${role.toLowerCase()} account for ${name}`,
+  });
+
   revalidatePath("/admin");
   succeedTo(
     `/admin/member/${profile.id}`,
@@ -449,7 +483,7 @@ async function notifyTrialBooking(
 }
 
 export async function adminBookClass(profileId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const memberPath = `/admin/member/${profileId}`;
   const sessionId = String(formData.get("sessionId") ?? "");
   if (!sessionId) failTo(memberPath, "Please pick a class.");
@@ -461,6 +495,11 @@ export async function adminBookClass(profileId: string, formData: FormData) {
   revalidatePath(memberPath);
   if (booking) {
     const when = `${formatDay(booking.session.startsAt)} at ${formatTime(booking.session.startsAt)}`;
+    await recordAudit(admin, "BOOKING_CREATED", {
+      targetType: "MemberProfile",
+      targetId: profileId,
+      summary: `${booking.status === "WAITLISTED" ? "Waitlisted" : "Booked"} ${booking.session.template.name} on ${when}`,
+    });
     if (booking.status === "WAITLISTED") {
       succeedTo(
         memberPath,
@@ -480,8 +519,13 @@ export async function adminBookClass(profileId: string, formData: FormData) {
 }
 
 export async function adminCancelBooking(profileId: string, sessionId: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   await cancelBooking(profileId, sessionId);
+  await recordAudit(admin, "BOOKING_CANCELLED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: "Cancelled a booking",
+  });
   revalidatePath(`/admin/member/${profileId}`);
   succeedTo(`/admin/member/${profileId}`, "Booking cancelled.");
 }
@@ -492,7 +536,7 @@ const PRIVATE_TRIAL_OPEN_MIN = 8 * 60; // 8:00 AM
 const PRIVATE_TRIAL_CLOSE_MIN = 20 * 60; // 8:00 PM
 
 export async function adminBookPrivateTrial(profileId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const memberPath = `/admin/member/${profileId}`;
   const dateRaw = String(formData.get("date") ?? "");
   const timeRaw = String(formData.get("time") ?? "");
@@ -582,6 +626,12 @@ export async function adminBookPrivateTrial(profileId: string, formData: FormDat
 
   const emailed = await notifyTrialBooking(profileId, templateName, startsAt);
 
+  await recordAudit(admin, "PRIVATE_TRIAL_BOOKED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Booked ${duration}-min private trial on ${formatDay(startsAt)} at ${formatTime(startsAt)}`,
+  });
+
   revalidatePath(`/admin/member/${profileId}`);
   revalidatePath("/");
   revalidatePath("/schedule");
@@ -592,7 +642,7 @@ export async function adminBookPrivateTrial(profileId: string, formData: FormDat
 }
 
 export async function addChildProfile(householdId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   const birthYear = Number(formData.get("birthYear") ?? 0) || null;
   if (!name) throw new Error("Please add the child's name.");
@@ -603,7 +653,7 @@ export async function addChildProfile(householdId: string, formData: FormData) {
     where: { householdId, membershipType: "TRIAL" },
   });
 
-  await prisma.memberProfile.create({
+  const child = await prisma.memberProfile.create({
     data: {
       name,
       isChild: true,
@@ -620,11 +670,17 @@ export async function addChildProfile(householdId: string, formData: FormData) {
     },
   });
 
+  await recordAudit(admin, "CHILD_ADDED", {
+    targetType: "MemberProfile",
+    targetId: child.id,
+    summary: `Added child ${name}`,
+  });
+
   revalidatePath("/admin");
 }
 
 export async function updateMembership(profileId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const membershipPlan = String(formData.get("membershipPlan") ?? "").trim().slice(0, 80) || null;
   const membershipType = String(formData.get("membershipType") ?? "");
   if (!["", "MONTHLY", "PUNCH_PASS", "TRIAL"].includes(membershipType)) {
@@ -641,7 +697,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
   const trialClassType = String(formData.get("trialClassType") ?? "BOTH");
   if (!TRIAL_CLASS_TYPES.includes(trialClassType)) throw new Error("Invalid trial class type.");
 
-  await prisma.memberProfile.update({
+  const updated = await prisma.memberProfile.update({
     where: { id: profileId },
     data: {
       membershipPlan,
@@ -652,6 +708,12 @@ export async function updateMembership(profileId: string, formData: FormData) {
       punchPassUsed: membershipType === "PUNCH_PASS" ? punchPassUsed : 0,
       trialClassType: membershipType === "TRIAL" ? trialClassType : "BOTH",
     },
+  });
+
+  await recordAudit(admin, "MEMBERSHIP_UPDATED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Set ${updated.name}'s membership to ${membershipType || "none"}${membershipPlan ? ` (${membershipPlan})` : ""}`,
   });
 
   revalidatePath("/admin");
@@ -719,6 +781,13 @@ export async function deletePost(postId: string) {
   if (post.photoType) {
     await fs.unlink(path.join(uploadsDir(), `post-${postId}`)).catch(() => {});
   }
+  if (isStaff && post.authorId !== user.id) {
+    await recordAudit(user, "POST_MODERATED", {
+      targetType: "Post",
+      targetId: postId,
+      summary: `Deleted a member's community post${post.title ? ` \"${post.title}\"` : ""}`,
+    });
+  }
 
   revalidatePath("/community");
 }
@@ -743,6 +812,13 @@ export async function deleteComment(commentId: string) {
   }
 
   await prisma.comment.delete({ where: { id: commentId } });
+  if (isStaff && comment.authorId !== user.id) {
+    await recordAudit(user, "COMMENT_MODERATED", {
+      targetType: "Comment",
+      targetId: commentId,
+      summary: "Deleted a member's comment",
+    });
+  }
 
   revalidatePath("/community");
 }
@@ -752,14 +828,20 @@ export async function resetMemberPassword(
   profileId: string,
   formData: FormData
 ) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const memberPath = `/admin/member/${profileId}`;
   const password = String(formData.get("password") ?? "");
   if (password.length < 8) failTo(memberPath, "Password must be at least 8 characters.");
 
-  await prisma.user.update({
+  const target = await prisma.user.update({
     where: { id: userId },
     data: { passwordHash: await bcrypt.hash(password, 10) },
+  });
+
+  await recordAudit(admin, "PASSWORD_RESET_BY_ADMIN", {
+    targetType: "User",
+    targetId: userId,
+    summary: `Reset password for ${target.name}`,
   });
 
   revalidatePath("/admin");

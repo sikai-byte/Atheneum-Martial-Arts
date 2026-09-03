@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { requireAdmin } from "./auth";
+import { recordAudit } from "./audit";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
 
 function failTo(target: string, message: string): never {
@@ -41,35 +42,50 @@ function coachFields(formData: FormData) {
 }
 
 export async function createCoach(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const data = coachFields(formData);
-  await prisma.coachProfile.create({ data });
+  const coach = await prisma.coachProfile.create({ data });
+  await recordAudit(admin, "COACH_CREATED", {
+    targetType: "CoachProfile",
+    targetId: coach.id,
+    summary: `Added coach ${data.name}`,
+  });
   revalidateCoaches();
   doneTo("/admin/coaches", `${data.name} added.`);
 }
 
 export async function updateCoach(coachId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const active = formData.get("active") === "on";
   const data = coachFields(formData);
   await prisma.coachProfile.update({
     where: { id: coachId },
     data: { ...data, active },
   });
+  await recordAudit(admin, "COACH_UPDATED", {
+    targetType: "CoachProfile",
+    targetId: coachId,
+    summary: `Edited coach ${data.name}${active ? "" : " (hidden)"}`,
+  });
   revalidateCoaches();
   doneTo("/admin/coaches", `${data.name} saved.`);
 }
 
 export async function deleteCoach(coachId: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const coach = await prisma.coachProfile.delete({ where: { id: coachId } });
   await fs.rm(path.join(uploadsDir(), `coach-${coachId}`), { force: true });
+  await recordAudit(admin, "COACH_DELETED", {
+    targetType: "CoachProfile",
+    targetId: coachId,
+    summary: `Deleted coach ${coach.name}`,
+  });
   revalidateCoaches();
   doneTo("/admin/coaches", `${coach.name} deleted.`);
 }
 
 export async function updateCoachPhoto(coachId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const file = formData.get("photo");
   if (!(file instanceof Blob) || file.size === 0) {
     failTo("/admin/coaches", "Please choose a photo.");
@@ -88,16 +104,26 @@ export async function updateCoachPhoto(coachId: string, formData: FormData) {
     where: { id: coachId },
     data: { photoType: file.type, photoUpdatedAt: new Date() },
   });
+  await recordAudit(admin, "COACH_PHOTO_UPDATED", {
+    targetType: "CoachProfile",
+    targetId: coachId,
+    summary: `Updated photo for ${coach.name}`,
+  });
   revalidateCoaches();
   doneTo("/admin/coaches", `Photo saved for ${coach.name}.`);
 }
 
 export async function removeCoachPhoto(coachId: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   await fs.rm(path.join(uploadsDir(), `coach-${coachId}`), { force: true });
   const coach = await prisma.coachProfile.update({
     where: { id: coachId },
     data: { photoType: "", photoUpdatedAt: null },
+  });
+  await recordAudit(admin, "COACH_PHOTO_REMOVED", {
+    targetType: "CoachProfile",
+    targetId: coachId,
+    summary: `Removed photo for ${coach.name}`,
   });
   revalidateCoaches();
   doneTo("/admin/coaches", `Photo removed for ${coach.name}.`);
@@ -141,20 +167,30 @@ function productFields(formData: FormData) {
 }
 
 export async function createProduct(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const data = productFields(formData);
-  await prisma.product.create({ data });
+  const product = await prisma.product.create({ data });
+  await recordAudit(admin, "PRODUCT_CREATED", {
+    targetType: "Product",
+    targetId: product.id,
+    summary: `Added ${data.name} ($${(data.priceCents / 100).toFixed(2)})`,
+  });
   revalidateShop();
   doneTo("/admin/shop", `${data.name} added to the shop.`);
 }
 
 export async function updateProduct(productId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const active = formData.get("active") === "on";
   const data = productFields(formData);
   await prisma.product.update({
     where: { id: productId },
     data: { ...data, active },
+  });
+  await recordAudit(admin, "PRODUCT_UPDATED", {
+    targetType: "Product",
+    targetId: productId,
+    summary: `Edited ${data.name} ($${(data.priceCents / 100).toFixed(2)})${active ? "" : " (retired)"}`,
   });
   revalidateShop();
   doneTo("/admin/shop", `${data.name} saved.`);
@@ -170,7 +206,7 @@ const AGE_GROUPS = ["ADULTS", "KIDS", "ALL"];
 const LEVELS = ["BEGINNER", "ALL", "ADVANCED"];
 
 export async function updateTemplate(templateId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const name = String(formData.get("name") ?? "").trim().slice(0, 120);
   const description = String(formData.get("description") ?? "").trim().slice(0, 500);
   const ageGroup = String(formData.get("ageGroup") ?? "ADULTS");
@@ -191,6 +227,11 @@ export async function updateTemplate(templateId: string, formData: FormData) {
   await prisma.classTemplate.update({
     where: { id: templateId },
     data: { name, description, ageGroup, level, capacity, durationMin, gearNotes },
+  });
+  await recordAudit(admin, "CLASS_UPDATED", {
+    targetType: "ClassTemplate",
+    targetId: templateId,
+    summary: `Edited class ${name} (capacity ${capacity}, ${durationMin} min)`,
   });
   revalidateSchedule();
   doneTo("/admin/schedule", `${name} saved.`);
@@ -218,37 +259,68 @@ function slotFields(formData: FormData) {
 }
 
 export async function createSlot(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const data = slotFields(formData);
-  await prisma.classTemplate.findUniqueOrThrow({ where: { id: data.templateId } });
-  await prisma.recurringSlot.create({ data });
+  const template = await prisma.classTemplate.findUniqueOrThrow({
+    where: { id: data.templateId },
+  });
+  const slot = await prisma.recurringSlot.create({ data });
+  await recordAudit(admin, "SLOT_CREATED", {
+    targetType: "RecurringSlot",
+    targetId: slot.id,
+    summary: `Added weekly slot for ${template.name}`,
+  });
   revalidateSchedule();
   doneTo("/admin/schedule", "Weekly time slot added.");
 }
 
 export async function updateSlot(slotId: string, formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const data = slotFields(formData);
   const active = formData.get("active") === "on";
-  await prisma.classTemplate.findUniqueOrThrow({ where: { id: data.templateId } });
+  const template = await prisma.classTemplate.findUniqueOrThrow({
+    where: { id: data.templateId },
+  });
   await prisma.recurringSlot.update({ where: { id: slotId }, data: { ...data, active } });
+  await recordAudit(admin, "SLOT_UPDATED", {
+    targetType: "RecurringSlot",
+    targetId: slotId,
+    summary: `Edited weekly slot for ${template.name}${active ? "" : " (paused)"}`,
+  });
   revalidateSchedule();
   doneTo("/admin/schedule", "Time slot saved.");
 }
 
 export async function deleteSlot(slotId: string) {
-  await requireAdmin();
-  await prisma.recurringSlot.delete({ where: { id: slotId } });
+  const admin = await requireAdmin();
+  const slot = await prisma.recurringSlot.delete({
+    where: { id: slotId },
+    include: { template: true },
+  });
+  await recordAudit(admin, "SLOT_DELETED", {
+    targetType: "RecurringSlot",
+    targetId: slotId,
+    summary: `Removed weekly slot for ${slot.template.name}`,
+  });
   revalidateSchedule();
   doneTo("/admin/schedule", "Time slot removed.");
 }
 
 export async function setSessionStatus(sessionId: string, status: string) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (!["SCHEDULED", "CANCELLED"].includes(status)) {
     failTo("/admin/schedule", "Invalid session status.");
   }
-  await prisma.classSession.update({ where: { id: sessionId }, data: { status } });
+  const session = await prisma.classSession.update({
+    where: { id: sessionId },
+    data: { status },
+    include: { template: true },
+  });
+  await recordAudit(admin, status === "CANCELLED" ? "SESSION_CANCELLED" : "SESSION_RESTORED", {
+    targetType: "ClassSession",
+    targetId: sessionId,
+    summary: `${status === "CANCELLED" ? "Cancelled" : "Restored"} a ${session.template.name} session`,
+  });
   revalidateSchedule();
   doneTo(
     "/admin/schedule",
