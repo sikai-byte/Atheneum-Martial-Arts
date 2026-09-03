@@ -113,8 +113,9 @@ export async function bookClass(profileId: string, sessionId: string) {
   await assertProfileInHousehold(user.id, profileId);
 
   await prisma.$transaction(async (tx) => {
-    // Take the write lock up front so the capacity check serializes.
-    await tx.$executeRaw`UPDATE ClassSession SET status = status WHERE id = ${sessionId}`;
+    // Take the write lock up front so the capacity check serializes. The identifier is quoted
+    // because Postgres folds unquoted names to lower case and Prisma creates it mixed-case.
+    await tx.$queryRaw`SELECT id FROM "ClassSession" WHERE id = ${sessionId} FOR UPDATE`;
     const classSession = await tx.classSession.findUniqueOrThrow({
       where: { id: sessionId },
       include: { template: true, bookings: { where: { status: "BOOKED" } } },
@@ -170,7 +171,7 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
   const coach = await requireCoach();
   await prisma.$transaction(async (tx) => {
     // Take the write lock up front so the punch-pass update serializes.
-    await tx.$executeRaw`UPDATE MemberProfile SET id = id WHERE id = ${profileId}`;
+    await tx.$queryRaw`SELECT id FROM "MemberProfile" WHERE id = ${profileId} FOR UPDATE`;
     const existing = await tx.attendance.findUnique({
       where: { profileId_sessionId: { profileId, sessionId } },
     });

@@ -1,13 +1,25 @@
+/**
+ * Everything the studio reads is in studio time. Without this the server renders in its own zone —
+ * UTC on Railway — so a Friday 6:15pm class reads as Saturday 00:15 to the coach looking at it, and
+ * a trial card can disagree with the text that booked it.
+ */
+const STUDIO_TZ = process.env.NEXT_PUBLIC_STUDIO_TIMEZONE || "America/Chicago";
+
 export function formatDay(date: Date) {
   return date.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
+    timeZone: STUDIO_TZ,
   });
 }
 
 export function formatTime(date: Date) {
-  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: STUDIO_TZ,
+  });
 }
 
 export function formatDateTime(date: Date) {
@@ -16,6 +28,7 @@ export function formatDateTime(date: Date) {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: STUDIO_TZ,
   });
 }
 
@@ -43,6 +56,8 @@ export function formatPrice(cents: number) {
 }
 
 export function startOfWeek(date: Date) {
+  // Weeks are the server's, not the studio's: this only buckets "classes this week", where being an
+  // hour off at the boundary is invisible, and shifting it per-zone would break the DB comparisons.
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - d.getDay());

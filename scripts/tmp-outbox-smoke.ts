@@ -208,6 +208,44 @@ async function main() {
   );
   check("quiet hours do not hold a coach's own reply", byHand.status, "FAILED");
 
+  // 9. A message that books a class has to describe the class it books, or the lead comes on the
+  // wrong day — the schedule check alone is satisfied by any real class, including a different one.
+  const j = await newLead("+15550100010");
+  leadIds.push(j.id);
+  const session = await prisma.classSession.findFirstOrThrow({
+    where: { status: "SCHEDULED", startsAt: { gt: sendable } },
+    orderBy: { startsAt: "asc" },
+  });
+  const slot = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: config.timezone,
+  }).format(session.startsAt);
+  const wrongDay = slot.toLowerCase().startsWith("monday") ? "Friday" : "Monday";
+  const mismatched = await sendOutbound(
+    {
+      leadId: j.id,
+      body: `See you ${wrongDay} then!`,
+      actor: "AUTOMATION",
+      agentAuthored: true,
+      proposedSessionId: session.id,
+    },
+    sendable,
+  );
+  check("a booking that names another day is blocked", mismatched.status, "BLOCKED");
+  const truthful = await sendOutbound(
+    {
+      leadId: j.id,
+      body: `See you ${slot.split(" ")[0]} then!`,
+      actor: "AUTOMATION",
+      agentAuthored: true,
+      proposedSessionId: session.id,
+    },
+    sendable,
+  );
+  check("a booking that names its own day is allowed through", truthful.status, "FAILED");
+
   await prisma.lead.deleteMany({ where: { id: { in: leadIds } } });
 }
 
