@@ -15,6 +15,9 @@ export default function TimeOnLead({ leadId }: { leadId: string }) {
     let activeMs = 0;
     let lastTick = Date.now();
     let lastInput = Date.now();
+    // The interval that just elapsed belongs to the state the tab was in throughout it, not the
+    // state it has already changed to by the time visibilitychange fires.
+    let visible = document.visibilityState === "visible";
 
     const markInput = () => {
       lastInput = Date.now();
@@ -24,9 +27,14 @@ export default function TimeOnLead({ leadId }: { leadId: string }) {
       const now = Date.now();
       const elapsed = now - lastTick;
       lastTick = now;
-      if (document.visibilityState === "visible" && now - lastInput < IDLE_AFTER_MS) {
+      if (visible && now - lastInput < IDLE_AFTER_MS) {
         activeMs += elapsed;
       }
+    };
+
+    const onVisibilityChange = () => {
+      accrue();
+      visible = document.visibilityState === "visible";
     };
 
     const flush = (useBeacon: boolean) => {
@@ -53,7 +61,7 @@ export default function TimeOnLead({ leadId }: { leadId: string }) {
     for (const event of ["mousemove", "keydown", "click", "scroll", "touchstart"]) {
       window.addEventListener(event, markInput, { passive: true });
     }
-    document.addEventListener("visibilitychange", accrue);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onHide);
 
     return () => {
@@ -61,7 +69,7 @@ export default function TimeOnLead({ leadId }: { leadId: string }) {
       for (const event of ["mousemove", "keydown", "click", "scroll", "touchstart"]) {
         window.removeEventListener(event, markInput);
       }
-      document.removeEventListener("visibilitychange", accrue);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onHide);
       flush(true);
     };
