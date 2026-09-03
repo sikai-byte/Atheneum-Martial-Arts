@@ -9,6 +9,13 @@ jobs:
   checks:
     runs-on: ubuntu-latest
 
+    # Job-wide because `npm ci` runs `prisma generate` on postinstall, and prisma.config.ts requires
+    # DATABASE_URL to be set even for code generation. Locally that comes from .env, which CI has no
+    # copy of. These match .env.test, so nothing here reaches real data.
+    env:
+      DATABASE_URL: postgresql://postgres:devlocal@localhost:55432/atheneum_test?schema=public
+      SESSION_SECRET: ci-session-secret-at-least-32-characters
+
     services:
       # The send-path tests run against a real Postgres: the outbox relies on conditional updates
       # and row semantics that an in-memory stub would not reproduce faithfully.
@@ -45,7 +52,3 @@ jobs:
       - run: npm test
 
       - run: npm run build
-        env:
-          # The build only needs a reachable database URL for Prisma's client, not the app's data.
-          DATABASE_URL: postgresql://postgres:devlocal@localhost:55432/atheneum_test?schema=public
-          SESSION_SECRET: ci-session-secret-at-least-32-characters
