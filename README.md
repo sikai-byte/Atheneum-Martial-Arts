@@ -160,6 +160,28 @@ Open http://localhost:3000.
 - `npm run lint` — ESLint
 - `npm run typecheck` — TypeScript
 - `npm run db:migrate` / `npm run db:deploy` / `npm run db:seed` — database setup
+- `npm test` / `npm run test:watch` — Vitest
+
+## Tests
+
+`tests/` covers the send path: the validation gate, the outbox state machine, and what an inbound
+text does to a lead. They run against a real Postgres database, not a stub, because the outbox
+relies on conditional updates the database has to arbitrate.
+
+Configuration lives in `.env.test` (committed; it holds no secrets). Two safety properties are
+deliberate rather than incidental:
+
+- `tests/globalSetup.ts` refuses to run if `DATABASE_URL` names a database without "test" in it, so
+  a stale shell variable can't have `prisma db push` wipe development data.
+- The SMS provider is always mocked, and the credentials in `.env.test` are blank, so a test cannot
+  text a real person even if the mock were removed.
+
+Create the database once, then run the suite:
+
+```bash
+docker compose exec -T db psql -U postgres -c 'CREATE DATABASE atheneum_test'
+npm test
+```
 
 ## Deploying (Railway)
 

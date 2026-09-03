@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    # Job-wide because `npm ci` runs `prisma generate` on postinstall, and prisma.config.ts requires
+    # DATABASE_URL to be set even for code generation. Locally that comes from .env, which CI has no
+    # copy of. These match .env.test, so nothing here reaches real data.
+    env:
+      DATABASE_URL: postgresql://postgres:devlocal@localhost:55432/atheneum_test?schema=public
+      SESSION_SECRET: ci-session-secret-at-least-32-characters
+
+    services:
+      # The send-path tests run against a real Postgres: the outbox relies on conditional updates
+      # and row semantics that an in-memory stub would not reproduce faithfully.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: devlocal
+        # Port and credentials match .env.test so the suite needs no CI-specific configuration.
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Create the test database
+        run: PGPASSWORD=devlocal psql -h localhost -p 55432 -U postgres -c 'CREATE DATABASE atheneum_test'
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npm run build
