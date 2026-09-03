@@ -520,11 +520,18 @@ export async function adminBookClass(profileId: string, formData: FormData) {
 
 export async function adminCancelBooking(profileId: string, sessionId: string) {
   const admin = await requireAdmin();
+  const [profile, session] = await Promise.all([
+    prisma.memberProfile.findUnique({ where: { id: profileId } }),
+    prisma.classSession.findUnique({ where: { id: sessionId }, include: { template: true } }),
+  ]);
   await cancelBooking(profileId, sessionId);
+  const what = session
+    ? `${session.template.name} on ${formatDay(session.startsAt)} at ${formatTime(session.startsAt)}`
+    : "a booking";
   await recordAudit(admin, "BOOKING_CANCELLED", {
     targetType: "MemberProfile",
     targetId: profileId,
-    summary: "Cancelled a booking",
+    summary: `Cancelled ${what}${profile ? ` for ${profile.name}` : ""}`,
   });
   revalidatePath(`/admin/member/${profileId}`);
   succeedTo(`/admin/member/${profileId}`, "Booking cancelled.");
