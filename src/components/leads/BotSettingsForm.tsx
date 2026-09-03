@@ -17,6 +17,10 @@ type Settings = {
   agentPersona: string;
   coachAlertPhone: string;
   coachAlertHours: number;
+  webChatEnabled: boolean;
+  webChatGreeting: string;
+  webChatDailyCap: number;
+  webChatMaxTurns: number;
 };
 
 function Submit() {
@@ -237,6 +241,75 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
               min={0}
               max={168}
               defaultValue={settings.coachAlertHours}
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-4 border-t border-slate-200 pt-4">
+        <legend className="sr-only">Website chat</legend>
+        <h3 className="font-display text-lg font-semibold">Website chat</h3>
+
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name="webChatEnabled"
+            defaultChecked={settings.webChatEnabled}
+            className="mt-1 size-4"
+          />
+          <span className="text-sm">
+            <span className="font-medium">Answer visitors on the website</span>
+            <span className="mt-0.5 block text-slate-600">
+              The chat bubble uses the same knowledge base as the texting agent and never texts
+              anyone until they tick the consent box in the widget.
+            </span>
+          </span>
+        </label>
+
+        <div>
+          <label htmlFor="webChatGreeting" className="mb-1 block text-sm font-medium">
+            First thing a visitor reads
+          </label>
+          <textarea
+            id="webChatGreeting"
+            name="webChatGreeting"
+            rows={2}
+            defaultValue={settings.webChatGreeting}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="webChatDailyCap" className="mb-1 block text-sm font-medium">
+              Bot replies allowed per day
+            </label>
+            <input
+              id="webChatDailyCap"
+              name="webChatDailyCap"
+              type="number"
+              min={0}
+              max={10000}
+              defaultValue={settings.webChatDailyCap}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              The widget is public and every reply costs money. Past this many the bot stops
+              answering and offers to take the visitor&apos;s details instead.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="webChatMaxTurns" className="mb-1 block text-sm font-medium">
+              Messages allowed per conversation
+            </label>
+            <input
+              id="webChatMaxTurns"
+              name="webChatMaxTurns"
+              type="number"
+              min={1}
+              max={200}
+              defaultValue={settings.webChatMaxTurns}
               className={inputClass}
             />
           </div>

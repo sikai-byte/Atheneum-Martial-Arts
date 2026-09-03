@@ -130,6 +130,12 @@ export default async function LeadsInboxPage({
             Import old leads
           </Link>
           <Link
+            href="/coach/chats"
+            className="btn btn-secondary btn-md"
+          >
+            Website chats
+          </Link>
+          <Link
             href="/coach/leads/settings"
             className="btn btn-secondary btn-md"
           >

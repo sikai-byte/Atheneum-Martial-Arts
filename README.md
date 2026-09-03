@@ -93,6 +93,37 @@ Rate-limited to one alert per lead per `BotConfig.coachAlertHours` (default 6) b
 recent `COACH_ALERTED` event; blank `coachAlertPhone` disables it. Lead quiet hours deliberately do
 not apply — the recipient is staff. Configure both in `/coach/leads/settings`.
 
+## Website chat
+
+The same agent behind a different front door: a chat bubble on the marketing site that answers from
+the same `KnowledgeItem` corpus, offers the same real `ClassSession` rows, and runs replies through
+the same `verifyAgainstFacts()` check. One script tag puts it on WordPress:
+
+```html
+<script src="https://<host>/widget.js" async></script>
+```
+
+`widget.js` only draws a launcher; the conversation itself is an iframe of `/embed/chat`, so the
+site's theme can't restyle the chat and the chat can't restyle the site. Transcripts and handoffs
+are at `/coach/chats`; wording, the daily cap and the per-conversation cap are in
+`/coach/leads/settings`.
+
+Three things differ from the SMS agent, and they're why `src/lib/leads/webchat.ts` exists rather
+than a `channel` flag on the agent:
+
+- **The visitor is anonymous.** `Lead.phone` is required and unique, so there's no lead to hang the
+  conversation off until they share a number. `WebChat` holds the transcript and sets `leadId` on
+  capture, which keeps the history attached to the lead it produced.
+- **No consent exists yet.** Nothing in the chat can cause a text. The capture form carries the same
+  unchecked checkbox as the website forms; ticking it stores the wording, the timestamp and a hashed
+  IP, and only then does `intakeLead()` enroll them in a cadence. Untick it and the lead is still
+  created — just with nothing queued and a note telling the coach to call. An email with no phone
+  number creates no lead at all rather than a placeholder one.
+- **The endpoint is public.** `POST /api/chat` is the only route the internet reaches without a
+  login, so it has a `WEB_CHAT_ORIGINS` allowlist, database-counted per-IP limits (5 chats and 40
+  messages an hour), a per-conversation turn cap, and a daily model-reply cap. Past the cap — or with
+  no LLM key at all — the bot offers a coach instead of erroring.
+
 ### Running the dispatcher
 
 The dispatcher sends everything that's due. Run it every minute in production:

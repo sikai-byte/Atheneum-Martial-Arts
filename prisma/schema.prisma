@@ -272,6 +272,7 @@ model Lead {
   profile      MemberProfile?
   trials       TrialBooking[]
   staffTouches StaffTouch[]
+  webChats     WebChat[]
 
   @@index([status])
   @@index([createdAt])
@@ -387,6 +388,12 @@ model BotConfig {
   agentPersona     String  @default("You are Sam, the front-desk coach at the studio. Warm, direct, never pushy.")
   coachAlertPhone  String  @default("") // texted when the agent hands a lead to a human
   coachAlertHours  Int     @default(6)  // quiet window before the same lead can alert again
+  webChatEnabled   Boolean @default(true) // serve the public website widget
+  webChatGreeting  String  @default("Hi! I'm the front desk at Atheneum Martial Arts. Ask me anything about our classes for kids or adults — or I can get you into a free trial class.")
+  // The widget is public, so every reply costs money. Past this many visitor messages in a day the
+  // bot stops calling the model and offers to take the visitor's details instead.
+  webChatDailyCap  Int     @default(400)
+  webChatMaxTurns  Int     @default(30) // per conversation
 }
 
 /// Everything the sales agent is allowed to claim: programs, prices, policies, objection
@@ -431,6 +438,50 @@ model MetricSnapshot {
   windowDays Int      @default(30)
   payload    String   // JSON blob of FunnelMetrics
   createdAt  DateTime @default(now())
+}
+
+/// A conversation with an anonymous website visitor. It exists separately from Lead because a
+/// visitor has no phone number until they choose to share one, and Lead.phone is required and
+/// unique. Setting `leadId` on capture keeps the transcript attached to the lead it produced.
+model WebChat {
+  id          String   @id @default(cuid())
+  status      String   @default("OPEN") // OPEN | CAPTURED | HANDOFF | CLOSED
+  visitorName String   @default("")
+  interest    String   @default("") // program or goal the visitor described
+  ageGroup    String   @default("UNKNOWN") // ADULT | KID | UNKNOWN
+  pageUrl     String   @default("") // page the widget was opened from
+  referrer    String   @default("")
+  ipHash      String   @default("") // hashed, for rate limiting and consent evidence
+  // Consent captured in the widget, stored with the exact wording shown so it can be produced for
+  // a carrier audit. Nothing may be texted to this visitor while consentAt is null.
+  consentAt   DateTime?
+  consentText String   @default("")
+  handoffAt   DateTime?
+  handoffReason String @default("")
+  messageCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  messages    WebChatMessage[]
+
+  @@index([status, createdAt])
+  @@index([leadId])
+}
+
+model WebChatMessage {
+  id        String   @id @default(cuid())
+  role      String // VISITOR | BOT | STAFF
+  body      String
+  action    String   @default("ANSWER") // ANSWER | CAPTURE | BOOK | HANDOFF
+  generatedBy String @default("RULES") // AI | RULES
+  model     String   @default("")
+  reason    String   @default("") // the bot's read of the visitor, for staff
+  createdAt DateTime @default(now())
+  chatId    String
+  chat      WebChat  @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
 }
 
 model KnowledgeItem {
