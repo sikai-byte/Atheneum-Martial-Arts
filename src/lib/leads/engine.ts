@@ -4,6 +4,7 @@ import { composeAgentReply, type AgentReply } from "./agent";
 import { getBotConfig, isQuietHour, nextSendableTime, type BotSettings } from "./config";
 import { investigateAndSave } from "./investigate";
 import { llmConfigured } from "./llm";
+import { deliverOutbound, sendOutbound } from "./outbox";
 import { firstName, normalizePhone } from "./phone";
 import { sendSms, type SmsProvider } from "./sms";
 import { renderTemplate, truncateForSms } from "./templates";
@@ -246,62 +247,68 @@ export async function dispatchDueFollowUps(options: { leadId?: string; now?: Dat
           }),
     );
 
-    const result = await sendSms(lead.phone, body, {
-      name: lead.fullName,
-      email: lead.email,
-    });
-    if (!result.ok) {
+    const outcome = await sendOutbound(
+      {
+        leadId: lead.id,
+        body,
+        actor: "AUTOMATION",
+        agentAuthored: isFirstTouch && Boolean(lead.insight?.suggestedFirstText),
+        stepOrder: step.order,
+      },
+      now,
+    );
+
+    if (outcome.status === "BLOCKED") {
+      // The gate refused it (opt-out landing mid-tick, an unverifiable claim). Retrying on a timer
+      // would just be refused again, so the task stops and the blocked text stays on the thread.
       await prisma.followUpTask.update({
         where: { id: task.id },
         data: {
-          status: task.attempts >= 2 ? "FAILED" : "PENDING",
+          status: "SKIPPED",
+          completedAt: now,
           attempts: { increment: 1 },
-          lastError: result.error,
-          dueAt: new Date(now.getTime() + 10 * 60_000),
-          completedAt: task.attempts >= 2 ? now : null,
+          lastError: outcome.reason,
         },
       });
-      await prisma.leadMessage.create({
+      summary.skipped += 1;
+      continue;
+    }
+
+    if (outcome.status === "DEFERRED") {
+      // Only reachable if quiet hours began inside this tick; the queued text is durable and the
+      // outbox delivers it, so the task just waits rather than writing a second copy.
+      await prisma.followUpTask.update({
+        where: { id: task.id },
+        data: { dueAt: nextSendableTime(now, config), lastError: outcome.reason },
+      });
+      summary.rescheduled += 1;
+      continue;
+    }
+
+    if (outcome.status !== "SENT") {
+      const error = outcome.status === "FAILED" ? outcome.error : "Another tick is sending this";
+      const exhausted = outcome.status === "FAILED" && !outcome.retryable;
+      await prisma.followUpTask.update({
+        where: { id: task.id },
         data: {
-          leadId: lead.id,
-          direction: "OUTBOUND",
-          body,
-          status: "FAILED",
-          provider: result.provider,
-          errorText: result.error,
-          automated: true,
-          stepOrder: step.order,
+          status: exhausted ? "FAILED" : "PENDING",
+          attempts: { increment: 1 },
+          lastError: error,
+          dueAt: new Date(now.getTime() + 10 * 60_000),
+          completedAt: exhausted ? now : null,
         },
       });
-      await logEvent(lead.id, "SEND_FAILED", `Step ${step.order} text failed`, result.error);
       summary.failed += 1;
       continue;
     }
 
-    await prisma.leadMessage.create({
-      data: {
-        leadId: lead.id,
-        direction: "OUTBOUND",
-        body,
-        status: "SENT",
-        provider: result.provider,
-        providerId: result.providerId,
-        automated: true,
-        stepOrder: step.order,
-      },
-    });
     await prisma.followUpTask.update({
       where: { id: task.id },
       data: { status: "SENT", completedAt: now, attempts: { increment: 1 } },
     });
     const updatedLead = await prisma.lead.update({
       where: { id: lead.id },
-      data: {
-        sequenceStep: step.order,
-        lastOutboundAt: now,
-        firstContactedAt: lead.firstContactedAt ?? now,
-        status: lead.status === "NEW" ? "CONTACTED" : lead.status,
-      },
+      data: { sequenceStep: step.order },
     });
     const minutesToFirstTouch = isFirstTouch
       ? Math.round((now.getTime() - lead.submittedAt.getTime()) / 60_000)
@@ -324,34 +331,23 @@ export async function dispatchDueFollowUps(options: { leadId?: string; now?: Dat
 export async function sendManualSms(leadId: string, rawBody: string, staffName: string) {
   const body = truncateForSms(rawBody.trim());
   if (!body) throw new LeadInputError("Write a message first.");
-  const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
-  if (lead.optedOutAt) throw new LeadInputError("This lead opted out of texts.");
 
-  const result = await sendSms(lead.phone, body, { name: lead.fullName, email: lead.email });
-  await prisma.leadMessage.create({
-    data: {
-      leadId,
-      direction: "OUTBOUND",
-      body,
-      status: result.ok ? "SENT" : "FAILED",
-      provider: result.provider,
-      providerId: result.ok ? result.providerId : null,
-      errorText: result.ok ? null : result.error,
-      sentBy: staffName,
-    },
+  const outcome = await sendOutbound({
+    leadId,
+    body,
+    actor: "STAFF",
+    automated: false,
+    sentBy: staffName,
   });
-  if (!result.ok) {
-    await logEvent(leadId, "SEND_FAILED", `${staffName} tried to text the lead`, result.error);
-    throw new LeadInputError(`${result.provider} rejected the message: ${result.error}`);
+
+  if (outcome.status === "BLOCKED" || outcome.status === "DEFERRED") {
+    throw new LeadInputError(outcome.reason);
   }
-  await prisma.lead.update({
-    where: { id: leadId },
-    data: {
-      lastOutboundAt: new Date(),
-      firstContactedAt: lead.firstContactedAt ?? new Date(),
-      status: lead.status === "NEW" ? "CONTACTED" : lead.status,
-    },
-  });
+  if (outcome.status !== "SENT") {
+    const error = outcome.status === "FAILED" ? outcome.error : "That message is already sending.";
+    // The text is still on the thread as a failed message, so it can be retried rather than retyped.
+    throw new LeadInputError(`${outcome.message.provider} rejected the message: ${error}`);
+  }
   await logEvent(leadId, "SMS_SENT", `${staffName} texted the lead`, body);
 }
 
@@ -603,7 +599,9 @@ export async function respondToLead(
         body: reply.body,
         status: "DRAFT",
         provider: "MOCK",
+        actor: "AUTOMATION",
         automated: true,
+        agentAuthored: true,
         agentAction: reply.action,
         proposedSessionId: reply.sessionId,
         errorText: reply.reason || null,
@@ -618,37 +616,17 @@ export async function respondToLead(
 }
 
 async function deliverAgentMessage(leadId: string, reply: AgentReply): Promise<boolean> {
-  const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
-  if (lead.optedOutAt) return false;
+  const outcome = await sendOutbound({
+    leadId,
+    body: reply.body,
+    actor: "AUTOMATION",
+    agentAuthored: true,
+    agentAction: reply.action,
+    proposedSessionId: reply.sessionId,
+  });
+  if (outcome.status !== "SENT") return false;
 
-  const result = await sendSms(lead.phone, reply.body, { name: lead.fullName, email: lead.email });
-  await prisma.leadMessage.create({
-    data: {
-      leadId,
-      direction: "OUTBOUND",
-      body: reply.body,
-      status: result.ok ? "SENT" : "FAILED",
-      provider: result.provider,
-      providerId: result.ok ? result.providerId : null,
-      errorText: result.ok ? null : result.error,
-      automated: true,
-      agentAction: reply.action,
-      proposedSessionId: reply.sessionId,
-    },
-  });
-  if (!result.ok) {
-    await logEvent(leadId, "SEND_FAILED", "Sales agent reply failed to send", result.error);
-    return false;
-  }
   if (reply.sessionId) await bookTrial(leadId, reply.sessionId, "agent");
-  await prisma.lead.update({
-    where: { id: leadId },
-    data: {
-      lastOutboundAt: new Date(),
-      firstContactedAt: lead.firstContactedAt ?? new Date(),
-      status: lead.status === "NEW" ? "CONTACTED" : lead.status,
-    },
-  });
   await logEvent(
     leadId,
     "SMS_SENT",
@@ -668,7 +646,9 @@ export async function draftAgentReply(leadId: string) {
       body: reply.body,
       status: "DRAFT",
       provider: "MOCK",
+      actor: "AUTOMATION",
       automated: true,
+      agentAuthored: true,
       agentAction: reply.action,
       proposedSessionId: reply.sessionId,
       errorText: reply.reason || null,
@@ -678,6 +658,11 @@ export async function draftAgentReply(leadId: string) {
   return reply;
 }
 
+/**
+ * Sends a draft a coach approved, editing it first if they changed the wording. The draft row is
+ * promoted in place rather than deleted and recreated: a provider error leaves the coach's exact
+ * words on the thread as a failed message they can retry, instead of losing them.
+ */
 export async function approveAgentDraft(messageId: string, staffName: string, editedBody?: string) {
   const draft = await prisma.leadMessage.findUniqueOrThrow({ where: { id: messageId } });
   if (draft.status !== "DRAFT") throw new LeadInputError("That message was already handled.");
@@ -685,39 +670,32 @@ export async function approveAgentDraft(messageId: string, staffName: string, ed
   if (!body) throw new LeadInputError("Write a message first.");
   const edited = body !== draft.body.trim();
 
-  await prisma.leadMessage.delete({ where: { id: messageId } });
-  const lead = await prisma.lead.findUniqueOrThrow({ where: { id: draft.leadId } });
-  if (lead.optedOutAt) throw new LeadInputError("This lead opted out of texts.");
-
-  const result = await sendSms(lead.phone, body, { name: lead.fullName, email: lead.email });
-  await prisma.leadMessage.create({
+  await prisma.leadMessage.update({
+    where: { id: messageId },
     data: {
-      leadId: draft.leadId,
-      direction: "OUTBOUND",
       body,
-      status: result.ok ? "SENT" : "FAILED",
-      provider: result.provider,
-      providerId: result.ok ? result.providerId : null,
-      errorText: result.ok ? null : result.error,
-      agentAction: draft.agentAction,
-      proposedSessionId: draft.proposedSessionId,
+      status: "PENDING",
+      // The coach is accountable for the send, but the agent wrote the words, so the edited text
+      // still has to clear the same fact checks the model's original did.
+      actor: "STAFF",
       staffEdited: edited,
       sentBy: staffName,
+      errorText: null,
     },
   });
-  if (!result.ok) {
-    await logEvent(draft.leadId, "SEND_FAILED", `${staffName} approved an agent draft`, result.error);
-    throw new LeadInputError(`${result.provider} rejected the message: ${result.error}`);
+
+  const outcome = await deliverOutbound(messageId);
+  if (outcome.status === "BLOCKED" || outcome.status === "DEFERRED") {
+    throw new LeadInputError(outcome.reason);
   }
+  if (outcome.status !== "SENT") {
+    const error = outcome.status === "FAILED" ? outcome.error : "That draft is already sending.";
+    throw new LeadInputError(`${outcome.message.provider} rejected the message: ${error}`);
+  }
+
   await prisma.lead.update({
     where: { id: draft.leadId },
-    data: {
-      lastOutboundAt: new Date(),
-      firstContactedAt: lead.firstContactedAt ?? new Date(),
-      status: lead.status === "NEW" ? "CONTACTED" : lead.status,
-      handoffAt: null,
-      handoffReason: "",
-    },
+    data: { handoffAt: null, handoffReason: "" },
   });
   if (draft.proposedSessionId) await bookTrial(draft.leadId, draft.proposedSessionId, staffName);
   await logEvent(

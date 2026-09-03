@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import AgentDraft from "@/components/leads/AgentDraft";
 import { StatusBadge, TemperatureBadge } from "@/components/leads/LeadBadges";
+import RetrySend from "@/components/leads/RetrySend";
 import SmsComposer from "@/components/leads/SmsComposer";
 import TimeOnLead from "@/components/leads/TimeOnLead";
 import TrialBookings from "@/components/leads/TrialBookings";
@@ -20,6 +21,7 @@ import {
 } from "@/lib/leadActions";
 import { upcomingClasses } from "@/lib/leads/agent";
 import { getBotConfig } from "@/lib/leads/config";
+import { RETRYABLE_STATUSES, UNDELIVERED_STATUSES } from "@/lib/leads/messageStatus";
 import { formatPhone } from "@/lib/leads/phone";
 import { twilioConfigured } from "@/lib/leads/sms";
 
@@ -225,31 +227,49 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           <p className="mt-2 text-sm text-stone-600">No texts yet.</p>
         ) : (
           <ul className="mt-3 space-y-3">
-            {thread.map((message) => (
-              <li
-                key={message.id}
-                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                  message.direction === "INBOUND"
-                    ? "bg-stone-100 text-stone-800"
-                    : "ml-auto bg-brand text-white"
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{message.body}</p>
-                <p
-                  className={`mt-1 text-xs ${
-                    message.direction === "INBOUND" ? "text-stone-500" : "text-white/70"
+            {thread.map((message) => {
+              const undelivered = UNDELIVERED_STATUSES.includes(message.status);
+              return (
+                <li
+                  key={message.id}
+                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                    message.direction === "INBOUND"
+                      ? "bg-stone-100 text-stone-800"
+                      : undelivered
+                        ? "ml-auto border border-red-200 bg-red-50 text-stone-800"
+                        : "ml-auto bg-brand text-white"
                   }`}
                 >
-                  {formatDateTime(message.createdAt)}
-                  {message.direction === "OUTBOUND" &&
-                    (message.automated
-                      ? ` · ${message.agentAction ? "agent" : "bot"}${message.stepOrder ? ` step ${message.stepOrder}` : ""}`
-                      : ` · ${message.sentBy ?? "staff"}`)}
-                  {message.provider === "MOCK" && " · not delivered (no Twilio)"}
-                  {message.status === "FAILED" && ` · failed: ${message.errorText}`}
-                </p>
-              </li>
-            ))}
+                  <p className="whitespace-pre-wrap">{message.body}</p>
+                  <p
+                    className={`mt-1 text-xs ${
+                      message.direction === "INBOUND" || undelivered
+                        ? "text-stone-500"
+                        : "text-white/70"
+                    }`}
+                  >
+                    {formatDateTime(message.createdAt)}
+                    {message.direction === "OUTBOUND" &&
+                      (message.automated
+                        ? ` · ${message.agentAction ? "agent" : "bot"}${message.stepOrder ? ` step ${message.stepOrder}` : ""}`
+                        : ` · ${message.sentBy ?? "staff"}`)}
+                    {message.provider === "MOCK" && !undelivered && " · not delivered (no Twilio)"}
+                  </p>
+                  {undelivered && (
+                    <p className="mt-1 text-xs font-medium text-red-700">
+                      {message.status === "BLOCKED"
+                        ? `Held before sending — ${message.errorText}`
+                        : message.status === "FAILED"
+                          ? `Not delivered — ${message.errorText}`
+                          : "Sending…"}
+                    </p>
+                  )}
+                  {RETRYABLE_STATUSES.includes(message.status) && (
+                    <RetrySend leadId={lead.id} messageId={message.id} />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
         {drafts.length > 0 && (

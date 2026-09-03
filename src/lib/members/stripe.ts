@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "../db";
-import { sendSms } from "../leads/sms";
 import { getBotConfig } from "../leads/config";
+import { sendOutbound } from "../leads/outbox";
 import { firstName } from "../leads/phone";
 
 export function stripeConfigured(): boolean {
@@ -160,10 +160,10 @@ export async function ingestStripeEvent(event: StripeEvent): Promise<StripeInges
 async function notifyPastDue(profileId: string, invoiceUrl: string | null) {
   const profile = await prisma.memberProfile.findUnique({
     where: { id: profileId },
-    include: { lead: { select: { phone: true, fullName: true, optedOutAt: true } } },
+    include: { lead: { select: { id: true, fullName: true } } },
   });
   const lead = profile?.lead;
-  if (!profile || !lead || lead.optedOutAt) return;
+  if (!profile || !lead) return;
 
   const config = await getBotConfig();
   const link = invoiceUrl ?? process.env.STRIPE_BILLING_PORTAL_URL ?? "";
@@ -172,5 +172,7 @@ async function notifyPastDue(profileId: string, invoiceUrl: string | null) {
     `This month's dues for ${profile.name} didn't go through.`,
     link ? `You can update the card here: ${link}` : "Can you stop by the desk to update the card?",
   ].join(" ");
-  await sendSms(lead.phone, body);
+  // Through the outbox like every other lead-facing text: a Stripe retry storm can't produce
+  // duplicate texts, and a provider error leaves the notice on the thread for staff to retry.
+  await sendOutbound({ leadId: lead.id, body, actor: "AUTOMATION" });
 }

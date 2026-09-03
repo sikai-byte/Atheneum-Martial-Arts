@@ -3,6 +3,7 @@ import { prisma } from "../db";
 import { getBotConfig, type BotSettings } from "./config";
 import { knowledgeForLead, renderKnowledge } from "./knowledge";
 import { callLlm, llmConfigured, parseJsonObject } from "./llm";
+import { wasDelivered } from "./messageStatus";
 import { firstName } from "./phone";
 import { truncateForSms } from "./templates";
 
@@ -94,7 +95,9 @@ export async function upcomingClasses(
 
 function conversationTranscript(messages: LeadMessage[]): string {
   return messages
-    .filter((message) => message.status !== "DRAFT")
+    // Only what the lead actually saw: a draft, a blocked text and a failed text never arrived, so
+    // the agent must not reply as though it had already said them.
+    .filter((message) => wasDelivered(message.status))
     .slice(-20)
     .map((message) => `${message.direction === "INBOUND" ? "Lead" : "Studio"}: ${message.body}`)
     .join("\n");
