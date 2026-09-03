@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { captureSnapshot } from "@/lib/analytics/funnel";
+import { getBotConfig } from "@/lib/leads/config";
 import { dispatchDueFollowUps } from "@/lib/leads/engine";
+import { ensureUpcomingSessions } from "@/lib/schedule/rollout";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +20,16 @@ async function tick(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
+  const sessionsCreated = await ensureUpcomingSessions();
   const summary = await dispatchDueFollowUps();
-  return NextResponse.json({ ranAt: new Date().toISOString(), ...summary });
+  const config = await getBotConfig();
+  const snapshot = await captureSnapshot({ timezone: config.timezone });
+  return NextResponse.json({
+    ranAt: new Date().toISOString(),
+    sessionsCreated,
+    ...summary,
+    snapshot,
+  });
 }
 
 export async function GET(request: Request) {

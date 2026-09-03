@@ -12,6 +12,11 @@ type Settings = {
   autopilot: boolean;
   autoReplyEnabled: boolean;
   bookingLink: string;
+  agentEnabled: boolean;
+  agentMode: string;
+  agentPersona: string;
+  coachAlertPhone: string;
+  coachAlertHours: number;
 };
 
 function Submit() {
@@ -152,6 +157,91 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
           </span>
         </span>
       </label>
+
+      <fieldset className="space-y-3 rounded-lg border border-stone-200 p-3">
+        <legend className="px-1 text-sm font-semibold">Sales agent</legend>
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name="agentEnabled"
+            defaultChecked={settings.agentEnabled}
+            className="mt-1"
+          />
+          <span className="text-sm">
+            <span className="font-medium">Let the agent write replies</span>
+            <span className="block text-stone-600">
+              It answers questions, handles objections and offers real class times from the
+              knowledge base. Off means leads get a short acknowledgement and wait for a coach.
+            </span>
+          </span>
+        </label>
+
+        <div>
+          <label htmlFor="agentMode" className="mb-1 block text-sm font-medium">
+            Before a reply goes out
+          </label>
+          <select
+            id="agentMode"
+            name="agentMode"
+            defaultValue={settings.agentMode}
+            className={inputClass}
+          >
+            <option value="DRAFT">A coach approves every message (recommended to start)</option>
+            <option value="AUTOPILOT">Send by itself, except when it asks for a human</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="agentPersona" className="mb-1 block text-sm font-medium">
+            Who the agent is
+          </label>
+          <textarea
+            id="agentPersona"
+            name="agentPersona"
+            rows={2}
+            defaultValue={settings.agentPersona}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-stone-500">
+            Name and tone. Leads will assume this is a person, so use a real coach&apos;s name only
+            if that coach is happy to be the one texting.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="coachAlertPhone" className="mb-1 block text-sm font-medium">
+              Text a coach on handoff
+            </label>
+            <input
+              id="coachAlertPhone"
+              name="coachAlertPhone"
+              defaultValue={settings.coachAlertPhone}
+              placeholder="(612) 555-0123"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-stone-500">
+              Whenever the agent hands a lead over — pricing, haggling, anything it may not answer —
+              this number gets the lead&apos;s details and a link to the thread. Leave blank for no
+              alerts.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="coachAlertHours" className="mb-1 block text-sm font-medium">
+              Hours before the same lead can alert again
+            </label>
+            <input
+              id="coachAlertHours"
+              name="coachAlertHours"
+              type="number"
+              min={0}
+              max={168}
+              defaultValue={settings.coachAlertHours}
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </fieldset>
 
       {state.message && (
         <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">

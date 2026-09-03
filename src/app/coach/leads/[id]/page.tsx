@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import AgentDraft from "@/components/leads/AgentDraft";
 import { StatusBadge, TemperatureBadge } from "@/components/leads/LeadBadges";
 import SmsComposer from "@/components/leads/SmsComposer";
+import TimeOnLead from "@/components/leads/TimeOnLead";
+import TrialBookings from "@/components/leads/TrialBookings";
 import ConvertLeadForm from "@/components/members/ConvertLeadForm";
 import { requireCoach } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import {
+  draftAgentReplyAction,
   enrollLeadAction,
   investigateLeadAction,
   optOutLeadAction,
@@ -14,6 +18,8 @@ import {
   resumeLeadAction,
   setLeadStatusAction,
 } from "@/lib/leadActions";
+import { upcomingClasses } from "@/lib/leads/agent";
+import { getBotConfig } from "@/lib/leads/config";
 import { formatPhone } from "@/lib/leads/phone";
 import { twilioConfigured } from "@/lib/leads/sms";
 
@@ -39,6 +45,10 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       messages: { orderBy: { createdAt: "asc" } },
       events: { orderBy: { createdAt: "desc" }, take: 30 },
       tasks: { where: { status: "PENDING" }, orderBy: { dueAt: "asc" } },
+      trials: {
+        include: { session: { include: { template: true } } },
+        orderBy: { session: { startsAt: "asc" } },
+      },
       profile: { select: { id: true, name: true } },
     },
   });
@@ -52,7 +62,19 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
     }),
     prisma.membershipPlan.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
   ]);
+  const config = await getBotConfig();
+  const bookableClasses = await upcomingClasses("", lead.ageGroup, config.timezone, 24);
+  const classLabels = new Map(bookableClasses.map((option) => [option.id, option.label]));
   const now = new Date();
+  const trials = lead.trials.map((trial) => ({
+    id: trial.id,
+    status: trial.status,
+    bookedBy: trial.bookedBy,
+    inPast: trial.session.startsAt < now,
+    label: `${trial.session.template.name} — ${formatDateTime(trial.session.startsAt)}`,
+  }));
+  const drafts = lead.messages.filter((message) => message.status === "DRAFT");
+  const thread = lead.messages.filter((message) => message.status !== "DRAFT");
   const answers = (() => {
     try {
       const parsed = JSON.parse(lead.answers) as Record<string, string>;
@@ -173,13 +195,37 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
         )}
       </section>
 
+      {lead.handoffAt && (
+        <section className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <h2 className="font-semibold text-amber-900">The agent wants a human here</h2>
+          <p className="mt-1 text-sm text-amber-800">
+            {lead.handoffReason || "It hit something outside what it's allowed to answer."}
+          </p>
+          <p className="mt-1 text-xs text-amber-700">
+            Flagged {formatRelative(lead.handoffAt, now)}. Sending a reply below clears the flag.
+          </p>
+        </section>
+      )}
+
       <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Conversation</h2>
-        {lead.messages.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Conversation</h2>
+          {!lead.optedOutAt && (
+            <form action={draftAgentReplyAction.bind(null, lead.id)}>
+              <button
+                type="submit"
+                className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
+              >
+                Ask the agent for a reply
+              </button>
+            </form>
+          )}
+        </div>
+        {thread.length === 0 ? (
           <p className="mt-2 text-sm text-stone-600">No texts yet.</p>
         ) : (
           <ul className="mt-3 space-y-3">
-            {lead.messages.map((message) => (
+            {thread.map((message) => (
               <li
                 key={message.id}
                 className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
@@ -197,7 +243,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                   {formatDateTime(message.createdAt)}
                   {message.direction === "OUTBOUND" &&
                     (message.automated
-                      ? ` · bot${message.stepOrder ? ` step ${message.stepOrder}` : ""}`
+                      ? ` · ${message.agentAction ? "agent" : "bot"}${message.stepOrder ? ` step ${message.stepOrder}` : ""}`
                       : ` · ${message.sentBy ?? "staff"}`)}
                   {message.provider === "MOCK" && " · not delivered (no Twilio)"}
                   {message.status === "FAILED" && ` · failed: ${message.errorText}`}
@@ -206,15 +252,37 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             ))}
           </ul>
         )}
+        {drafts.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {drafts.map((draft) => (
+              <AgentDraft
+                key={draft.id}
+                leadId={lead.id}
+                messageId={draft.id}
+                body={draft.body}
+                action={draft.agentAction}
+                reason={draft.errorText}
+                booksClass={
+                  draft.proposedSessionId ? (classLabels.get(draft.proposedSessionId) ?? null) : null
+                }
+              />
+            ))}
+          </div>
+        )}
+
         <div className="mt-4 border-t border-stone-200 pt-4">
           <SmsComposer
             leadId={lead.id}
-            suggestion={lead.messages.length === 0 ? lead.insight?.suggestedFirstText : undefined}
+            suggestion={thread.length === 0 ? lead.insight?.suggestedFirstText : undefined}
             allowSimulatedReply={!twilioConfigured()}
             disabled={Boolean(lead.optedOutAt)}
           />
         </div>
       </section>
+
+      <TrialBookings leadId={lead.id} bookings={trials} classes={bookableClasses} />
+
+      <TimeOnLead leadId={lead.id} />
 
       <section className="rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="font-semibold">Follow-up</h2>

@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../db";
+import { startMemberNurture } from "../leads/engine";
 import { firstName } from "../leads/phone";
 
 export class ConvertLeadError extends Error {}
@@ -155,6 +156,9 @@ export async function convertLeadToMember(input: ConvertLeadInput): Promise<Conv
 
     return { profileId: profile.id, membershipId: membership.id };
   });
+
+  // The sales conversation becomes a retention conversation: welcome, check-in, then upsell.
+  await startMemberNurture(lead.id);
 
   return { ...result, temporaryPassword };
 }

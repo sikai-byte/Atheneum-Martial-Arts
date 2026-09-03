@@ -1,13 +1,16 @@
 import type { Lead } from "@prisma/client";
 import { prisma } from "../db";
-import { getBotConfig, isQuietHour, nextSendableTime } from "./config";
+import { composeAgentReply, type AgentReply } from "./agent";
+import { getBotConfig, isQuietHour, nextSendableTime, type BotSettings } from "./config";
 import { investigateAndSave } from "./investigate";
+import { llmConfigured } from "./llm";
 import { firstName, normalizePhone } from "./phone";
 import { sendSms, type SmsProvider } from "./sms";
 import { renderTemplate, truncateForSms } from "./templates";
 
 export const NEW_LEAD_SEQUENCE = "NEW_LEAD";
 export const REACTIVATION_SEQUENCE = "REACTIVATION";
+export const MEMBER_NURTURE_SEQUENCE = "MEMBER_NURTURE";
 
 const OPT_OUT_WORDS = ["stop", "stopall", "unsubscribe", "cancel", "end", "quit", "remove me"];
 const HOT_REPLY_WORDS = [
@@ -28,6 +31,15 @@ const HOT_REPLY_WORDS = [
 
 /** Statuses where automated follow-up should stop on its own. */
 const TERMINAL_STATUSES = ["WON", "LOST", "UNSUBSCRIBED"];
+
+/**
+ * Won leads are members now, and the nurture cadence is the only automation allowed to keep
+ * texting them — a sales drip must never keep running against someone who already bought.
+ */
+function sequenceAllowedForStatus(sequenceKey: string, status: string): boolean {
+  if (sequenceKey === MEMBER_NURTURE_SEQUENCE) return status === "WON";
+  return !TERMINAL_STATUSES.includes(status);
+}
 
 export type CreateLeadInput = {
   fullName: string;
@@ -190,7 +202,7 @@ export async function dispatchDueFollowUps(options: { leadId?: string; now?: Dat
     summary.considered += 1;
     const { lead } = task;
 
-    if (lead.optedOutAt || TERMINAL_STATUSES.includes(lead.status)) {
+    if (lead.optedOutAt || !sequenceAllowedForStatus(task.sequenceKey, lead.status)) {
       await prisma.followUpTask.update({
         where: { id: task.id },
         data: { status: "SKIPPED", completedAt: now, lastError: `Lead is ${lead.status}` },
@@ -372,6 +384,53 @@ export async function optOutLead(leadId: string, reason: string) {
   await logEvent(leadId, "OPTED_OUT", "Lead opted out of texts", reason);
 }
 
+/**
+ * Puts the lead in a real class. Nothing else in the agent is allowed to claim someone is booked
+ * without this row existing, so "you're in for Wednesday 5:15" is always true.
+ */
+export async function bookTrial(leadId: string, sessionId: string, bookedBy: string) {
+  const session = await prisma.classSession.findUnique({
+    where: { id: sessionId },
+    include: { template: true },
+  });
+  if (!session || session.status !== "SCHEDULED") {
+    throw new LeadInputError("That class is no longer on the schedule.");
+  }
+  if (session.startsAt < new Date()) throw new LeadInputError("That class has already run.");
+
+  const booking = await prisma.trialBooking.upsert({
+    where: { leadId_sessionId: { leadId, sessionId } },
+    update: { status: "BOOKED", bookedBy },
+    create: { leadId, sessionId, bookedBy },
+  });
+
+  const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
+  if (!TERMINAL_STATUSES.includes(lead.status) && lead.status !== "WON") {
+    await setLeadStatus(leadId, "BOOKED");
+  }
+  await logEvent(
+    leadId,
+    "TRIAL_BOOKED",
+    `Trial booked by ${bookedBy}`,
+    `${session.template.name} on ${session.startsAt.toISOString()}`,
+  );
+  return booking;
+}
+
+export async function cancelTrial(bookingId: string, staffName: string) {
+  const booking = await prisma.trialBooking.update({
+    where: { id: bookingId },
+    data: { status: "CANCELLED" },
+    include: { session: { include: { template: true } } },
+  });
+  await logEvent(
+    booking.leadId,
+    "TRIAL_CANCELLED",
+    `${staffName} cancelled the trial booking`,
+    booking.session.template.name,
+  );
+}
+
 export async function setLeadStatus(leadId: string, status: string) {
   const allowed = ["NEW", "CONTACTED", "ENGAGED", "BOOKED", "WON", "LOST", "UNSUBSCRIBED"];
   if (!allowed.includes(status)) throw new LeadInputError("Unknown lead status.");
@@ -434,32 +493,293 @@ export async function handleInboundSms(
 
   const config = await getBotConfig();
   let autoReplied = false;
+  let drafted = false;
   if (config.autoReplyEnabled && !isQuietHour(now, config)) {
-    const interested = HOT_REPLY_WORDS.some((w) => body.toLowerCase().includes(w));
-    const reply = truncateForSms(
+    const outcome = await respondToLead(lead.id);
+    autoReplied = outcome.sent;
+    drafted = outcome.drafted;
+  }
+
+  return { matched: true as const, optedOut: false, autoReplied, drafted };
+}
+
+/** A quick acknowledgement for when the sales agent is switched off entirely. */
+function keywordAcknowledgement(
+  lead: Pick<Lead, "fullName">,
+  lastInbound: string,
+  config: { studioName: string; bookingLink: string },
+): AgentReply {
+  const interested = HOT_REPLY_WORDS.some((w) => lastInbound.toLowerCase().includes(w));
+  return {
+    sessionId: null,
+    body: truncateForSms(
       interested
         ? `Awesome, ${firstName(lead.fullName)}! A coach will text you in a few minutes to lock in a class time. If it's easier, you can grab a spot here: ${config.bookingLink}`
         : `Thanks ${firstName(lead.fullName)} — got it. A coach at ${config.studioName} will follow up shortly.`,
-    );
-    const result = await sendSms(lead.phone, reply, { name: lead.fullName, email: lead.email });
-    await prisma.leadMessage.create({
-      data: {
-        leadId: lead.id,
-        direction: "OUTBOUND",
-        body: reply,
-        status: result.ok ? "SENT" : "FAILED",
-        provider: result.provider,
-        providerId: result.ok ? result.providerId : null,
-        errorText: result.ok ? null : result.error,
-        automated: true,
-      },
+    ),
+    action: "HANDOFF",
+    reason: "Sales agent is switched off; acknowledged and handed off.",
+    generatedBy: "RULES",
+    model: null,
+  };
+}
+
+/**
+ * Texts the coach when the agent hands a lead over — pricing questions, haggling, anything it may
+ * not answer — so a live conversation is not left waiting on someone checking the inbox. Quiet
+ * hours do not apply: this goes to staff, not to a lead.
+ */
+async function alertCoach(leadId: string, reason: string, config: BotSettings): Promise<boolean> {
+  const to = normalizePhone(config.coachAlertPhone);
+  if (!to) return false;
+
+  const since = new Date(Date.now() - config.coachAlertHours * 60 * 60 * 1000);
+  const recent = await prisma.leadEvent.findFirst({
+    where: { leadId, type: "COACH_ALERTED", createdAt: { gte: since } },
+  });
+  if (recent) return false;
+
+  const lead = await prisma.lead.findUniqueOrThrow({
+    where: { id: leadId },
+    include: { messages: { where: { direction: "INBOUND" }, orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  const base = (process.env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
+  const body = truncateForSms(
+    [
+      `${lead.fullName} (${lead.phone}) needs you: ${reason}`,
+      lead.messages[0] ? `They said: "${lead.messages[0].body}"` : "",
+      base ? `${base}/coach/leads/${lead.id}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+
+  const result = await sendSms(to, body);
+  await logEvent(
+    leadId,
+    "COACH_ALERTED",
+    result.ok ? "Texted the coach about this handoff" : "Could not text the coach about this handoff",
+    result.ok ? body : result.error,
+  );
+  return result.ok;
+}
+
+/**
+ * Runs the sales agent over a conversation and either sends its reply or leaves it as a draft for
+ * staff, depending on `agentMode`. Drafts are stored as `DRAFT` messages on the thread so the
+ * coach sees the proposed text in context rather than in a separate queue.
+ */
+export async function respondToLead(
+  leadId: string,
+  options: { goal?: string } = {},
+): Promise<{ sent: boolean; drafted: boolean; reply: AgentReply }> {
+  const lead = await prisma.lead.findUniqueOrThrow({
+    where: { id: leadId },
+    include: { messages: { orderBy: { createdAt: "desc" }, take: 1, where: { direction: "INBOUND" } } },
+  });
+  const config = await getBotConfig();
+
+  const reply =
+    config.agentEnabled && llmConfigured()
+      ? await composeAgentReply(leadId, { goal: options.goal })
+      : keywordAcknowledgement(lead, lead.messages[0]?.body ?? "", config);
+
+  if (reply.action === "HANDOFF") {
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { handoffAt: new Date(), handoffReason: reply.reason },
     });
-    if (result.ok) {
-      await prisma.lead.update({ where: { id: lead.id }, data: { lastOutboundAt: new Date() } });
-      await logEvent(lead.id, "SMS_SENT", "Auto-acknowledged the reply", reply);
-      autoReplied = true;
-    }
+    await logEvent(leadId, "HANDOFF", "Sales agent asked for a human", reply.reason);
+    await alertCoach(leadId, reply.reason, config);
   }
 
-  return { matched: true as const, optedOut: false, autoReplied };
+  // A draft is the safe default: nothing reaches the lead until a coach approves it.
+  const autopilot = config.agentMode === "AUTOPILOT" && reply.action !== "HANDOFF";
+  if (!autopilot) {
+    await prisma.leadMessage.create({
+      data: {
+        leadId,
+        direction: "OUTBOUND",
+        body: reply.body,
+        status: "DRAFT",
+        provider: "MOCK",
+        automated: true,
+        agentAction: reply.action,
+        proposedSessionId: reply.sessionId,
+        errorText: reply.reason || null,
+      },
+    });
+    await logEvent(leadId, "AGENT_DRAFTED", "Sales agent drafted a reply for review", reply.body);
+    return { sent: false, drafted: true, reply };
+  }
+
+  const sent = await deliverAgentMessage(leadId, reply);
+  return { sent, drafted: false, reply };
+}
+
+async function deliverAgentMessage(leadId: string, reply: AgentReply): Promise<boolean> {
+  const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
+  if (lead.optedOutAt) return false;
+
+  const result = await sendSms(lead.phone, reply.body, { name: lead.fullName, email: lead.email });
+  await prisma.leadMessage.create({
+    data: {
+      leadId,
+      direction: "OUTBOUND",
+      body: reply.body,
+      status: result.ok ? "SENT" : "FAILED",
+      provider: result.provider,
+      providerId: result.ok ? result.providerId : null,
+      errorText: result.ok ? null : result.error,
+      automated: true,
+      agentAction: reply.action,
+      proposedSessionId: reply.sessionId,
+    },
+  });
+  if (!result.ok) {
+    await logEvent(leadId, "SEND_FAILED", "Sales agent reply failed to send", result.error);
+    return false;
+  }
+  if (reply.sessionId) await bookTrial(leadId, reply.sessionId, "agent");
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      lastOutboundAt: new Date(),
+      firstContactedAt: lead.firstContactedAt ?? new Date(),
+      status: lead.status === "NEW" ? "CONTACTED" : lead.status,
+    },
+  });
+  await logEvent(
+    leadId,
+    "SMS_SENT",
+    `Sales agent replied (${reply.action.toLowerCase()})`,
+    `${reply.body}${reply.reason ? `\n\nRead: ${reply.reason}` : ""}`,
+  );
+  return true;
+}
+
+/** Staff clicked "draft a reply" on a thread. */
+export async function draftAgentReply(leadId: string) {
+  const reply = await composeAgentReply(leadId);
+  await prisma.leadMessage.create({
+    data: {
+      leadId,
+      direction: "OUTBOUND",
+      body: reply.body,
+      status: "DRAFT",
+      provider: "MOCK",
+      automated: true,
+      agentAction: reply.action,
+      proposedSessionId: reply.sessionId,
+      errorText: reply.reason || null,
+    },
+  });
+  await logEvent(leadId, "AGENT_DRAFTED", "Sales agent drafted a reply for review", reply.body);
+  return reply;
+}
+
+export async function approveAgentDraft(messageId: string, staffName: string, editedBody?: string) {
+  const draft = await prisma.leadMessage.findUniqueOrThrow({ where: { id: messageId } });
+  if (draft.status !== "DRAFT") throw new LeadInputError("That message was already handled.");
+  const body = truncateForSms((editedBody ?? draft.body).trim());
+  if (!body) throw new LeadInputError("Write a message first.");
+  const edited = body !== draft.body.trim();
+
+  await prisma.leadMessage.delete({ where: { id: messageId } });
+  const lead = await prisma.lead.findUniqueOrThrow({ where: { id: draft.leadId } });
+  if (lead.optedOutAt) throw new LeadInputError("This lead opted out of texts.");
+
+  const result = await sendSms(lead.phone, body, { name: lead.fullName, email: lead.email });
+  await prisma.leadMessage.create({
+    data: {
+      leadId: draft.leadId,
+      direction: "OUTBOUND",
+      body,
+      status: result.ok ? "SENT" : "FAILED",
+      provider: result.provider,
+      providerId: result.ok ? result.providerId : null,
+      errorText: result.ok ? null : result.error,
+      agentAction: draft.agentAction,
+      proposedSessionId: draft.proposedSessionId,
+      staffEdited: edited,
+      sentBy: staffName,
+    },
+  });
+  if (!result.ok) {
+    await logEvent(draft.leadId, "SEND_FAILED", `${staffName} approved an agent draft`, result.error);
+    throw new LeadInputError(`${result.provider} rejected the message: ${result.error}`);
+  }
+  await prisma.lead.update({
+    where: { id: draft.leadId },
+    data: {
+      lastOutboundAt: new Date(),
+      firstContactedAt: lead.firstContactedAt ?? new Date(),
+      status: lead.status === "NEW" ? "CONTACTED" : lead.status,
+      handoffAt: null,
+      handoffReason: "",
+    },
+  });
+  if (draft.proposedSessionId) await bookTrial(draft.leadId, draft.proposedSessionId, staffName);
+  await logEvent(
+    draft.leadId,
+    "SMS_SENT",
+    edited
+      ? `${staffName} edited and sent the agent's draft`
+      : `${staffName} approved the agent's draft`,
+    body,
+  );
+}
+
+/**
+ * Whether a booked trial actually turned up. Nothing infers this — an unmarked trial stays
+ * unknown rather than counting as a no-show, so the show rate is only ever built on real answers.
+ */
+export async function markTrialAttendance(bookingId: string, attended: boolean, staffName: string) {
+  const booking = await prisma.trialBooking.findUniqueOrThrow({ where: { id: bookingId } });
+  if (booking.status === "CANCELLED") throw new LeadInputError("That trial was cancelled.");
+  const updated = await prisma.trialBooking.update({
+    where: { id: bookingId },
+    data: {
+      status: attended ? "ATTENDED" : "NO_SHOW",
+      attendanceAt: new Date(),
+      attendanceBy: staffName,
+    },
+  });
+  await logEvent(
+    booking.leadId,
+    "TRIAL_ATTENDANCE",
+    attended ? `${staffName} marked the trial attended` : `${staffName} marked the trial a no-show`,
+  );
+  return updated;
+}
+
+/** Records measured staff attention on a lead. See `src/lib/analytics/funnel.ts`. */
+export async function recordStaffTouch(
+  leadId: string,
+  staffName: string,
+  seconds: number,
+  kind = "VIEW",
+) {
+  // A tab left open should not read as an hour of selling; the beacon caps each flush and this
+  // caps whatever arrives regardless.
+  const capped = Math.min(600, Math.max(0, Math.round(seconds)));
+  if (capped <= 0) return null;
+  return prisma.staffTouch.create({ data: { leadId, staffName, seconds: capped, kind } });
+}
+
+export async function discardAgentDraft(messageId: string, staffName: string) {
+  const draft = await prisma.leadMessage.findUniqueOrThrow({ where: { id: messageId } });
+  if (draft.status !== "DRAFT") throw new LeadInputError("That message was already handled.");
+  await prisma.leadMessage.delete({ where: { id: messageId } });
+  await logEvent(draft.leadId, "AGENT_DRAFT_DISCARDED", `${staffName} discarded an agent draft`, draft.body);
+}
+
+/** Starts the post-sale cadence once a lead becomes a member. */
+export async function startMemberNurture(leadId: string) {
+  const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
+  if (lead.optedOutAt) return false;
+  const sequence = await prisma.sequence.findUnique({ where: { key: MEMBER_NURTURE_SEQUENCE } });
+  if (!sequence) return false;
+  await enrollLead(leadId, MEMBER_NURTURE_SEQUENCE);
+  return true;
 }

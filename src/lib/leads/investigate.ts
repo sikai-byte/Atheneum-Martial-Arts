@@ -2,6 +2,7 @@ import type { Lead, LeadMessage } from "@prisma/client";
 import { prisma } from "../db";
 import { firstName } from "./phone";
 import { getBotConfig } from "./config";
+import { callLlm, llmConfigured, parseJsonObject } from "./llm";
 
 export type Investigation = {
   score: number;
@@ -211,15 +212,8 @@ function coerceInvestigation(
   generatedBy: "AI",
   model: string,
 ): Investigation {
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end <= start) return fallback;
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
-  } catch {
-    return fallback;
-  }
+  const parsed = parseJsonObject(raw);
+  if (!parsed) return fallback;
 
   const stringList = (value: unknown, fallbackList: string[]): string[] =>
     Array.isArray(value) && value.length > 0 ? value.map((v) => String(v)) : fallbackList;
@@ -243,51 +237,8 @@ function coerceInvestigation(
   };
 }
 
-async function callOpenAi(prompt: string): Promise<string | null> {
-  const model = process.env.LLM_MODEL || "gpt-4o-mini";
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
-    }),
-  });
-  if (!response.ok) return null;
-  const payload = (await response.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  return payload.choices?.[0]?.message?.content ?? null;
-}
-
-async function callAnthropic(prompt: string): Promise<string | null> {
-  const model = process.env.LLM_MODEL || "claude-sonnet-4-20250514";
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 800,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!response.ok) return null;
-  const payload = (await response.json()) as { content?: { text?: string }[] };
-  return payload.content?.[0]?.text ?? null;
-}
-
-export function llmConfigured() {
-  return Boolean(process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY);
-}
+/** Re-exported so UI readiness checks keep a single import for "is the AI wired up?". */
+export { llmConfigured };
 
 /**
  * Investigates a lead: scores it, works out what they actually want, and drafts the opener.
@@ -306,24 +257,8 @@ export async function investigateLead(leadId: string): Promise<Investigation> {
   if (!llmConfigured()) return rules;
 
   const prompt = buildPrompt(lead, programs, config.studioName);
-  try {
-    if (process.env.OPENAI_API_KEY) {
-      const raw = await callOpenAi(prompt);
-      if (raw) return coerceInvestigation(raw, rules, "AI", process.env.LLM_MODEL || "gpt-4o-mini");
-    } else {
-      const raw = await callAnthropic(prompt);
-      if (raw) {
-        return coerceInvestigation(
-          raw,
-          rules,
-          "AI",
-          process.env.LLM_MODEL || "claude-sonnet-4-20250514",
-        );
-      }
-    }
-  } catch (error) {
-    console.warn("[investigate] LLM call failed, using rules", error);
-  }
+  const response = await callLlm({ prompt, json: true, temperature: 0.3 });
+  if (response) return coerceInvestigation(response.text, rules, "AI", response.model);
   return rules;
 }
 

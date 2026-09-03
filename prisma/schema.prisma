@@ -158,7 +158,25 @@ model ClassSession {
   templateId  String
   template    ClassTemplate @relation(fields: [templateId], references: [id])
   bookings    Booking[]
+  trials      TrialBooking[]
   attendances Attendance[]
+}
+
+/// A lead booked into a class before they are a member, so the agent can say "you're in for
+/// Wednesday 6pm" only once a row exists to back it up.
+model TrialBooking {
+  id        String   @id @default(cuid())
+  status    String   @default("BOOKED") // BOOKED | ATTENDED | NO_SHOW | CANCELLED
+  bookedBy  String   @default("agent") // "agent" or a staff name
+  attendanceAt DateTime? // when a coach marked them attended/no-show; null = still unknown
+  attendanceBy String   @default("")
+  createdAt DateTime @default(now())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sessionId String
+  session   ClassSession @relation(fields: [sessionId], references: [id])
+
+  @@unique([leadId, sessionId])
 }
 
 model Booking {
@@ -243,6 +261,8 @@ model Lead {
   sequenceKey      String?
   sequenceStep     Int      @default(0) // steps already delivered
   pausedAt         DateTime?
+  handoffAt        DateTime? // agent asked for a human
+  handoffReason    String   @default("")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   messages     LeadMessage[]
@@ -250,8 +270,11 @@ model Lead {
   events       LeadEvent[]
   insight      LeadInsight?
   profile      MemberProfile?
+  trials       TrialBooking[]
+  staffTouches StaffTouch[]
 
   @@index([status])
+  @@index([createdAt])
 }
 
 model Sequence {
@@ -295,11 +318,14 @@ model LeadMessage {
   id         String   @id @default(cuid())
   direction  String   // OUTBOUND | INBOUND
   body       String
-  status     String   @default("SENT") // SENT | FAILED | RECEIVED
+  status     String   @default("SENT") // SENT | FAILED | RECEIVED | DRAFT (agent reply awaiting a coach)
   provider   String   @default("MOCK") // TWILIO | MOCK
   providerId String?
   errorText  String?
   automated  Boolean  @default(false)
+  agentAction String? // ANSWER | BOOK | UPSELL | HANDOFF — set when the sales agent wrote the message
+  staffEdited Boolean @default(false) // staff rewrote the agent's draft before it went out
+  proposedSessionId String? // class the agent offered; booked for real when the message goes out
   stepOrder  Int?
   sentBy     String?  // staff name for manual sends
   createdAt  DateTime @default(now())
@@ -311,7 +337,7 @@ model LeadMessage {
 
 model LeadEvent {
   id        String   @id @default(cuid())
-  type      String   // CREATED | SMS_SENT | SMS_RECEIVED | INVESTIGATED | STATUS_CHANGED | PAUSED | RESUMED | OPTED_OUT | SEND_FAILED | CONVERTED
+  type      String   // CREATED | SMS_SENT | SMS_RECEIVED | INVESTIGATED | STATUS_CHANGED | PAUSED | RESUMED | OPTED_OUT | SEND_FAILED | CONVERTED | HANDOFF | COACH_ALERTED
   summary   String
   detail    String   @default("")
   createdAt DateTime @default(now())
@@ -349,6 +375,71 @@ model BotConfig {
   autopilot        Boolean @default(true) // send automated follow-ups
   autoReplyEnabled Boolean @default(true) // acknowledge inbound replies instantly
   bookingLink      String  @default("https://atheneummartialarts.com/trial")
+  agentEnabled     Boolean @default(true) // let the sales agent write replies (needs an LLM key)
+  agentMode        String  @default("DRAFT") // DRAFT (staff approves) | AUTOPILOT (sends itself)
+  agentPersona     String  @default("You are Sam, the front-desk coach at the studio. Warm, direct, never pushy.")
+  coachAlertPhone  String  @default("") // texted when the agent hands a lead to a human
+  coachAlertHours  Int     @default(6)  // quiet window before the same lead can alert again
+}
+
+/// Everything the sales agent is allowed to claim: programs, prices, policies, objection
+/// handling and upsell paths. Staff edit these, and the agent may not state a fact that is
+/// not in here.
+/// Money spent on a source or campaign over a period. Entered by hand — no ad platform is
+/// connected — and the only input the funnel numbers cannot derive for themselves.
+model AdSpend {
+  id          String   @id @default(cuid())
+  source      String   // matches Lead.source, e.g. FACEBOOK_ADS
+  campaign    String?  // null = all spend on that source for the period
+  periodStart DateTime
+  periodEnd   DateTime
+  amountCents Int
+  note        String   @default("")
+  recordedBy  String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([source, periodStart])
+}
+
+/// Measured staff attention on a lead. Written by the lead page's activity beacon (real active
+/// seconds, not a guess) and by staff actions, so "minutes per lead" is observed rather than
+/// estimated.
+model StaffTouch {
+  id        String   @id @default(cuid())
+  staffName String
+  kind      String   @default("VIEW") // VIEW | REPLY | APPROVE | CALL | NOTE
+  seconds   Int      @default(0)
+  createdAt DateTime @default(now())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+}
+
+/// A daily copy of the funnel metrics, so trends survive even though the underlying rows keep
+/// changing. Written by the dispatcher tick once per studio-local day.
+model MetricSnapshot {
+  id         String   @id @default(cuid())
+  capturedOn String   @unique // YYYY-MM-DD in studio time
+  windowDays Int      @default(30)
+  payload    String   // JSON blob of FunnelMetrics
+  createdAt  DateTime @default(now())
+}
+
+model KnowledgeItem {
+  id        String   @id @default(cuid())
+  category  String   @default("FAQ") // PROGRAM | PRICING | SCHEDULE | POLICY | OBJECTION | UPSELL | FAQ
+  title     String
+  body      String
+  audience  String   @default("ALL") // KIDS | ADULTS | ALL
+  program   String   @default("") // empty = applies to every program
+  active    Boolean  @default(true)
+  order     Int      @default(0)
+  verified  Boolean  @default(false) // false until staff confirm the numbers are real
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, active])
 }
 
 model Post {

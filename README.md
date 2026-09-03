@@ -13,8 +13,18 @@ Built with Next.js (App Router), TypeScript, Tailwind CSS, Prisma, and PostgreSQ
 - **Coach tools** — today's classes, rosters, one-tap attendance check-in
 - **Progress** — attendance history, weekly consistency vs. goal, coach-recorded milestones
 - **Lead follow-up bot** (`/coach/leads`) — new leads are investigated and texted within 5 minutes, then followed up on a cadence until they reply
+- **Sales agent** — once a lead replies, an LLM agent holds the conversation from a verified knowledge base, proposes a real class time, books the trial, and nurtures members after they join
 - **Members & dues** (`/coach/members`) — sign a lead up as a member in one step, record dues and one-off payments, track past-due cards
 - **Growth** (`/coach/growth`) — leads → members → revenue per source and campaign, and lifetime value per member
+
+## Scope in one paragraph
+
+One database holds the whole funnel: a lead arrives (Facebook ad, front desk, old CSV), gets
+investigated and texted inside five minutes, is carried through a real conversation by the sales
+agent until a trial is booked, converts into a member with dues and payments attached, and every
+dollar stays credited to the ad or campaign that produced them. It is intended to replace the
+studio's reliance on Gymnetics/GoHighLevel, and shares its Postgres database with the member
+portal in the same app.
 
 ## Lead follow-up bot
 
@@ -41,6 +51,47 @@ Goal: never let a lead sit. Every lead — from a Facebook ad, the front desk, o
 6. **Stop conditions** — STOP/unsubscribe keywords, a coach marking *do not text*, or the lead
    being marked booked/won/lost. Automated texts are never sent during quiet hours (default
    9pm–8am studio time); they're rescheduled to the next allowed hour.
+
+## Sales agent
+
+The cadence above is templates; the agent is the conversation. When a lead replies, the agent
+drafts the next message from studio facts, and staff approve it at `/coach/leads/<id>` (default
+`BotConfig.agentMode = "DRAFT"`; `AUTOPILOT` sends without review).
+
+What grounds it, and why each piece exists:
+
+- **Knowledge base** (`KnowledgeItem`, editable at `/coach/leads/knowledge`) — programs, audiences,
+  pricing, objections, upsell paths. The agent answers only from these facts and hands off when a
+  needed one is missing, so it cannot invent a price or a policy.
+- **Real schedule only** — `upcomingClasses()` loads scheduled *future* `ClassSession` rows for the
+  lead's age group, excluding Private Training. With nothing loaded the agent refuses to name a day
+  or time. `ensureUpcomingSessions()` rolls the timetable forward on each dispatcher tick.
+- **A proposal is not a booking** — the model may return a `sessionId`, but it is discarded unless
+  it was one actually offered to the model *and* the lead's last inbound message accepts it;
+  `bookTrial()` then re-checks the session is scheduled and in the future. So "how about Monday
+  6:15?" never creates a `TrialBooking` on its own.
+- **Money is a human's job** — price haggling, and any children's rate (which depends on days per
+  week), are detected after generation and forced to `HANDOFF` regardless of what the model wrote.
+- **Post-conversion** — converting a lead stops the lead cadences and starts `MEMBER_NURTURE`, the
+  only sequence allowed to run against a won lead. Upsells (second discipline, family add-on,
+  private lessons, referrals) come from the knowledge base, not from every reply.
+
+### Handoff and coach alerts
+
+The agent hands off when it is out of verified facts, when the lead is upset, asks for a human,
+raises injury or medical topics, or negotiates on price. A handoff stamps `Lead.handoffAt` /
+`handoffReason`, logs a `HANDOFF` event, and texts the coach:
+
+```
+sendSms(BotConfig.coachAlertPhone,
+  "<name> (<phone>) needs you: <reason>
+   They said: \"<latest inbound>\"
+   <PUBLIC_BASE_URL>/coach/leads/<id>")
+```
+
+Rate-limited to one alert per lead per `BotConfig.coachAlertHours` (default 6) by looking for a
+recent `COACH_ALERTED` event; blank `coachAlertPhone` disables it. Lead quiet hours deliberately do
+not apply — the recipient is staff. Configure both in `/coach/leads/settings`.
 
 ### Running the dispatcher
 
@@ -134,6 +185,49 @@ Stripe is optional. Without it, dues are recorded by hand on the member page. Wi
 land in the ledger (idempotently, keyed on the Stripe invoice ID), failed invoices flip the
 membership to past due and text the member a link to update their card, and cancelled
 subscriptions end the membership.
+
+### Telemetry (`/coach/growth`)
+
+The funnel is measured from rows the app already writes, so there is no separate event pipeline to
+keep in sync: first-contact latency from `Lead.firstContactedAt`, replies from `LeadMessage`,
+bookings and attendance from `TrialBooking`, conversion from `Membership`, money from `Payment`.
+`src/lib/analytics/funnel.ts` is the only place these are defined; the dashboard and
+`GET /api/metrics/funnel?days=30` both read it, and a nightly `MetricSnapshot` keeps history so
+periods can be compared after the live numbers have moved on.
+
+Three rules make the numbers trustworthy rather than flattering:
+
+- Every rate carries its own numerator and denominator, and the UI prints both — a 100% built on two
+  leads should look like what it is.
+- Unknown is not failure. A past trial nobody marked is neither a show nor a no-show: it leaves the
+  show-rate denominator and is surfaced as "unmarked" instead.
+- Leads belong to a period by `createdAt` (when we got them), never `submittedAt`, which for CSV
+  imports is the original enquiry date and would scatter imported leads across old periods.
+
+Two inputs cannot be derived and are collected instead: ad spend, typed in at
+`/coach/growth/spend` because no ad platform is connected, and staff attention, measured by a
+beacon on the lead page that only counts time while the tab is visible and someone is actually
+interacting — a lead page left open overnight adds nothing.
+
+"Fully automated" stays at 0% while the agent runs in draft mode, by design. It and "drafts edited"
+are the two numbers to watch before trusting autopilot.
+
+## Current state (as of the sales-agent work)
+
+What is real and what is still pending, since none of this is on `main` yet:
+
+| Area | State |
+| --- | --- |
+| Feature branches | Four stacked PRs, all open: lead bot → members/LTV → HighLevel provider → sales agent. `main` is still the Next.js starter |
+| Staging | Railway project `atheneum-crm-staging` with its own Postgres, deployed from the sales-agent branch, dispatcher on a 5-minute cron |
+| LLM | Live on staging with `OPENAI_API_KEY` (`gpt-4o-mini`). Without a key, everything falls back to the rules engine and templates |
+| SMS | **Not live.** No Twilio credentials are configured, so sends are recorded as provider `MOCK`. Twilio 10DLC brand is registered; the campaign was rejected once for unverifiable CTA proof and is being resubmitted |
+| Production | The live portal still runs SQLite and needs a controlled migration to Postgres before it can share this database |
+| Data | Sample schedule seeded from the studio's 08/01 grid. MMA is absent from that grid, so the agent will discuss MMA but never offer a time for it |
+
+Nothing texts a real lead until Twilio credentials are set *and* the 10DLC campaign is approved.
+Until then the safe way to exercise the funnel end to end is staging with the mock provider, which
+records each message against the lead exactly as it would be sent.
 
 ## Notes
 

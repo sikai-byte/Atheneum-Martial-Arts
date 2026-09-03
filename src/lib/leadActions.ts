@@ -6,11 +6,17 @@ import { requireCoach } from "./auth";
 import { prisma } from "./db";
 import { ageGroupFromRow, parseDate, parseLeadCsv } from "./leads/csv";
 import {
+  approveAgentDraft,
+  bookTrial,
+  cancelTrial,
+  discardAgentDraft,
   dispatchDueFollowUps,
+  draftAgentReply,
   enrollLead,
   handleInboundSms,
   intakeLead,
   LeadInputError,
+  markTrialAttendance,
   optOutLead,
   pauseSequence,
   REACTIVATION_SEQUENCE,
@@ -19,6 +25,7 @@ import {
   setLeadStatus,
 } from "./leads/engine";
 import { investigateAndSave } from "./leads/investigate";
+import { KNOWLEDGE_AUDIENCES, KNOWLEDGE_CATEGORIES } from "./leads/knowledge";
 
 export type FormState = { error?: string; message?: string };
 
@@ -144,6 +151,105 @@ export async function simulateInboundAction(
   }
 }
 
+export async function draftAgentReplyAction(leadId: string) {
+  await requireCoach();
+  await draftAgentReply(leadId);
+  refreshLead(leadId);
+}
+
+export async function approveDraftAction(
+  leadId: string,
+  messageId: string,
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const coach = await requireCoach();
+  try {
+    await approveAgentDraft(messageId, coach.name, String(formData.get("body") ?? ""));
+    refreshLead(leadId);
+    return { message: "Sent." };
+  } catch (error) {
+    return { error: errorMessage(error) };
+  }
+}
+
+export async function discardDraftAction(leadId: string, messageId: string) {
+  const coach = await requireCoach();
+  await discardAgentDraft(messageId, coach.name);
+  refreshLead(leadId);
+}
+
+export async function bookTrialAction(
+  leadId: string,
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const coach = await requireCoach();
+  const sessionId = String(formData.get("sessionId") ?? "");
+  if (!sessionId) return { error: "Pick a class first." };
+  try {
+    await bookTrial(leadId, sessionId, coach.name);
+    refreshLead(leadId);
+    return { message: "Booked." };
+  } catch (error) {
+    return { error: errorMessage(error) };
+  }
+}
+
+export async function cancelTrialAction(leadId: string, bookingId: string) {
+  const coach = await requireCoach();
+  await cancelTrial(bookingId, coach.name);
+  refreshLead(leadId);
+}
+
+export async function markTrialAttendanceAction(
+  leadId: string,
+  bookingId: string,
+  attended: boolean,
+) {
+  const coach = await requireCoach();
+  await markTrialAttendance(bookingId, attended, coach.name);
+  refreshLead(leadId);
+  revalidatePath("/coach/growth");
+}
+
+export async function saveKnowledgeAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireCoach();
+  const id = String(formData.get("id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+  if (!title || !body) return { error: "A knowledge item needs a title and a body." };
+
+  const category = String(formData.get("category") ?? "FAQ");
+  const audience = String(formData.get("audience") ?? "ALL");
+  const data = {
+    title,
+    body,
+    category: (KNOWLEDGE_CATEGORIES as readonly string[]).includes(category) ? category : "FAQ",
+    audience: (KNOWLEDGE_AUDIENCES as readonly string[]).includes(audience) ? audience : "ALL",
+    program: String(formData.get("program") ?? "").trim(),
+    active: formData.get("active") === "on",
+    verified: formData.get("verified") === "on",
+  };
+
+  if (id) {
+    await prisma.knowledgeItem.update({ where: { id }, data });
+  } else {
+    await prisma.knowledgeItem.create({ data });
+  }
+  revalidatePath("/coach/leads/knowledge");
+  return { message: id ? "Updated." : "Added." };
+}
+
+export async function deleteKnowledgeAction(id: string) {
+  await requireCoach();
+  await prisma.knowledgeItem.delete({ where: { id } });
+  revalidatePath("/coach/leads/knowledge");
+}
+
 export async function investigateLeadAction(leadId: string) {
   await requireCoach();
   await investigateAndSave(leadId);
@@ -207,6 +313,11 @@ export async function updateBotConfigAction(
       autopilot: formData.get("autopilot") === "on",
       autoReplyEnabled: formData.get("autoReplyEnabled") === "on",
       bookingLink: String(formData.get("bookingLink") ?? "").trim() || undefined,
+      agentEnabled: formData.get("agentEnabled") === "on",
+      agentMode: formData.get("agentMode") === "AUTOPILOT" ? "AUTOPILOT" : "DRAFT",
+      agentPersona: String(formData.get("agentPersona") ?? "").trim() || undefined,
+      coachAlertPhone: String(formData.get("coachAlertPhone") ?? "").trim(),
+      coachAlertHours: Math.min(168, Math.max(0, Number(formData.get("coachAlertHours")) || 0)),
     },
     create: { id: "default" },
   });
