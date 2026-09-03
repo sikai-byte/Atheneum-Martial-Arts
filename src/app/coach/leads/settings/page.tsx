@@ -66,38 +66,38 @@ export default async function BotSettingsPage() {
         <Link href="/coach/leads" className="text-sm text-brand hover:underline">
           ← Leads
         </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">Bot settings</h1>
+        <h1 className="page-title mt-2">Bot settings</h1>
       </div>
 
       <Link
         href="/coach/leads/knowledge"
-        className="block rounded-xl border border-stone-200 bg-white p-4 hover:bg-stone-50"
+        className="block card p-4 hover:bg-slate-50"
       >
         <p className="font-semibold">What the agent knows →</p>
-        <p className="mt-1 text-sm text-stone-600">
+        <p className="mt-1 text-sm text-slate-600">
           Programs, prices, policies, objections and upsell paths. The agent can only state facts
           from here, so this is where you correct it.
         </p>
       </Link>
 
-      <div className="rounded-xl border border-stone-200 bg-white p-4">
+      <div className="card p-4">
         <BotSettingsForm settings={config} />
       </div>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Cadences</h2>
-        <p className="mt-1 text-sm text-stone-600">
+      <section className="card p-4">
+        <h2 className="card-title">Cadences</h2>
+        <p className="mt-1 text-sm text-slate-600">
           Message templates live in the database, so they can be reworded without a code change.
         </p>
         <div className="mt-3 space-y-4">
           {sequences.map((sequence) => (
             <div key={sequence.key}>
               <p className="text-sm font-semibold">{sequence.name}</p>
-              <p className="text-sm text-stone-600">{sequence.purpose}</p>
+              <p className="text-sm text-slate-600">{sequence.purpose}</p>
               <ol className="mt-2 space-y-2 text-sm">
                 {sequence.steps.map((step) => (
-                  <li key={step.id} className="rounded-lg bg-stone-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <li key={step.id} className="rounded-lg bg-slate-50 p-3">
+                    <p className="eyebrow">
                       Step {step.order} ·{" "}
                       {step.delayMinutes === 0
                         ? "immediately"
@@ -108,7 +108,7 @@ export default async function BotSettingsPage() {
                             : `${Math.round(step.delayMinutes / 1440)} days later`}
                       {step.goal && ` · ${step.goal}`}
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap text-stone-700">{step.template}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-slate-700">{step.template}</p>
                   </li>
                 ))}
               </ol>
@@ -117,8 +117,8 @@ export default async function BotSettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Integrations</h2>
+      <section className="card p-4">
+        <h2 className="card-title">Integrations</h2>
         <ul className="mt-3 space-y-3 text-sm">
           {integrations.map((integration) => (
             <li key={integration.name}>
@@ -128,7 +128,7 @@ export default async function BotSettingsPage() {
                   {integration.ready ? "· connected" : "· not configured"}
                 </span>
               </p>
-              <p className="text-stone-600">{integration.detail}</p>
+              <p className="text-slate-600">{integration.detail}</p>
             </li>
           ))}
         </ul>

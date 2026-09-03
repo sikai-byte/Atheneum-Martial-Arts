@@ -41,17 +41,17 @@ export default async function CoachTodayPage() {
     <Link
       key={s.id}
       href={`/coach/session/${s.id}`}
-      className="block rounded-xl border border-stone-200 bg-white p-4 hover:border-stone-400"
+      className="block card p-4 hover:border-slate-400"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-semibold">{s.template.name}</p>
-          <p className="mt-1 text-sm text-stone-600">
+          <p className="mt-1 text-sm text-slate-600">
             {showDay && `${formatDay(s.startsAt)} · `}
             {formatTime(s.startsAt)} · {s.instructor}
           </p>
         </div>
-        <div className="text-right text-sm text-stone-600">
+        <div className="text-right text-sm text-slate-600">
           <p>
             {s.bookings.filter((b) => b.status === "BOOKED").length}/{s.template.capacity} booked
           </p>
@@ -64,16 +64,16 @@ export default async function CoachTodayPage() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-bold tracking-tight">Today</h1>
-        <p className="mt-1 text-stone-600">Welcome, {coach.name}. Tap a class to manage its roster.</p>
+        <h1 className="page-title">Today</h1>
+        <p className="mt-1 text-slate-600">Welcome, {coach.name}. Tap a class to manage its roster.</p>
       </section>
 
       <section aria-labelledby="today-classes">
-        <h2 id="today-classes" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="today-classes" className="eyebrow text-xs">
           Today&apos;s classes
         </h2>
         {todaySessions.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 card p-4 text-slate-600">
             No classes scheduled today.
           </p>
         ) : (
@@ -82,18 +82,18 @@ export default async function CoachTodayPage() {
       </section>
 
       <section aria-labelledby="upcoming-classes">
-        <h2 id="upcoming-classes" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="upcoming-classes" className="eyebrow text-xs">
           Upcoming
         </h2>
         <div className="mt-2 space-y-3">{upcomingSessions.map((s) => renderSession(s, true))}</div>
       </section>
 
       <section aria-labelledby="post-update">
-        <h2 id="post-update" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="post-update" className="eyebrow text-xs">
           Post an update
         </h2>
-        <form action={postAnnouncement} className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4">
-          <p className="text-sm text-stone-600">
+        <form action={postAnnouncement} className="mt-2 space-y-3 card p-4">
+          <p className="text-sm text-slate-600">
             Updates appear on every member&apos;s home page right away.
           </p>
           <div>
@@ -106,7 +106,7 @@ export default async function CoachTodayPage() {
               required
               maxLength={120}
               placeholder="e.g. No gi classes this Friday"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+              className="field-input py-2.5"
             />
           </div>
           <div>
@@ -120,7 +120,7 @@ export default async function CoachTodayPage() {
               rows={3}
               maxLength={2000}
               placeholder="What do members need to know?"
-              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+              className="field-input py-2.5"
             />
           </div>
           <button
@@ -133,19 +133,19 @@ export default async function CoachTodayPage() {
         {announcements.length > 0 && (
           <div className="mt-3 space-y-3">
             {announcements.map((a) => (
-              <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={a.id} className="card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">{a.title}</p>
-                    <p className="mt-1 text-sm text-stone-600">{a.body}</p>
-                    <p className="mt-2 text-xs text-stone-400">
+                    <p className="mt-1 text-sm text-slate-600">{a.body}</p>
+                    <p className="mt-2 text-xs text-slate-400">
                       {a.author} · {formatDay(a.createdAt)}
                     </p>
                   </div>
                   <form action={deleteAnnouncement.bind(null, a.id)}>
                     <button
                       type="submit"
-                      className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
+                      className="btn btn-secondary px-2.5 py-1.5 text-xs"
                     >
                       Delete
                     </button>

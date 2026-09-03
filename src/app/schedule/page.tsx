@@ -67,23 +67,23 @@ export default async function SchedulePage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
-      <p className="mt-1 text-stone-600">Find your next class and book in seconds.</p>
+      <h1 className="page-title">Schedule</h1>
+      <p className="mt-1 text-slate-600">Find your next class and book in seconds.</p>
 
       {canSwitchView && (
-        <div className="mt-4 inline-flex rounded-lg border border-stone-300 bg-white p-1" aria-label="Schedule view">
+        <div className="mt-4 inline-flex rounded-lg border border-slate-300 bg-white p-1" aria-label="Schedule view">
           <Link
             href={filterLink({ view: undefined })}
-            className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
-              view === "kids" ? "bg-brand text-white" : "text-stone-600"
+            className={`btn px-4 py-1.5 text-sm font-semibold ${
+              view === "kids" ? "bg-brand text-white" : "text-slate-600"
             }`}
           >
             Kids classes
           </Link>
           <Link
             href={filterLink({ view: "adults" })}
-            className={`rounded-md px-4 py-1.5 text-sm font-semibold ${
-              view === "adults" ? "bg-brand text-white" : "text-stone-600"
+            className={`btn px-4 py-1.5 text-sm font-semibold ${
+              view === "adults" ? "bg-brand text-white" : "text-slate-600"
             }`}
           >
             Adult classes (for me)
@@ -95,7 +95,7 @@ export default async function SchedulePage({
         <Link
           href={filterLink({ program: undefined })}
           className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-            !searchParams.program ? "bg-brand text-white" : "bg-white text-stone-700 border border-stone-300"
+            !searchParams.program ? "bg-brand text-white" : "bg-white text-slate-700 border border-slate-300"
           }`}
         >
           All programs
@@ -107,7 +107,7 @@ export default async function SchedulePage({
             className={`rounded-full px-3 py-1.5 text-sm font-medium ${
               searchParams.program === p.id
                 ? "bg-brand text-white"
-                : "bg-white text-stone-700 border border-stone-300"
+                : "bg-white text-slate-700 border border-slate-300"
             }`}
           >
             {p.name}
@@ -120,7 +120,7 @@ export default async function SchedulePage({
           className={`rounded-full px-3 py-1.5 text-sm font-medium ${
             searchParams.level === "BEGINNER"
               ? "bg-brand text-white"
-              : "bg-white text-stone-700 border border-stone-300"
+              : "bg-white text-slate-700 border border-slate-300"
           }`}
         >
           Beginner-friendly
@@ -131,7 +131,7 @@ export default async function SchedulePage({
             className={`rounded-full px-3 py-1.5 text-sm font-medium ${
               searchParams.age === "KIDS"
                 ? "bg-brand text-white"
-                : "bg-white text-stone-700 border border-stone-300"
+                : "bg-white text-slate-700 border border-slate-300"
             }`}
           >
             Kids
@@ -141,13 +141,13 @@ export default async function SchedulePage({
 
       <div className="mt-6 space-y-8">
         {sessions.length === 0 && (
-          <p className="rounded-lg border border-stone-200 bg-white p-6 text-stone-600">
+          <p className="rounded-lg border border-slate-200 bg-white p-6 text-slate-600">
             No upcoming classes match these filters. Try clearing a filter.
           </p>
         )}
         {Array.from(byDay.entries()).map(([day, daySessions]) => (
           <section key={day}>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">{day}</h2>
+            <h2 className="eyebrow text-xs">{day}</h2>
             <div className="mt-2 space-y-3">
               {daySessions.map((s) => {
                 const booked = s.bookings.filter((b) => b.status === "BOOKED").length;
@@ -160,7 +160,7 @@ export default async function SchedulePage({
                   return view === "kids" ? p.isChild : view === "adults" ? !p.isChild : true;
                 });
                 return (
-                  <article key={s.id} className="rounded-xl border border-stone-200 bg-white p-4">
+                  <article key={s.id} className="card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -178,17 +178,17 @@ export default async function SchedulePage({
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 text-sm text-stone-600">
+                        <p className="mt-1 text-sm text-slate-600">
                           {formatTime(s.startsAt)} · {s.template.durationMin} min · {s.instructor}
                         </p>
-                        <p className="mt-1 text-sm text-stone-600">{s.template.description}</p>
+                        <p className="mt-1 text-sm text-slate-600">{s.template.description}</p>
                         {s.template.gearNotes && (
-                          <p className="mt-1 text-sm text-stone-500">Gear: {s.template.gearNotes}</p>
+                          <p className="mt-1 text-sm text-slate-500">Gear: {s.template.gearNotes}</p>
                         )}
                       </div>
                       <p
                         className={`shrink-0 text-sm font-medium ${
-                          isFull ? "text-amber-700" : "text-stone-500"
+                          isFull ? "text-amber-700" : "text-slate-500"
                         }`}
                       >
                         {isFull ? "Class full" : `${spotsLeft} spots left`}

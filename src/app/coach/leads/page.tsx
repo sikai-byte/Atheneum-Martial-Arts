@@ -111,34 +111,34 @@ export default async function LeadsInboxPage({
     <div className="space-y-6">
       <section className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Leads</h1>
-          <p className="mt-1 text-stone-600">
+          <h1 className="page-title">Leads</h1>
+          <p className="mt-1 text-slate-600">
             Every new lead gets a text within 5 minutes, then a follow-up cadence until they reply.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
             href="/coach/leads/new"
-            className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark"
+            className="btn btn-primary btn-md"
           >
             Add lead
           </Link>
           <Link
             href="/coach/leads/import"
-            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+            className="btn btn-secondary btn-md"
           >
             Import old leads
           </Link>
           <Link
             href="/coach/leads/settings"
-            className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+            className="btn btn-secondary btn-md"
           >
             Bot settings
           </Link>
           <form action={runDispatcherAction}>
             <button
               type="submit"
-              className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+              className="btn btn-secondary btn-md"
             >
               Run dispatcher now
             </button>
@@ -154,13 +154,13 @@ export default async function LeadsInboxPage({
             </li>
           )}
           {!twilioConfigured() && (
-            <li className="rounded-lg bg-stone-100 px-3 py-2 text-stone-700">
+            <li className="rounded-lg bg-slate-100 px-3 py-2 text-slate-700">
               Twilio isn&apos;t configured, so texts are recorded but not delivered. Set
               TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to go live.
             </li>
           )}
           {!llmConfigured() && (
-            <li className="rounded-lg bg-stone-100 px-3 py-2 text-stone-700">
+            <li className="rounded-lg bg-slate-100 px-3 py-2 text-slate-700">
               No LLM key set — lead investigation is using the built-in rules engine.
             </li>
           )}
@@ -169,12 +169,12 @@ export default async function LeadsInboxPage({
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-stone-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+          <div key={stat.label} className="card p-4">
+            <p className="eyebrow">
               {stat.label}
             </p>
-            <p className="mt-1 text-2xl font-bold">{stat.value}</p>
-            {stat.hint && <p className="text-xs text-stone-500">{stat.hint}</p>}
+            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-slate-900">{stat.value}</p>
+            {stat.hint && <p className="text-xs text-slate-500">{stat.hint}</p>}
           </div>
         ))}
       </section>
@@ -184,8 +184,10 @@ export default async function LeadsInboxPage({
           <Link
             key={f.key}
             href={f.key === "all" ? "/coach/leads" : `/coach/leads?filter=${f.key}`}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-              filter === f.key ? "bg-brand text-white" : "bg-white text-stone-600 hover:bg-stone-100"
+            className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+              filter === f.key
+                ? "border-brand bg-brand text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
             }`}
           >
             {f.label}
@@ -194,9 +196,9 @@ export default async function LeadsInboxPage({
       </nav>
 
       {leads.length === 0 ? (
-        <p className="rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+        <p className="card p-4 text-slate-600">
           No leads here yet. Add one manually or point your Facebook Lead Ads webhook at
-          <code className="mx-1 rounded bg-stone-100 px-1">/api/webhooks/facebook</code>.
+          <code className="mx-1 rounded bg-slate-100 px-1">/api/webhooks/facebook</code>.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -207,9 +209,9 @@ export default async function LeadsInboxPage({
               <li key={lead.id}>
                 <Link
                   href={`/coach/leads/${lead.id}`}
-                  className="block rounded-xl border border-stone-200 bg-white p-4 hover:border-stone-400"
+                  className="block card p-4 hover:border-slate-400"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="card-head">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold">{lead.fullName}</p>
                       <StatusBadge status={lead.status} />
@@ -220,17 +222,17 @@ export default async function LeadsInboxPage({
                         />
                       )}
                       {lead.pausedAt && !lead.optedOutAt && (
-                        <span className="text-xs font-semibold text-stone-500">paused</span>
+                        <span className="text-xs font-semibold text-slate-500">paused</span>
                       )}
                     </div>
-                    <p className="text-sm text-stone-500">
+                    <p className="text-sm text-slate-500">
                       {formatPhone(lead.phone)} · {lead.source.toLowerCase().replace("_", " ")}
                     </p>
                   </div>
-                  <p className="mt-2 text-sm text-stone-600">
+                  <p className="mt-2 text-sm text-slate-600">
                     {lead.insight?.summary ?? lead.interest ?? "Not investigated yet."}
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                     <span>Captured {formatRelative(lead.createdAt, now)}</span>
                     {lastMessage && (
                       <span>

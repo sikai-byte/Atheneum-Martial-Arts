@@ -22,7 +22,7 @@ export default async function CoachOrdersPage() {
   });
 
   const renderOrder = (o: (typeof orders)[number], open: boolean) => (
-    <li key={o.id} className="rounded-xl border border-stone-200 bg-white p-4">
+    <li key={o.id} className="card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-medium">
@@ -30,7 +30,7 @@ export default async function CoachOrdersPage() {
             {o.size && ` · ${o.size}`}
             {o.quantity > 1 && ` · ×${o.quantity}`}
           </p>
-          <p className="mt-1 text-sm text-stone-600">
+          <p className="mt-1 text-sm text-slate-600">
             {o.user.name} · {formatDay(o.createdAt)} · {formatPrice(o.priceCents * o.quantity)}
           </p>
         </div>
@@ -40,7 +40,7 @@ export default async function CoachOrdersPage() {
               <form action={updateOrderStatus.bind(null, o.id, "READY")}>
                 <button
                   type="submit"
-                  className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+                  className="btn btn-primary btn-sm"
                 >
                   Mark ready
                 </button>
@@ -49,7 +49,7 @@ export default async function CoachOrdersPage() {
               <form action={updateOrderStatus.bind(null, o.id, "PICKED_UP")}>
                 <button
                   type="submit"
-                  className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90"
+                  className="btn btn-primary btn-sm"
                 >
                   Picked up &amp; paid
                 </button>
@@ -58,14 +58,14 @@ export default async function CoachOrdersPage() {
             <form action={updateOrderStatus.bind(null, o.id, "CANCELLED")}>
               <button
                 type="submit"
-                className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-100"
+                className="btn btn-secondary btn-sm"
               >
                 Cancel
               </button>
             </form>
           </div>
         ) : (
-          <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
             {o.status === "PICKED_UP" ? "Picked up" : "Cancelled"}
           </span>
         )}
@@ -76,18 +76,18 @@ export default async function CoachOrdersPage() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-bold tracking-tight">Shop Orders</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title">Shop Orders</h1>
+        <p className="mt-1 text-slate-600">
           Collect payment at the front desk when members pick up their gear.
         </p>
       </section>
 
       <section aria-labelledby="open-orders">
-        <h2 id="open-orders" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="open-orders" className="eyebrow text-xs">
           Open orders ({orders.length})
         </h2>
         {orders.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 card p-4 text-slate-600">
             No open orders right now.
           </p>
         ) : (
@@ -97,7 +97,7 @@ export default async function CoachOrdersPage() {
 
       {recent.length > 0 && (
         <section aria-labelledby="recent-orders">
-          <h2 id="recent-orders" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          <h2 id="recent-orders" className="eyebrow text-xs">
             Recently completed
           </h2>
           <ul className="mt-2 space-y-2">{recent.map((o) => renderOrder(o, false))}</ul>

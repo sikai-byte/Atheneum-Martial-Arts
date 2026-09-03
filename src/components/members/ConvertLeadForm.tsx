@@ -18,7 +18,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary btn-md"
     >
       {pending ? "Signing up…" : "Sign up as member"}
     </button>
@@ -42,7 +42,7 @@ export default function ConvertLeadForm({
 
   if (plans.length === 0) {
     return (
-      <p className="text-sm text-stone-600">
+      <p className="text-sm text-slate-600">
         Add a membership plan first — plans are seeded in the database and shown on the members
         page.
       </p>
@@ -60,7 +60,7 @@ export default function ConvertLeadForm({
             name="memberName"
             defaultValue={defaultName}
             required
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <label className="block text-sm">
@@ -68,7 +68,7 @@ export default function ConvertLeadForm({
           <select
             name="planId"
             defaultValue={plans[0].id}
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           >
             {plans.map((plan) => (
               <option key={plan.id} value={plan.id}>
@@ -84,7 +84,7 @@ export default function ConvertLeadForm({
             name="signupFee"
             inputMode="decimal"
             placeholder="0.00"
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <label className="block text-sm">
@@ -93,7 +93,7 @@ export default function ConvertLeadForm({
             name="firstPayment"
             inputMode="decimal"
             placeholder="0.00"
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <label className="block text-sm">
@@ -102,7 +102,7 @@ export default function ConvertLeadForm({
             name="birthYear"
             inputMode="numeric"
             placeholder="2016"
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
         <label className="block text-sm">
@@ -111,7 +111,7 @@ export default function ConvertLeadForm({
             name="loginEmail"
             type="email"
             defaultValue={defaultEmail}
-            className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
+            className="mt-1 field-input"
           />
         </label>
       </div>

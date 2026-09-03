@@ -19,15 +19,15 @@ export default async function AdSpendPage() {
     <div className="space-y-6">
       <section className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Ad spend</h1>
-          <p className="mt-1 text-stone-600">
+          <h1 className="page-title">Ad spend</h1>
+          <p className="mt-1 text-slate-600">
             What each source cost. No ad account is connected, so this is the one number the app
             can&apos;t work out for itself — without it, cost per member stays blank.
           </p>
         </div>
         <Link
           href="/coach/growth"
-          className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+          className="btn btn-secondary btn-md"
         >
           Back to growth
         </Link>
@@ -45,7 +45,7 @@ export default async function AdSpendPage() {
         }))}
       />
 
-      <p className="text-sm text-stone-500">
+      <p className="text-sm text-slate-500">
         Record spend in periods that match how you read the dashboard: a spend row is counted in
         full whenever its period overlaps the range you are viewing, so a month of spend seen
         through a 7-day window looks more expensive than it was.

@@ -32,7 +32,7 @@ function Submit() {
   );
 }
 
-const inputClass = "w-full rounded-lg border border-stone-300 px-3 py-2";
+const inputClass = "field-input";
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
 function hourLabel(hour: number) {
@@ -127,7 +127,7 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
         </div>
       </div>
 
-      <label className="flex items-start gap-3 rounded-lg border border-stone-200 p-3">
+      <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-3">
         <input
           type="checkbox"
           name="autopilot"
@@ -136,14 +136,14 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
         />
         <span className="text-sm">
           <span className="font-medium">Autopilot</span>
-          <span className="block text-stone-600">
+          <span className="block text-slate-600">
             Send queued follow-ups automatically. Turn off to hold everything for manual review —
             nothing is lost, texts just wait.
           </span>
         </span>
       </label>
 
-      <label className="flex items-start gap-3 rounded-lg border border-stone-200 p-3">
+      <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-3">
         <input
           type="checkbox"
           name="autoReplyEnabled"
@@ -152,13 +152,13 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
         />
         <span className="text-sm">
           <span className="font-medium">Instant acknowledgement</span>
-          <span className="block text-stone-600">
+          <span className="block text-slate-600">
             When a lead replies, text back immediately so they aren&apos;t left waiting for a coach.
           </span>
         </span>
       </label>
 
-      <fieldset className="space-y-3 rounded-lg border border-stone-200 p-3">
+      <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
         <legend className="px-1 text-sm font-semibold">Sales agent</legend>
         <label className="flex items-start gap-3">
           <input
@@ -169,7 +169,7 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
           />
           <span className="text-sm">
             <span className="font-medium">Let the agent write replies</span>
-            <span className="block text-stone-600">
+            <span className="block text-slate-600">
               It answers questions, handles objections and offers real class times from the
               knowledge base. Off means leads get a short acknowledgement and wait for a coach.
             </span>
@@ -202,7 +202,7 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
             defaultValue={settings.agentPersona}
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-stone-500">
+          <p className="mt-1 text-xs text-slate-500">
             Name and tone. Leads will assume this is a person, so use a real coach&apos;s name only
             if that coach is happy to be the one texting.
           </p>
@@ -220,7 +220,7 @@ export default function BotSettingsForm({ settings }: { settings: Settings }) {
               placeholder="(612) 555-0123"
               className={inputClass}
             />
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-slate-500">
               Whenever the agent hands a lead over — pricing, haggling, anything it may not answer —
               this number gets the lead&apos;s details and a link to the thread. Leave blank for no
               alerts.

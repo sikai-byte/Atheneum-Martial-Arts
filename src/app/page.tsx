@@ -75,12 +75,12 @@ export default async function HomePage() {
       </section>
 
       <section aria-labelledby="next-class">
-        <h2 id="next-class" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="next-class" className="eyebrow text-xs">
           Next booked class
         </h2>
         {nextBookings.length === 0 ? (
-          <div className="mt-2 rounded-xl border border-stone-200 bg-white p-4">
-            <p className="text-stone-700">Nothing booked yet.</p>
+          <div className="mt-2 card p-4">
+            <p className="text-slate-700">Nothing booked yet.</p>
             <Link
               href="/schedule"
               className="mt-3 inline-block rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
@@ -91,14 +91,14 @@ export default async function HomePage() {
         ) : (
           <div className="mt-2 space-y-3">
             {nextBookings.slice(0, profiles.length).map((b) => (
-              <div key={b.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={b.id} className="card p-4">
                 <p className="font-semibold">
                   {b.session.template.name}
                   {profiles.length > 1 && (
-                    <span className="ml-2 text-sm font-normal text-stone-500">for {b.profile.name}</span>
+                    <span className="ml-2 text-sm font-normal text-slate-500">for {b.profile.name}</span>
                   )}
                 </p>
-                <p className="mt-1 text-sm text-stone-600">
+                <p className="mt-1 text-sm text-slate-600">
                   {formatDay(b.session.startsAt)} at {formatTime(b.session.startsAt)} · {b.session.instructor}
                 </p>
                 {b.status === "WAITLISTED" && (
@@ -107,7 +107,7 @@ export default async function HomePage() {
                   </p>
                 )}
                 {b.session.template.gearNotes && (
-                  <p className="mt-1 text-sm text-stone-500">
+                  <p className="mt-1 text-sm text-slate-500">
                     Bring: {b.session.template.gearNotes}
                   </p>
                 )}
@@ -118,7 +118,7 @@ export default async function HomePage() {
       </section>
 
       <section aria-labelledby="membership">
-        <h2 id="membership" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="membership" className="eyebrow text-xs">
           Membership
         </h2>
         <div className="mt-2 space-y-3">
@@ -128,7 +128,7 @@ export default async function HomePage() {
                 ? Math.max(p.punchPassTotal - p.punchPassUsed, 0)
                 : null;
             return (
-              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={p.id} className="card p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <ProfilePhotoUploader
@@ -142,25 +142,25 @@ export default async function HomePage() {
                     />
                     <p className="font-medium">{p.name}</p>
                   </div>
-                  <p className="text-sm font-medium text-stone-700">
+                  <p className="text-sm font-medium text-slate-700">
                     {p.membershipPlan ?? "No plan on file"}
                   </p>
                 </div>
                 {p.membershipType === "MONTHLY" && p.membershipRenewsAt && (
-                  <p className="mt-1 text-sm text-stone-600">
+                  <p className="mt-1 text-sm text-slate-600">
                     Renews {formatDay(p.membershipRenewsAt)}
                   </p>
                 )}
                 {remaining != null && p.punchPassTotal != null && (
                   <div className="mt-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className={remaining <= 2 ? "font-medium text-amber-700" : "text-stone-600"}>
+                      <span className={remaining <= 2 ? "font-medium text-amber-700" : "text-slate-600"}>
                         {remaining} of {p.punchPassTotal} classes left
                       </span>
                       {remaining <= 2 && <span className="text-amber-700">Time to renew soon</span>}
                     </div>
                     <div
-                      className="mt-1.5 h-2 overflow-hidden rounded-full bg-stone-100"
+                      className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100"
                       role="progressbar"
                       aria-valuenow={remaining}
                       aria-valuemin={0}
@@ -175,7 +175,7 @@ export default async function HomePage() {
                   </div>
                 )}
                 {!p.membershipPlan && (
-                  <p className="mt-1 text-sm text-stone-500">
+                  <p className="mt-1 text-sm text-slate-500">
                     Ask the front desk to set up your membership details.
                   </p>
                 )}
@@ -186,7 +186,7 @@ export default async function HomePage() {
       </section>
 
       <section aria-labelledby="weekly-progress">
-        <h2 id="weekly-progress" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="weekly-progress" className="eyebrow text-xs">
           This week
         </h2>
         <div className="mt-2 space-y-3">
@@ -194,15 +194,15 @@ export default async function HomePage() {
             const count = weekAttendance.filter((a) => a.profileId === p.id).length;
             const remaining = Math.max(p.weeklyGoal - count, 0);
             return (
-              <div key={p.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div key={p.id} className="card p-4">
                 <div className="flex items-center justify-between">
                   <p className="font-medium">{p.name}</p>
-                  <p className="text-sm text-stone-500">
+                  <p className="text-sm text-slate-500">
                     {count} of {p.weeklyGoal} classes
                   </p>
                 </div>
                 <div
-                  className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100"
+                  className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"
                   role="progressbar"
                   aria-valuenow={count}
                   aria-valuemin={0}
@@ -214,7 +214,7 @@ export default async function HomePage() {
                     style={{ width: `${Math.min((count / p.weeklyGoal) * 100, 100)}%` }}
                   />
                 </div>
-                <p className="mt-2 text-sm text-stone-600">
+                <p className="mt-2 text-sm text-slate-600">
                   {remaining === 0
                     ? "Weekly goal reached — great consistency!"
                     : `${remaining} more ${remaining === 1 ? "session" : "sessions"} reaches the weekly goal.`}
@@ -227,7 +227,7 @@ export default async function HomePage() {
 
       {suggestions.length > 0 && (
         <section aria-labelledby="recommended">
-          <h2 id="recommended" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          <h2 id="recommended" className="eyebrow text-xs">
             Recommended classes
           </h2>
           <div className="mt-2 space-y-3">
@@ -235,10 +235,10 @@ export default async function HomePage() {
               <Link
                 key={s.id}
                 href="/schedule"
-                className="block rounded-xl border border-stone-200 bg-white p-4 hover:border-stone-400"
+                className="block card p-4 hover:border-slate-400"
               >
                 <p className="font-medium">{s.template.name}</p>
-                <p className="mt-1 text-sm text-stone-600">
+                <p className="mt-1 text-sm text-slate-600">
                   {formatDay(s.startsAt)} at {formatTime(s.startsAt)} · {s.instructor}
                 </p>
               </Link>
@@ -248,20 +248,20 @@ export default async function HomePage() {
       )}
 
       <section aria-labelledby="announcements">
-        <h2 id="announcements" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="announcements" className="eyebrow text-xs">
           Announcements
         </h2>
         <div className="mt-2 space-y-3">
           {announcements.length === 0 && (
-            <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
+            <p className="card p-4 text-sm text-slate-600">
               No updates from the coaches right now.
             </p>
           )}
           {announcements.map((a) => (
-            <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+            <div key={a.id} className="card p-4">
               <p className="font-medium">{a.title}</p>
-              <p className="mt-1 text-sm text-stone-600">{a.body}</p>
-              <p className="mt-2 text-xs text-stone-400">
+              <p className="mt-1 text-sm text-slate-600">{a.body}</p>
+              <p className="mt-2 text-xs text-slate-400">
                 {a.author} · {formatDay(a.createdAt)}
               </p>
             </div>

@@ -11,7 +11,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary w-full px-4 py-3 text-base font-semibold"
     >
       {pending ? "Sending…" : "Send reset link"}
     </button>
@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
       <h1 className="mt-3 text-center text-2xl font-bold tracking-tight text-brand">
         Forgot your password?
       </h1>
-      <p className="mt-1 text-center text-stone-600">
+      <p className="mt-1 text-center text-slate-600">
         Enter your email and we&apos;ll send you a link to reset it.
       </p>
       {state.done ? (
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
               type="email"
               required
               autoComplete="email"
-              className="w-full rounded-lg border border-stone-300 px-3 py-3"
+              className="field-input py-3"
             />
           </div>
           {state.error && (

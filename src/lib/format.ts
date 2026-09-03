@@ -69,5 +69,5 @@ export const programColors: Record<string, string> = {
   red: "bg-red-100 text-red-800",
   purple: "bg-purple-100 text-purple-800",
   green: "bg-green-100 text-green-800",
-  stone: "bg-stone-100 text-stone-800",
+  stone: "bg-slate-100 text-slate-700",
 };

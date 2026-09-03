@@ -10,8 +10,8 @@ const STATUS_STYLES: Record<string, string> = {
   ACTIVE: "bg-emerald-100 text-emerald-800",
   PAST_DUE: "bg-red-100 text-red-800",
   FROZEN: "bg-amber-100 text-amber-900",
-  CANCELLED: "bg-stone-200 text-stone-700",
-  NONE: "bg-stone-100 text-stone-600",
+  CANCELLED: "bg-slate-200 text-slate-700",
+  NONE: "bg-slate-100 text-slate-600",
 };
 
 function StatusPill({ status }: { status: string }) {
@@ -52,14 +52,14 @@ export default async function MembersPage() {
     <div className="space-y-6">
       <section className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Members</h1>
-          <p className="mt-1 text-stone-600">
+          <h1 className="page-title">Members</h1>
+          <p className="mt-1 text-slate-600">
             Dues, payment history, and lifetime value for everyone training here.
           </p>
         </div>
         <Link
           href="/coach/growth"
-          className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+          className="btn btn-secondary btn-md"
         >
           Growth &amp; LTV by source
         </Link>
@@ -67,18 +67,18 @@ export default async function MembersPage() {
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-stone-200 bg-white p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+          <div key={stat.label} className="card p-4">
+            <p className="eyebrow">
               {stat.label}
             </p>
-            <p className="mt-1 text-2xl font-bold">{stat.value}</p>
-            {stat.hint && <p className="text-xs text-stone-500">{stat.hint}</p>}
+            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-slate-900">{stat.value}</p>
+            {stat.hint && <p className="text-xs text-slate-500">{stat.hint}</p>}
           </div>
         ))}
       </section>
 
       {ranked.length === 0 ? (
-        <p className="rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+        <p className="card p-4 text-slate-600">
           No members yet. Sign a lead up from their lead page to create the first member record.
         </p>
       ) : (
@@ -87,23 +87,23 @@ export default async function MembersPage() {
             <li key={member.profileId}>
               <Link
                 href={`/coach/members/${member.profileId}`}
-                className="block rounded-xl border border-stone-200 bg-white p-4 hover:border-stone-400"
+                className="block card p-4 hover:border-slate-400"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="card-head">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold">{member.name}</p>
                     <StatusPill status={member.status} />
                     {member.isChild && (
-                      <span className="text-xs font-semibold text-stone-500">kid</span>
+                      <span className="text-xs font-semibold text-slate-500">kid</span>
                     )}
                   </div>
-                  <p className="text-sm text-stone-500">
+                  <p className="text-sm text-slate-500">
                     {member.planName ?? "No plan"}
                     {member.monthlyCents > 0 && ` · ${formatPrice(member.monthlyCents)}/mo`}
                   </p>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
-                  <span className="font-semibold text-stone-700">
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                  <span className="font-semibold text-slate-700">
                     {formatPrice(member.ltvCents)} lifetime
                   </span>
                   <span>{member.monthsActive} mo with us</span>
@@ -126,9 +126,9 @@ export default async function MembersPage() {
         </ul>
       )}
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold">Membership plans</h2>
-        <ul className="mt-2 space-y-1 text-sm text-stone-600">
+      <section className="card p-4">
+        <h2 className="card-title">Membership plans</h2>
+        <ul className="mt-2 space-y-1 text-sm text-slate-600">
           {plans.map((plan) => (
             <li key={plan.id}>
               {plan.name} — {formatPrice(plan.priceCents)}

@@ -50,8 +50,8 @@ export default async function AdminPage() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-bold tracking-tight">Admin</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title">Admin</h1>
+        <p className="mt-1 text-slate-600">
           Welcome, {admin.name}. Manage member accounts, households, and memberships.
         </p>
       </section>
@@ -67,23 +67,23 @@ export default async function AdminPage() {
             { label: "Coaches", value: coachCount },
             { label: "Open shop orders", value: openOrders },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-stone-200 bg-white p-4">
+            <div key={s.label} className="card p-4">
               <p className="text-2xl font-bold text-brand">{s.value}</p>
-              <p className="mt-1 text-xs text-stone-500">{s.label}</p>
+              <p className="mt-1 text-xs text-slate-500">{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       <section aria-labelledby="create-account">
-        <h2 id="create-account" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="create-account" className="eyebrow text-xs">
           Create an account
         </h2>
         <form
           action={createMemberAccount}
-          className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4"
+          className="mt-2 space-y-3 card p-4"
         >
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-slate-600">
             Creates a login and a new household. Share the temporary password with the member and
             ask them to keep it safe.
           </p>
@@ -98,7 +98,7 @@ export default async function AdminPage() {
                 required
                 maxLength={80}
                 placeholder="e.g. Sam Johnson"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               />
             </div>
             <div>
@@ -111,7 +111,7 @@ export default async function AdminPage() {
                 type="email"
                 required
                 placeholder="e.g. sam@example.com"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               />
             </div>
             <div>
@@ -125,7 +125,7 @@ export default async function AdminPage() {
                 required
                 minLength={8}
                 placeholder="At least 8 characters"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               />
             </div>
             <div>
@@ -135,7 +135,7 @@ export default async function AdminPage() {
               <select
                 id="new-role"
                 name="role"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+                className="field-input py-2.5"
               >
                 <option value="MEMBER">Member (trains themselves)</option>
                 <option value="PARENT">Parent (manages kids)</option>
@@ -154,20 +154,20 @@ export default async function AdminPage() {
       </section>
 
       <section aria-labelledby="households">
-        <h2 id="households" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="households" className="eyebrow text-xs">
           Members &amp; households
         </h2>
         <div className="mt-2 space-y-3">
           {memberHouseholds.length === 0 && (
-            <p className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
+            <p className="card p-4 text-sm text-slate-600">
               No member households yet — create the first account above.
             </p>
           )}
           {memberHouseholds.map((h) => (
-            <div key={h.id} className="rounded-xl border border-stone-200 bg-white p-4">
+            <div key={h.id} className="card p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">{h.name}</p>
-                <p className="text-xs text-stone-400">
+                <p className="text-xs text-slate-400">
                   {h.users.map((u) => `${u.email} (${u.role.toLowerCase()})`).join(", ")}
                 </p>
               </div>
@@ -175,7 +175,7 @@ export default async function AdminPage() {
                 {h.profiles.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-stone-100 bg-stone-50 px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
                   >
                     <div>
                       <p className="text-sm font-medium">
@@ -186,11 +186,11 @@ export default async function AdminPage() {
                           </span>
                         )}
                       </p>
-                      <p className="mt-0.5 text-xs text-stone-500">{membershipSummary(p)}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{membershipSummary(p)}</p>
                     </div>
                     <Link
                       href={`/admin/member/${p.id}`}
-                      className="rounded-md border border-stone-300 px-2.5 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
+                      className="btn btn-secondary px-2.5 py-1.5 text-xs"
                     >
                       Manage
                     </Link>
@@ -214,7 +214,7 @@ export default async function AdminPage() {
                       name="name"
                       required
                       maxLength={80}
-                      className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                      className="field-input"
                     />
                   </div>
                   <div className="w-28">
@@ -227,7 +227,7 @@ export default async function AdminPage() {
                       type="number"
                       min={2005}
                       max={new Date().getFullYear()}
-                      className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                      className="field-input"
                     />
                   </div>
                   <button

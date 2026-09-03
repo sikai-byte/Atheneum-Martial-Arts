@@ -19,7 +19,7 @@ export type KnowledgeRow = {
   verified: boolean;
 };
 
-const inputClass = "w-full rounded-lg border border-stone-300 px-3 py-2 text-sm";
+const inputClass = "field-input";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -27,7 +27,7 @@ function Submit({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary btn-md"
     >
       {pending ? "Saving…" : label}
     </button>
@@ -53,7 +53,7 @@ function ItemForm({
         await formAction(formData);
         onDone?.();
       }}
-      className="space-y-3 rounded-lg border border-stone-200 p-3"
+      className="space-y-3 rounded-lg border border-slate-200 p-3"
     >
       {item && <input type="hidden" name="id" value={item.id} />}
       <div className="grid gap-3 sm:grid-cols-3">
@@ -106,7 +106,7 @@ function ItemForm({
           Confirmed accurate
         </label>
       </div>
-      <p className="text-xs text-stone-500">
+      <p className="text-xs text-slate-500">
         The agent can only state facts from items marked <em>confirmed accurate</em>. Anything
         unconfirmed is withheld and it hands off to a coach instead.
       </p>
@@ -141,7 +141,7 @@ export default function KnowledgeEditor({
         <button
           type="button"
           onClick={() => setAdding((value) => !value)}
-          className="rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-700 hover:bg-stone-100"
+          className="btn btn-secondary btn-md"
         >
           {adding ? "Cancel" : "Add something the agent should know"}
         </button>
@@ -153,7 +153,7 @@ export default function KnowledgeEditor({
 
       <ul className="space-y-3">
         {items.map((item) => (
-          <li key={item.id} className="rounded-lg border border-stone-200 p-3">
+          <li key={item.id} className="rounded-lg border border-slate-200 p-3">
             {editing === item.id ? (
               <ItemForm
                 item={item}
@@ -165,7 +165,7 @@ export default function KnowledgeEditor({
               <>
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                    <p className="eyebrow">
                       {item.category.toLowerCase()}
                       {item.program && ` · ${item.program}`}
                       {item.audience !== "ALL" && ` · ${item.audience.toLowerCase()}`}
@@ -178,7 +178,7 @@ export default function KnowledgeEditor({
                         needs confirming
                       </span>
                     )}
-                    {!item.active && <span className="text-stone-500">off</span>}
+                    {!item.active && <span className="text-slate-500">off</span>}
                     <button
                       type="button"
                       onClick={() => setEditing(item.id)}
@@ -187,13 +187,13 @@ export default function KnowledgeEditor({
                       Edit
                     </button>
                     <form action={deleteKnowledgeAction.bind(null, item.id)}>
-                      <button type="submit" className="text-stone-500 underline">
+                      <button type="submit" className="text-slate-500 underline">
                         Delete
                       </button>
                     </form>
                   </div>
                 </div>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-stone-700">{item.body}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{item.body}</p>
               </>
             )}
           </li>

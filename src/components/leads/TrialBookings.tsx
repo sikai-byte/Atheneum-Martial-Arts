@@ -14,7 +14,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60"
+      className="btn btn-primary btn-md"
     >
       {pending ? "Booking…" : "Book them in"}
     </button>
@@ -43,21 +43,21 @@ export default function TrialBookings({
   );
 
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-4">
-      <h2 className="font-semibold">Trial classes</h2>
+    <section className="card p-4">
+      <h2 className="card-title">Trial classes</h2>
       {bookings.length === 0 ? (
-        <p className="mt-1 text-sm text-stone-600">Not booked into a class yet.</p>
+        <p className="mt-1 text-sm text-slate-600">Not booked into a class yet.</p>
       ) : (
         <ul className="mt-2 space-y-1 text-sm">
           {bookings.map((booking) => (
-            <li key={booking.id} className="flex flex-wrap items-center justify-between gap-2">
-              <span className={booking.status === "CANCELLED" ? "text-stone-400 line-through" : ""}>
+            <li key={booking.id} className="card-head">
+              <span className={booking.status === "CANCELLED" ? "text-slate-400 line-through" : ""}>
                 {booking.label}
-                <span className="ml-2 text-xs text-stone-500">booked by {booking.bookedBy}</span>
+                <span className="ml-2 text-xs text-slate-500">booked by {booking.bookedBy}</span>
               </span>
               {booking.status === "BOOKED" && !booking.inPast && (
                 <form action={cancelTrialAction.bind(null, leadId, booking.id)}>
-                  <button type="submit" className="text-xs text-stone-500 underline hover:text-stone-700">
+                  <button type="submit" className="text-xs text-slate-500 underline hover:text-slate-700">
                     Cancel
                   </button>
                 </form>
@@ -71,14 +71,14 @@ export default function TrialBookings({
                     </button>
                   </form>
                   <form action={markTrialAttendanceAction.bind(null, leadId, booking.id, false)}>
-                    <button type="submit" className="text-xs text-stone-500 underline hover:text-stone-700">
+                    <button type="submit" className="text-xs text-slate-500 underline hover:text-slate-700">
                       No-show
                     </button>
                   </form>
                 </span>
               )}
               {(booking.status === "ATTENDED" || booking.status === "NO_SHOW") && (
-                <span className="text-xs text-stone-500">
+                <span className="text-xs text-slate-500">
                   {booking.status === "ATTENDED" ? "attended" : "no-show"}
                 </span>
               )}
@@ -88,13 +88,13 @@ export default function TrialBookings({
       )}
 
       {classes.length === 0 ? (
-        <p className="mt-3 text-sm text-stone-500">No upcoming classes on the schedule to book.</p>
+        <p className="mt-3 text-sm text-slate-500">No upcoming classes on the schedule to book.</p>
       ) : (
         <form action={formAction} className="mt-3 flex flex-wrap items-center gap-2">
           <select
             name="sessionId"
             defaultValue=""
-            className="min-w-64 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm"
+            className="min-w-64 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="">Pick a class…</option>
             {classes.map((option) => (

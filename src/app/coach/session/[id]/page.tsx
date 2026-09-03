@@ -33,26 +33,26 @@ export default async function RosterPage({ params }: { params: { id: string } })
 
   return (
     <div className="space-y-6">
-      <Link href="/coach" className="text-sm text-stone-500 hover:text-stone-800">
+      <Link href="/coach" className="text-sm text-slate-500 hover:text-slate-800">
         &larr; Back to Today
       </Link>
 
       <section>
-        <h1 className="text-2xl font-bold tracking-tight">{session.template.name}</h1>
-        <p className="mt-1 text-stone-600">
+        <h1 className="page-title">{session.template.name}</h1>
+        <p className="mt-1 text-slate-600">
           {formatDay(session.startsAt)} at {formatTime(session.startsAt)} · {session.instructor}
         </p>
-        <p className="mt-1 text-sm text-stone-500">
+        <p className="mt-1 text-sm text-slate-500">
           {booked.length}/{session.template.capacity} booked · {session.attendances.length} checked in
         </p>
       </section>
 
       <section aria-labelledby="roster">
-        <h2 id="roster" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+        <h2 id="roster" className="eyebrow text-xs">
           Roster
         </h2>
         {booked.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 text-stone-600">
+          <p className="mt-2 card p-4 text-slate-600">
             No bookings yet.
           </p>
         ) : (
@@ -62,11 +62,11 @@ export default async function RosterPage({ params }: { params: { id: string } })
               return (
                 <li
                   key={b.id}
-                  className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-4"
+                  className="flex items-center justify-between card p-4"
                 >
                   <div>
                     <p className="font-medium">{b.profile.name}</p>
-                    <p className="text-sm text-stone-500">
+                    <p className="text-sm text-slate-500">
                       {b.profile.isChild ? "Youth member" : "Adult member"} ·{" "}
                       {attended ? "Checked in" : "Not checked in"}
                     </p>
@@ -76,7 +76,7 @@ export default async function RosterPage({ params }: { params: { id: string } })
                       type="submit"
                       className={`rounded-lg px-4 py-2.5 text-sm font-semibold ${
                         attended
-                          ? "border border-stone-300 text-stone-700 hover:bg-stone-100"
+                          ? "border border-slate-300 text-slate-700 hover:bg-slate-100"
                           : "bg-emerald-700 text-white hover:bg-emerald-800"
                       }`}
                     >
@@ -92,12 +92,12 @@ export default async function RosterPage({ params }: { params: { id: string } })
 
       {waitlisted.length > 0 && (
         <section aria-labelledby="waitlist">
-          <h2 id="waitlist" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          <h2 id="waitlist" className="eyebrow text-xs">
             Waitlist
           </h2>
           <ul className="mt-2 space-y-2">
             {waitlisted.map((b) => (
-              <li key={b.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <li key={b.id} className="card p-4">
                 <p className="font-medium">{b.profile.name}</p>
               </li>
             ))}
@@ -107,12 +107,12 @@ export default async function RosterPage({ params }: { params: { id: string } })
 
       {walkIns.length > 0 && (
         <section aria-labelledby="walkins">
-          <h2 id="walkins" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          <h2 id="walkins" className="eyebrow text-xs">
             Checked in without booking
           </h2>
           <ul className="mt-2 space-y-2">
             {walkIns.map((a) => (
-              <li key={a.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <li key={a.id} className="card p-4">
                 <p className="font-medium">{a.profile.name}</p>
               </li>
             ))}
