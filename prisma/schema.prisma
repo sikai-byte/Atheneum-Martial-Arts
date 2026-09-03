@@ -168,6 +168,8 @@ model TrialBooking {
   id        String   @id @default(cuid())
   status    String   @default("BOOKED") // BOOKED | ATTENDED | NO_SHOW | CANCELLED
   bookedBy  String   @default("agent") // "agent" or a staff name
+  attendanceAt DateTime? // when a coach marked them attended/no-show; null = still unknown
+  attendanceBy String   @default("")
   createdAt DateTime @default(now())
   leadId    String
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -269,8 +271,10 @@ model Lead {
   insight      LeadInsight?
   profile      MemberProfile?
   trials       TrialBooking[]
+  staffTouches StaffTouch[]
 
   @@index([status])
+  @@index([createdAt])
 }
 
 model Sequence {
@@ -320,6 +324,7 @@ model LeadMessage {
   errorText  String?
   automated  Boolean  @default(false)
   agentAction String? // ANSWER | BOOK | UPSELL | HANDOFF — set when the sales agent wrote the message
+  staffEdited Boolean @default(false) // staff rewrote the agent's draft before it went out
   proposedSessionId String? // class the agent offered; booked for real when the message goes out
   stepOrder  Int?
   sentBy     String?  // staff name for manual sends
@@ -380,6 +385,47 @@ model BotConfig {
 /// Everything the sales agent is allowed to claim: programs, prices, policies, objection
 /// handling and upsell paths. Staff edit these, and the agent may not state a fact that is
 /// not in here.
+/// Money spent on a source or campaign over a period. Entered by hand — no ad platform is
+/// connected — and the only input the funnel numbers cannot derive for themselves.
+model AdSpend {
+  id          String   @id @default(cuid())
+  source      String   // matches Lead.source, e.g. FACEBOOK_ADS
+  campaign    String?  // null = all spend on that source for the period
+  periodStart DateTime
+  periodEnd   DateTime
+  amountCents Int
+  note        String   @default("")
+  recordedBy  String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([source, periodStart])
+}
+
+/// Measured staff attention on a lead. Written by the lead page's activity beacon (real active
+/// seconds, not a guess) and by staff actions, so "minutes per lead" is observed rather than
+/// estimated.
+model StaffTouch {
+  id        String   @id @default(cuid())
+  staffName String
+  kind      String   @default("VIEW") // VIEW | REPLY | APPROVE | CALL | NOTE
+  seconds   Int      @default(0)
+  createdAt DateTime @default(now())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+}
+
+/// A daily copy of the funnel metrics, so trends survive even though the underlying rows keep
+/// changing. Written by the dispatcher tick once per studio-local day.
+model MetricSnapshot {
+  id         String   @id @default(cuid())
+  capturedOn String   @unique // YYYY-MM-DD in studio time
+  windowDays Int      @default(30)
+  payload    String   // JSON blob of FunnelMetrics
+  createdAt  DateTime @default(now())
+}
+
 model KnowledgeItem {
   id        String   @id @default(cuid())
   category  String   @default("FAQ") // PROGRAM | PRICING | SCHEDULE | POLICY | OBJECTION | UPSELL | FAQ

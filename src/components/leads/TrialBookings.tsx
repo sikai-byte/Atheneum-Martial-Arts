@@ -1,7 +1,12 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { bookTrialAction, cancelTrialAction, type FormState } from "@/lib/leadActions";
+import {
+  bookTrialAction,
+  cancelTrialAction,
+  markTrialAttendanceAction,
+  type FormState,
+} from "@/lib/leadActions";
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -23,7 +28,13 @@ export default function TrialBookings({
   classes,
 }: {
   leadId: string;
-  bookings: { id: string; label: string; status: string; bookedBy: string }[];
+  bookings: {
+    id: string;
+    label: string;
+    status: string;
+    bookedBy: string;
+    inPast: boolean;
+  }[];
   classes: { id: string; label: string }[];
 }) {
   const [state, formAction] = useFormState<FormState, FormData>(
@@ -44,12 +55,32 @@ export default function TrialBookings({
                 {booking.label}
                 <span className="ml-2 text-xs text-stone-500">booked by {booking.bookedBy}</span>
               </span>
-              {booking.status === "BOOKED" && (
+              {booking.status === "BOOKED" && !booking.inPast && (
                 <form action={cancelTrialAction.bind(null, leadId, booking.id)}>
                   <button type="submit" className="text-xs text-stone-500 underline hover:text-stone-700">
                     Cancel
                   </button>
                 </form>
+              )}
+              {/* Whether they turned up is the one funnel number nothing can infer. */}
+              {booking.status === "BOOKED" && booking.inPast && (
+                <span className="flex items-center gap-3">
+                  <form action={markTrialAttendanceAction.bind(null, leadId, booking.id, true)}>
+                    <button type="submit" className="text-xs font-medium text-green-700 underline">
+                      Showed up
+                    </button>
+                  </form>
+                  <form action={markTrialAttendanceAction.bind(null, leadId, booking.id, false)}>
+                    <button type="submit" className="text-xs text-stone-500 underline hover:text-stone-700">
+                      No-show
+                    </button>
+                  </form>
+                </span>
+              )}
+              {(booking.status === "ATTENDED" || booking.status === "NO_SHOW") && (
+                <span className="text-xs text-stone-500">
+                  {booking.status === "ATTENDED" ? "attended" : "no-show"}
+                </span>
               )}
             </li>
           ))}

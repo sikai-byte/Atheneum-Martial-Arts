@@ -683,6 +683,7 @@ export async function approveAgentDraft(messageId: string, staffName: string, ed
   if (draft.status !== "DRAFT") throw new LeadInputError("That message was already handled.");
   const body = truncateForSms((editedBody ?? draft.body).trim());
   if (!body) throw new LeadInputError("Write a message first.");
+  const edited = body !== draft.body.trim();
 
   await prisma.leadMessage.delete({ where: { id: messageId } });
   const lead = await prisma.lead.findUniqueOrThrow({ where: { id: draft.leadId } });
@@ -700,6 +701,7 @@ export async function approveAgentDraft(messageId: string, staffName: string, ed
       errorText: result.ok ? null : result.error,
       agentAction: draft.agentAction,
       proposedSessionId: draft.proposedSessionId,
+      staffEdited: edited,
       sentBy: staffName,
     },
   });
@@ -721,11 +723,48 @@ export async function approveAgentDraft(messageId: string, staffName: string, ed
   await logEvent(
     draft.leadId,
     "SMS_SENT",
-    editedBody && editedBody.trim() !== draft.body
+    edited
       ? `${staffName} edited and sent the agent's draft`
       : `${staffName} approved the agent's draft`,
     body,
   );
+}
+
+/**
+ * Whether a booked trial actually turned up. Nothing infers this — an unmarked trial stays
+ * unknown rather than counting as a no-show, so the show rate is only ever built on real answers.
+ */
+export async function markTrialAttendance(bookingId: string, attended: boolean, staffName: string) {
+  const booking = await prisma.trialBooking.findUniqueOrThrow({ where: { id: bookingId } });
+  if (booking.status === "CANCELLED") throw new LeadInputError("That trial was cancelled.");
+  const updated = await prisma.trialBooking.update({
+    where: { id: bookingId },
+    data: {
+      status: attended ? "ATTENDED" : "NO_SHOW",
+      attendanceAt: new Date(),
+      attendanceBy: staffName,
+    },
+  });
+  await logEvent(
+    booking.leadId,
+    "TRIAL_ATTENDANCE",
+    attended ? `${staffName} marked the trial attended` : `${staffName} marked the trial a no-show`,
+  );
+  return updated;
+}
+
+/** Records measured staff attention on a lead. See `src/lib/analytics/funnel.ts`. */
+export async function recordStaffTouch(
+  leadId: string,
+  staffName: string,
+  seconds: number,
+  kind = "VIEW",
+) {
+  // A tab left open should not read as an hour of selling; the beacon caps each flush and this
+  // caps whatever arrives regardless.
+  const capped = Math.min(600, Math.max(0, Math.round(seconds)));
+  if (capped <= 0) return null;
+  return prisma.staffTouch.create({ data: { leadId, staffName, seconds: capped, kind } });
 }
 
 export async function discardAgentDraft(messageId: string, staffName: string) {

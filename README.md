@@ -186,6 +186,32 @@ land in the ledger (idempotently, keyed on the Stripe invoice ID), failed invoic
 membership to past due and text the member a link to update their card, and cancelled
 subscriptions end the membership.
 
+### Telemetry (`/coach/growth`)
+
+The funnel is measured from rows the app already writes, so there is no separate event pipeline to
+keep in sync: first-contact latency from `Lead.firstContactedAt`, replies from `LeadMessage`,
+bookings and attendance from `TrialBooking`, conversion from `Membership`, money from `Payment`.
+`src/lib/analytics/funnel.ts` is the only place these are defined; the dashboard and
+`GET /api/metrics/funnel?days=30` both read it, and a nightly `MetricSnapshot` keeps history so
+periods can be compared after the live numbers have moved on.
+
+Three rules make the numbers trustworthy rather than flattering:
+
+- Every rate carries its own numerator and denominator, and the UI prints both — a 100% built on two
+  leads should look like what it is.
+- Unknown is not failure. A past trial nobody marked is neither a show nor a no-show: it leaves the
+  show-rate denominator and is surfaced as "unmarked" instead.
+- Leads belong to a period by `createdAt` (when we got them), never `submittedAt`, which for CSV
+  imports is the original enquiry date and would scatter imported leads across old periods.
+
+Two inputs cannot be derived and are collected instead: ad spend, typed in at
+`/coach/growth/spend` because no ad platform is connected, and staff attention, measured by a
+beacon on the lead page that only counts time while the tab is visible and someone is actually
+interacting — a lead page left open overnight adds nothing.
+
+"Fully automated" stays at 0% while the agent runs in draft mode, by design. It and "drafts edited"
+are the two numbers to watch before trusting autopilot.
+
 ## Current state (as of the sales-agent work)
 
 What is real and what is still pending, since none of this is on `main` yet:

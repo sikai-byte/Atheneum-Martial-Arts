@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import AgentDraft from "@/components/leads/AgentDraft";
 import { StatusBadge, TemperatureBadge } from "@/components/leads/LeadBadges";
 import SmsComposer from "@/components/leads/SmsComposer";
+import TimeOnLead from "@/components/leads/TimeOnLead";
 import TrialBookings from "@/components/leads/TrialBookings";
 import ConvertLeadForm from "@/components/members/ConvertLeadForm";
 import { requireCoach } from "@/lib/auth";
@@ -64,13 +65,14 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
   const config = await getBotConfig();
   const bookableClasses = await upcomingClasses("", lead.ageGroup, config.timezone, 24);
   const classLabels = new Map(bookableClasses.map((option) => [option.id, option.label]));
+  const now = new Date();
   const trials = lead.trials.map((trial) => ({
     id: trial.id,
     status: trial.status,
     bookedBy: trial.bookedBy,
+    inPast: trial.session.startsAt < now,
     label: `${trial.session.template.name} — ${formatDateTime(trial.session.startsAt)}`,
   }));
-  const now = new Date();
   const drafts = lead.messages.filter((message) => message.status === "DRAFT");
   const thread = lead.messages.filter((message) => message.status !== "DRAFT");
   const answers = (() => {
@@ -279,6 +281,8 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
       </section>
 
       <TrialBookings leadId={lead.id} bookings={trials} classes={bookableClasses} />
+
+      <TimeOnLead leadId={lead.id} />
 
       <section className="rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="font-semibold">Follow-up</h2>

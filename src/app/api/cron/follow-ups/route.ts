@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { captureSnapshot } from "@/lib/analytics/funnel";
+import { getBotConfig } from "@/lib/leads/config";
 import { dispatchDueFollowUps } from "@/lib/leads/engine";
 import { ensureUpcomingSessions } from "@/lib/schedule/rollout";
 
@@ -20,7 +22,14 @@ async function tick(request: Request) {
   }
   const sessionsCreated = await ensureUpcomingSessions();
   const summary = await dispatchDueFollowUps();
-  return NextResponse.json({ ranAt: new Date().toISOString(), sessionsCreated, ...summary });
+  const config = await getBotConfig();
+  const snapshot = await captureSnapshot({ timezone: config.timezone });
+  return NextResponse.json({
+    ranAt: new Date().toISOString(),
+    sessionsCreated,
+    ...summary,
+    snapshot,
+  });
 }
 
 export async function GET(request: Request) {

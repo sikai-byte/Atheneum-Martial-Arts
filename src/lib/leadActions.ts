@@ -16,6 +16,7 @@ import {
   handleInboundSms,
   intakeLead,
   LeadInputError,
+  markTrialAttendance,
   optOutLead,
   pauseSequence,
   REACTIVATION_SEQUENCE,
@@ -199,6 +200,17 @@ export async function cancelTrialAction(leadId: string, bookingId: string) {
   const coach = await requireCoach();
   await cancelTrial(bookingId, coach.name);
   refreshLead(leadId);
+}
+
+export async function markTrialAttendanceAction(
+  leadId: string,
+  bookingId: string,
+  attended: boolean,
+) {
+  const coach = await requireCoach();
+  await markTrialAttendance(bookingId, attended, coach.name);
+  refreshLead(leadId);
+  revalidatePath("/coach/growth");
 }
 
 export async function saveKnowledgeAction(
