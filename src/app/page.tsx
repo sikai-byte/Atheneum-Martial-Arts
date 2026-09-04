@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import ProfilePhotoUploader from "@/components/ProfilePhotoUploader";
+import StartHereBanner from "@/components/StartHereBanner";
 import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
 import { formatDay, formatTime, startOfWeek } from "@/lib/format";
@@ -78,6 +79,8 @@ export default async function HomePage() {
           </p>
         </div>
       </section>
+
+      {!user.startHereDismissedAt && <StartHereBanner />}
 
       <section aria-labelledby="next-class">
         <h2 id="next-class" className="text-sm font-semibold uppercase tracking-wide text-stone-500">

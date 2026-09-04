@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireCoach } from "@/lib/auth";
 import { deleteAnnouncement, postAnnouncement } from "@/lib/actions";
 import { formatDay, formatTime } from "@/lib/format";
+import StartHereBanner from "@/components/StartHereBanner";
 import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
@@ -86,6 +87,8 @@ export default async function CoachTodayPage() {
           Welcome, {coach.name}. Tap a class to check members in.
         </p>
       </section>
+
+      {!coach.startHereDismissedAt && <StartHereBanner />}
 
       <section aria-labelledby="today-classes">
         <h2 id="today-classes" className="text-sm font-semibold uppercase tracking-wide text-stone-500">

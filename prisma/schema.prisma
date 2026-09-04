@@ -20,8 +20,19 @@ model User {
   posts        Post[]
   comments     Comment[]
   resetTokens  PasswordResetToken[]
+  feedback     Feedback[]
   deactivatedAt DateTime? // leaver hold: sign-in blocked, data retained
+  startHereDismissedAt DateTime? // "Start here" home banner dismissed
   createdAt    DateTime @default(now())
+}
+
+model Feedback {
+  id         String    @id @default(cuid())
+  message    String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PasswordResetToken {

@@ -159,6 +159,15 @@ export default async function AdminPage({
               Who has a signed liability waiver on file — and who still needs one before training.
             </p>
           </Link>
+          <Link
+            href="/admin/feedback"
+            className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-brand/40 hover:shadow-sm"
+          >
+            <p className="font-semibold text-brand">Member feedback &rarr;</p>
+            <p className="mt-1 text-xs text-stone-500">
+              Bug reports and ideas sent through the in-app feedback form, with resolve tracking.
+            </p>
+          </Link>
         </div>
       </section>
 

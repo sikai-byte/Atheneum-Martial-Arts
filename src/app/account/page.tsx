@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { changeOwnPassword } from "@/lib/actions";
@@ -33,6 +34,15 @@ export default async function AccountPage({
         <h1 className="text-2xl font-bold tracking-tight">My account</h1>
         <p className="mt-1 text-stone-600">
           {user.name} — {user.email}
+        </p>
+        <p className="mt-2 text-sm">
+          <Link href="/start-here" className="font-semibold text-brand hover:underline">
+            Start here — quick tour
+          </Link>
+          <span className="mx-2 text-stone-300">·</span>
+          <Link href="/feedback" className="font-semibold text-brand hover:underline">
+            Send feedback
+          </Link>
         </p>
       </section>
 

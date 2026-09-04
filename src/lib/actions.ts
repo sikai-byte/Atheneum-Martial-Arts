@@ -19,6 +19,7 @@ import { isLockedOut, rateLimit, recordFailure } from "./rateLimit";
 import { RETENTION_YEARS, purgeDueAt, purgeProfileData } from "./leavers";
 import {
   appUrl,
+  sendEmail,
   sendPasswordResetEmail,
   sendTrialBookingEmail,
   sendTrialWelcomeEmail,
@@ -1171,4 +1172,70 @@ export async function deleteAccountData(profileId: string, formData: FormData) {
 
   revalidatePath("/admin");
   succeedTo("/admin", `All data for ${name ?? profile.name} has been permanently deleted.`);
+}
+
+export async function dismissStartHere() {
+  const user = await requireUser();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { startHereDismissedAt: new Date() },
+  });
+  revalidatePath("/");
+  revalidatePath("/coach");
+}
+
+export async function submitFeedback(formData: FormData) {
+  const user = await requireUser();
+  if (!rateLimit("feedback", 10, 15 * 60 * 1000)) {
+    failTo("/feedback", "Too many feedback submissions — please wait a few minutes and try again.");
+  }
+  const message = String(formData.get("message") ?? "").trim();
+  if (!message) failTo("/feedback", "Please write a short note before sending.");
+  if (message.length > 2000) failTo("/feedback", "Feedback must be 2000 characters or fewer.");
+
+  await prisma.feedback.create({ data: { userId: user.id, message } });
+
+  try {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", deactivatedAt: null },
+      select: { email: true },
+    });
+    await Promise.all(
+      admins.map((a) =>
+        sendEmail(
+          a.email,
+          `Portal feedback from ${user.name}`,
+          `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+            <h2 style="color:#0039b7">Atheneum Martial Arts</h2>
+            <p><strong>${user.name}</strong> (${user.email}) sent feedback:</p>
+            <blockquote style="border-left:3px solid #0039b7;margin:0;padding:8px 12px;background:#f5f5f4">${message
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")}</blockquote>
+            <p><a href="${appUrl()}/admin/feedback">View all feedback</a></p>
+          </div>`
+        )
+      )
+    );
+  } catch (err) {
+    console.error("Feedback notification email failed:", err);
+  }
+
+  succeedTo("/feedback", "Thanks — your feedback is on its way to the team!");
+}
+
+export async function resolveFeedback(feedbackId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const resolved = String(formData.get("resolved") ?? "") === "1";
+  const item = await prisma.feedback.update({
+    where: { id: feedbackId },
+    data: { resolvedAt: resolved ? new Date() : null },
+    include: { user: { select: { name: true } } },
+  });
+  await recordAudit(admin, "FEEDBACK_UPDATED", {
+    targetType: "Feedback",
+    targetId: feedbackId,
+    summary: `Marked feedback from ${item.user.name} as ${resolved ? "resolved" : "open"}`,
+  });
+  revalidatePath("/admin/feedback");
 }

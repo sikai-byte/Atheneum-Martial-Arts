@@ -24,6 +24,7 @@ export default defineConfig({
     timeout: 60_000,
     env: {
       DATABASE_URL: TEST_DATABASE_URL,
+      RESEND_API_KEY: "",
       SESSION_SECRET: "playwright-test-session-secret-at-least-32-chars",
       UPLOAD_DIR: "./test-uploads",
       APP_URL: `http://localhost:${PORT}`,
