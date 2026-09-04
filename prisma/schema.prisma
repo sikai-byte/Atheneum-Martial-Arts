@@ -1,0 +1,280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String               @id @default(cuid())
+  email                String               @unique
+  passwordHash         String
+  name                 String
+  role                 String // MEMBER | PARENT | COACH | ADMIN
+  householdId          String?
+  household            Household?           @relation(fields: [householdId], references: [id])
+  profile              MemberProfile?
+  orders               Order[]
+  posts                Post[]
+  comments             Comment[]
+  resetTokens          PasswordResetToken[]
+  feedback             Feedback[]
+  deactivatedAt        DateTime? // leaver hold: sign-in blocked, data retained
+  startHereDismissedAt DateTime? // "Start here" home banner dismissed
+  createdAt            DateTime             @default(now())
+}
+
+model Feedback {
+  id         String    @id @default(cuid())
+  message    String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Household {
+  id       String          @id @default(cuid())
+  name     String
+  users    User[]
+  profiles MemberProfile[]
+}
+
+model MemberProfile {
+  id                 String           @id @default(cuid())
+  name               String
+  isChild            Boolean          @default(false)
+  birthYear          Int?
+  experienceLevel    String           @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
+  weeklyGoal         Int              @default(3)
+  membershipPlan     String? // e.g. "Adult Unlimited", "Kids Monthly", "10-Class Punch Pass"
+  membershipType     String? // MONTHLY | PUNCH_PASS
+  membershipRenewsAt DateTime?
+  punchPassTotal     Int?
+  punchPassUsed      Int              @default(0)
+  trialClassType     String           @default("BOTH") // BOTH | GROUP | PRIVATE — which trial class types can be booked
+  trialStartedAt     DateTime? // set when the profile is created as (or becomes) a trial
+  trialConvertedAt   DateTime? // set when a trial converts to a paid membership
+  photoType          String           @default("") // mime type of uploaded photo; empty = none
+  photoUpdatedAt     DateTime?
+  pinHash            String           @default("") // bcrypt hash of the 4-digit kiosk check-in PIN; empty = not set
+  deactivatedAt      DateTime? // leaver hold: hidden from rosters/kiosk/booking, data retained
+  userId             String?          @unique
+  user               User?            @relation(fields: [userId], references: [id])
+  householdId        String
+  household          Household        @relation(fields: [householdId], references: [id])
+  bookings           Booking[]
+  attendances        Attendance[]
+  milestones         Milestone[]
+  waiver             WaiverSignature?
+}
+
+model WaiverSignature {
+  id           String        @id @default(cuid())
+  signedName   String
+  guardianName String        @default("") // signing parent/guardian for minors
+  source       String        @default("KIOSK") // KIOSK | ONLINE | ADMIN
+  version      Int           @default(1)
+  signedAt     DateTime      @default(now())
+  profileId    String        @unique
+  profile      MemberProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model CoachProfile {
+  id             String    @id @default(cuid())
+  name           String
+  role           String    @default("MAIN") // MAIN | ASSISTANT
+  disciplines    String    @default("") // comma-separated
+  bio            String    @default("")
+  photoType      String    @default("") // mime type of uploaded photo; empty = none
+  photoUpdatedAt DateTime?
+  sortOrder      Int       @default(0)
+  active         Boolean   @default(true)
+}
+
+model Program {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  description String
+  color       String          @default("stone")
+  templates   ClassTemplate[]
+}
+
+model ClassTemplate {
+  id          String          @id @default(cuid())
+  name        String
+  description String
+  ageGroup    String          @default("ADULTS") // ADULTS | KIDS | ALL
+  level       String          @default("ALL") // BEGINNER | ALL | COMPETITION
+  capacity    Int             @default(12)
+  durationMin Int             @default(60)
+  gearNotes   String          @default("")
+  programId   String
+  program     Program         @relation(fields: [programId], references: [id])
+  sessions    ClassSession[]
+  slots       RecurringSlot[]
+}
+
+model RecurringSlot {
+  id         String        @id @default(cuid())
+  dayOfWeek  Int // 0=Sun ... 6=Sat
+  hour       Int
+  minute     Int
+  instructor String        @default("Atheneum Coaches")
+  active     Boolean       @default(true)
+  templateId String
+  template   ClassTemplate @relation(fields: [templateId], references: [id])
+}
+
+model ClassSession {
+  id          String        @id @default(cuid())
+  startsAt    DateTime
+  instructor  String
+  status      String        @default("SCHEDULED") // SCHEDULED | CANCELLED
+  templateId  String
+  template    ClassTemplate @relation(fields: [templateId], references: [id])
+  bookings    Booking[]
+  attendances Attendance[]
+}
+
+model Booking {
+  id             String        @id @default(cuid())
+  status         String        @default("BOOKED") // BOOKED | WAITLISTED | CANCELLED
+  createdAt      DateTime      @default(now())
+  reminderSentAt DateTime? // day-before trial class reminder email
+  profileId      String
+  profile        MemberProfile @relation(fields: [profileId], references: [id])
+  sessionId      String
+  session        ClassSession  @relation(fields: [sessionId], references: [id])
+
+  @@unique([profileId, sessionId])
+}
+
+model Attendance {
+  id          String        @id @default(cuid())
+  checkedInAt DateTime      @default(now())
+  late        Boolean       @default(false) // checked in more than 5 minutes after class start
+  recordedBy  String
+  profileId   String
+  profile     MemberProfile @relation(fields: [profileId], references: [id])
+  sessionId   String
+  session     ClassSession  @relation(fields: [sessionId], references: [id])
+
+  @@unique([profileId, sessionId])
+}
+
+model Milestone {
+  id        String        @id @default(cuid())
+  title     String
+  notes     String        @default("")
+  awardedAt DateTime      @default(now())
+  awardedBy String
+  profileId String
+  profile   MemberProfile @relation(fields: [profileId], references: [id])
+}
+
+model Product {
+  id          String         @id @default(cuid())
+  name        String
+  description String         @default("")
+  category    String // MOUTHGUARD | RASHGUARD | TSHIRT | SHORTS | GI | GLOVES | SHINGUARDS | OTHER
+  priceCents  Int
+  sizes       String         @default("") // comma-separated size options; empty = one size
+  active      Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  stockCount  Int? // null = inventory not tracked; 0 = out of stock
+  orders      Order[]
+  images      ProductImage[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  mimeType  String
+  sortOrder Int      @default(0) // lowest = cover image
+  createdAt DateTime @default(now())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  status     String   @default("PLACED") // PLACED | READY | PICKED_UP | CANCELLED
+  size       String   @default("")
+  quantity   Int      @default(1)
+  priceCents Int // unit price at time of order
+  createdAt  DateTime @default(now())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  title     String    @default("")
+  body      String
+  category  String    @default("GENERAL") // GENERAL | QUESTION | NEWS
+  photoType String    @default("") // mime type of attached photo; empty = none
+  createdAt DateTime  @default(now())
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model TelemetryEvent {
+  id        String   @id @default(cuid())
+  type      String // LOGIN | SELF_BOOKING | ADMIN_BOOKING | SELF_CANCELLATION | ADMIN_CANCELLATION | WAITLIST_PROMOTION | AUTOMATED_EMAIL | SELF_PASSWORD_RESET
+  userId    String?
+  profileId String?
+  metadata  String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorName  String
+  actorRole  String
+  action     String
+  targetType String   @default("")
+  targetId   String   @default("")
+  summary    String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  audience  String   @default("ALL") // ALL | ADULTS | KIDS | COMPETITION
+  createdAt DateTime @default(now())
+  author    String
+}
