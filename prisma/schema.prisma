@@ -8,22 +8,22 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         String   // MEMBER | PARENT | COACH | ADMIN
-  householdId  String?
-  household    Household? @relation(fields: [householdId], references: [id])
-  profile      MemberProfile?
-  orders       Order[]
-  posts        Post[]
-  comments     Comment[]
-  resetTokens  PasswordResetToken[]
-  feedback     Feedback[]
-  deactivatedAt DateTime? // leaver hold: sign-in blocked, data retained
+  id                   String               @id @default(cuid())
+  email                String               @unique
+  passwordHash         String
+  name                 String
+  role                 String // MEMBER | PARENT | COACH | ADMIN
+  householdId          String?
+  household            Household?           @relation(fields: [householdId], references: [id])
+  profile              MemberProfile?
+  orders               Order[]
+  posts                Post[]
+  comments             Comment[]
+  resetTokens          PasswordResetToken[]
+  feedback             Feedback[]
+  deactivatedAt        DateTime? // leaver hold: sign-in blocked, data retained
   startHereDismissedAt DateTime? // "Start here" home banner dismissed
-  createdAt    DateTime @default(now())
+  createdAt            DateTime             @default(now())
 }
 
 model Feedback {
@@ -53,42 +53,42 @@ model Household {
 }
 
 model MemberProfile {
-  id              String   @id @default(cuid())
-  name            String
-  isChild         Boolean  @default(false)
-  birthYear       Int?
-  experienceLevel String   @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
-  weeklyGoal      Int      @default(3)
-  membershipPlan  String?  // e.g. "Adult Unlimited", "Kids Monthly", "10-Class Punch Pass"
-  membershipType  String?  // MONTHLY | PUNCH_PASS
+  id                 String           @id @default(cuid())
+  name               String
+  isChild            Boolean          @default(false)
+  birthYear          Int?
+  experienceLevel    String           @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
+  weeklyGoal         Int              @default(3)
+  membershipPlan     String? // e.g. "Adult Unlimited", "Kids Monthly", "10-Class Punch Pass"
+  membershipType     String? // MONTHLY | PUNCH_PASS
   membershipRenewsAt DateTime?
-  punchPassTotal  Int?
-  punchPassUsed   Int      @default(0)
-  trialClassType  String   @default("BOTH") // BOTH | GROUP | PRIVATE — which trial class types can be booked
-  trialStartedAt  DateTime? // set when the profile is created as (or becomes) a trial
-  trialConvertedAt DateTime? // set when a trial converts to a paid membership
-  photoType       String   @default("") // mime type of uploaded photo; empty = none
-  photoUpdatedAt  DateTime?
-  pinHash         String   @default("") // bcrypt hash of the 4-digit kiosk check-in PIN; empty = not set
-  deactivatedAt   DateTime? // leaver hold: hidden from rosters/kiosk/booking, data retained
-  userId          String?  @unique
-  user            User?    @relation(fields: [userId], references: [id])
-  householdId     String
-  household       Household @relation(fields: [householdId], references: [id])
-  bookings        Booking[]
-  attendances     Attendance[]
-  milestones      Milestone[]
-  waiver          WaiverSignature?
+  punchPassTotal     Int?
+  punchPassUsed      Int              @default(0)
+  trialClassType     String           @default("BOTH") // BOTH | GROUP | PRIVATE — which trial class types can be booked
+  trialStartedAt     DateTime? // set when the profile is created as (or becomes) a trial
+  trialConvertedAt   DateTime? // set when a trial converts to a paid membership
+  photoType          String           @default("") // mime type of uploaded photo; empty = none
+  photoUpdatedAt     DateTime?
+  pinHash            String           @default("") // bcrypt hash of the 4-digit kiosk check-in PIN; empty = not set
+  deactivatedAt      DateTime? // leaver hold: hidden from rosters/kiosk/booking, data retained
+  userId             String?          @unique
+  user               User?            @relation(fields: [userId], references: [id])
+  householdId        String
+  household          Household        @relation(fields: [householdId], references: [id])
+  bookings           Booking[]
+  attendances        Attendance[]
+  milestones         Milestone[]
+  waiver             WaiverSignature?
 }
 
 model WaiverSignature {
-  id           String   @id @default(cuid())
+  id           String        @id @default(cuid())
   signedName   String
-  guardianName String   @default("") // signing parent/guardian for minors
-  source       String   @default("KIOSK") // KIOSK | ONLINE | ADMIN
-  version      Int      @default(1)
-  signedAt     DateTime @default(now())
-  profileId    String   @unique
+  guardianName String        @default("") // signing parent/guardian for minors
+  source       String        @default("KIOSK") // KIOSK | ONLINE | ADMIN
+  version      Int           @default(1)
+  signedAt     DateTime      @default(now())
+  profileId    String        @unique
   profile      MemberProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
 
@@ -105,44 +105,44 @@ model CoachProfile {
 }
 
 model Program {
-  id          String  @id @default(cuid())
-  name        String  @unique
+  id          String          @id @default(cuid())
+  name        String          @unique
   description String
-  color       String  @default("stone")
+  color       String          @default("stone")
   templates   ClassTemplate[]
 }
 
 model ClassTemplate {
-  id          String  @id @default(cuid())
+  id          String          @id @default(cuid())
   name        String
   description String
-  ageGroup    String  @default("ADULTS") // ADULTS | KIDS | ALL
-  level       String  @default("ALL")    // BEGINNER | ALL | COMPETITION
-  capacity    Int     @default(12)
-  durationMin Int     @default(60)
-  gearNotes   String  @default("")
+  ageGroup    String          @default("ADULTS") // ADULTS | KIDS | ALL
+  level       String          @default("ALL") // BEGINNER | ALL | COMPETITION
+  capacity    Int             @default(12)
+  durationMin Int             @default(60)
+  gearNotes   String          @default("")
   programId   String
-  program     Program @relation(fields: [programId], references: [id])
+  program     Program         @relation(fields: [programId], references: [id])
   sessions    ClassSession[]
   slots       RecurringSlot[]
 }
 
 model RecurringSlot {
-  id         String  @id @default(cuid())
+  id         String        @id @default(cuid())
   dayOfWeek  Int // 0=Sun ... 6=Sat
   hour       Int
   minute     Int
-  instructor String  @default("Atheneum Coaches")
-  active     Boolean @default(true)
+  instructor String        @default("Atheneum Coaches")
+  active     Boolean       @default(true)
   templateId String
   template   ClassTemplate @relation(fields: [templateId], references: [id])
 }
 
 model ClassSession {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   startsAt    DateTime
   instructor  String
-  status      String   @default("SCHEDULED") // SCHEDULED | CANCELLED
+  status      String        @default("SCHEDULED") // SCHEDULED | CANCELLED
   templateId  String
   template    ClassTemplate @relation(fields: [templateId], references: [id])
   bookings    Booking[]
@@ -150,49 +150,50 @@ model ClassSession {
 }
 
 model Booking {
-  id        String   @id @default(cuid())
-  status    String   @default("BOOKED") // BOOKED | WAITLISTED | CANCELLED
-  createdAt DateTime @default(now())
-  profileId String
-  profile   MemberProfile @relation(fields: [profileId], references: [id])
-  sessionId String
-  session   ClassSession @relation(fields: [sessionId], references: [id])
+  id             String        @id @default(cuid())
+  status         String        @default("BOOKED") // BOOKED | WAITLISTED | CANCELLED
+  createdAt      DateTime      @default(now())
+  reminderSentAt DateTime? // day-before trial class reminder email
+  profileId      String
+  profile        MemberProfile @relation(fields: [profileId], references: [id])
+  sessionId      String
+  session        ClassSession  @relation(fields: [sessionId], references: [id])
 
   @@unique([profileId, sessionId])
 }
 
 model Attendance {
-  id         String   @id @default(cuid())
-  checkedInAt DateTime @default(now())
-  recordedBy String
-  profileId  String
-  profile    MemberProfile @relation(fields: [profileId], references: [id])
-  sessionId  String
-  session    ClassSession @relation(fields: [sessionId], references: [id])
+  id          String        @id @default(cuid())
+  checkedInAt DateTime      @default(now())
+  recordedBy  String
+  profileId   String
+  profile     MemberProfile @relation(fields: [profileId], references: [id])
+  sessionId   String
+  session     ClassSession  @relation(fields: [sessionId], references: [id])
 
   @@unique([profileId, sessionId])
 }
 
 model Milestone {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   title     String
-  notes     String   @default("")
-  awardedAt DateTime @default(now())
+  notes     String        @default("")
+  awardedAt DateTime      @default(now())
   awardedBy String
   profileId String
   profile   MemberProfile @relation(fields: [profileId], references: [id])
 }
 
 model Product {
-  id          String  @id @default(cuid())
+  id          String         @id @default(cuid())
   name        String
-  description String  @default("")
-  category    String  // MOUTHGUARD | RASHGUARD | TSHIRT | SHORTS | GI | GLOVES | SHINGUARDS | OTHER
+  description String         @default("")
+  category    String // MOUTHGUARD | RASHGUARD | TSHIRT | SHORTS | GI | GLOVES | SHINGUARDS | OTHER
   priceCents  Int
-  sizes       String  @default("") // comma-separated size options; empty = one size
-  active      Boolean @default(true)
-  sortOrder   Int     @default(0)
-  stockCount  Int?    // null = inventory not tracked; 0 = out of stock
+  sizes       String         @default("") // comma-separated size options; empty = one size
+  active      Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  stockCount  Int? // null = inventory not tracked; 0 = out of stock
   orders      Order[]
   images      ProductImage[]
 }
@@ -211,7 +212,7 @@ model Order {
   status     String   @default("PLACED") // PLACED | READY | PICKED_UP | CANCELLED
   size       String   @default("")
   quantity   Int      @default(1)
-  priceCents Int      // unit price at time of order
+  priceCents Int // unit price at time of order
   createdAt  DateTime @default(now())
   userId     String
   user       User     @relation(fields: [userId], references: [id])
@@ -243,7 +244,7 @@ model Comment {
 
 model TelemetryEvent {
   id        String   @id @default(cuid())
-  type      String   // LOGIN | SELF_BOOKING | ADMIN_BOOKING | SELF_CANCELLATION | ADMIN_CANCELLATION | WAITLIST_PROMOTION | AUTOMATED_EMAIL | SELF_PASSWORD_RESET
+  type      String // LOGIN | SELF_BOOKING | ADMIN_BOOKING | SELF_CANCELLATION | ADMIN_CANCELLATION | WAITLIST_PROMOTION | AUTOMATED_EMAIL | SELF_PASSWORD_RESET
   userId    String?
   profileId String?
   metadata  String   @default("")

@@ -4,5 +4,7 @@ export async function register() {
     startBackupSchedule();
     const { startRetentionSchedule } = await import("./lib/leavers");
     startRetentionSchedule();
+    const { startReminderSchedule } = await import("./lib/reminders");
+    startReminderSchedule();
   }
 }
