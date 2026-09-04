@@ -165,6 +165,7 @@ model Booking {
 model Attendance {
   id          String        @id @default(cuid())
   checkedInAt DateTime      @default(now())
+  late        Boolean       @default(false) // checked in more than 5 minutes after class start
   recordedBy  String
   profileId   String
   profile     MemberProfile @relation(fields: [profileId], references: [id])

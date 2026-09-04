@@ -13,6 +13,7 @@ import { recordAudit } from "./audit";
 import { appUrl, sendEmail } from "./email";
 import { WAIVER_VERSION } from "./waiver";
 import { isLockedOut, rateLimit, recordFailure } from "./rateLimit";
+import { isLateCheckIn } from "./attendance";
 
 const KIOSK_ACTOR = { id: "kiosk", name: "Front-desk kiosk", role: "KIOSK" };
 
@@ -158,7 +159,12 @@ export async function kioskCheckIn(
     if (existing) return { alreadyCheckedIn: true };
     const fresh = await tx.memberProfile.findUniqueOrThrow({ where: { id: targetProfileId } });
     await tx.attendance.create({
-      data: { profileId: targetProfileId, sessionId, recordedBy: "Kiosk self check-in" },
+      data: {
+        profileId: targetProfileId,
+        sessionId,
+        recordedBy: "Kiosk self check-in",
+        late: isLateCheckIn(session.startsAt),
+      },
     });
     if (fresh.membershipType === "PUNCH_PASS") {
       await tx.memberProfile.update({

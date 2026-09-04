@@ -12,6 +12,7 @@ import { requireAdmin, requireCoach, requireUser } from "./auth";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
 import { formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
+import { isLateCheckIn } from "./attendance";
 import { trialEndOfDay } from "./trial";
 import { trackEvent } from "./telemetry";
 import { recordAudit } from "./audit";
@@ -266,6 +267,7 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
       where: { profileId_sessionId: { profileId, sessionId } },
     });
     const profile = await tx.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+    const classSession = await tx.classSession.findUniqueOrThrow({ where: { id: sessionId } });
     const isPunchPass = profile.membershipType === "PUNCH_PASS";
     if (existing) {
       await tx.attendance.delete({ where: { id: existing.id } });
@@ -278,7 +280,7 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
       return { verb: "removed", memberName: profile.name };
     }
     await tx.attendance.create({
-      data: { profileId, sessionId, recordedBy: coach.name },
+      data: { profileId, sessionId, recordedBy: coach.name, late: isLateCheckIn(classSession.startsAt) },
     });
     if (isPunchPass) {
       await tx.memberProfile.update({

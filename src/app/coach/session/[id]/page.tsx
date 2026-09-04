@@ -28,6 +28,14 @@ function CheckInButton({ attended }: { attended: boolean }) {
   );
 }
 
+function LateBadge() {
+  return (
+    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+      Late
+    </span>
+  );
+}
+
 function RemoveButton() {
   return (
     <SubmitButton
@@ -62,7 +70,8 @@ export default async function RosterPage({
   });
   if (!session) notFound();
 
-  const attendedIds = new Set(session.attendances.map((a) => a.profileId));
+  const attendanceByProfile = new Map(session.attendances.map((a) => [a.profileId, a]));
+  const attendedIds = new Set(attendanceByProfile.keys());
   const booked = [...session.bookings.filter((b) => b.status === "BOOKED")].sort((a, b) =>
     a.profile.name.localeCompare(b.profile.name)
   );
@@ -134,7 +143,8 @@ export default async function RosterPage({
         ) : (
           <ul className="mt-2 space-y-2">
             {booked.map((b) => {
-              const attended = attendedIds.has(b.profileId);
+              const attendance = attendanceByProfile.get(b.profileId);
+              const attended = Boolean(attendance);
               return (
                 <li
                   key={b.id}
@@ -146,10 +156,11 @@ export default async function RosterPage({
                     <p className="truncate font-medium">
                       {attended && <span className="mr-1.5 text-emerald-700">✓</span>}
                       {b.profile.name}
+                      {attendance?.late && <LateBadge />}
                     </p>
                     <p className="text-sm text-stone-500">
                       {b.profile.isChild ? "Youth member" : "Adult member"} ·{" "}
-                      {attended ? "Checked in" : "Not checked in"}
+                      {attended ? (attendance?.late ? "Checked in late" : "Checked in") : "Not checked in"}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -176,13 +187,17 @@ export default async function RosterPage({
           </h2>
           <ul className="mt-2 space-y-2">
             {waitlisted.map((b) => {
-              const attended = attendedIds.has(b.profileId);
+              const attendance = attendanceByProfile.get(b.profileId);
+              const attended = Boolean(attendance);
               return (
                 <li
                   key={b.id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
                 >
-                  <p className="min-w-0 truncate font-medium">{b.profile.name}</p>
+                  <p className="min-w-0 truncate font-medium">
+                    {b.profile.name}
+                    {attendance?.late && <LateBadge />}
+                  </p>
                   <div className="flex shrink-0 items-center gap-2">
                     <form action={toggleAttendance.bind(null, b.profileId, session.id)}>
                       <CheckInButton attended={attended} />
@@ -214,6 +229,7 @@ export default async function RosterPage({
                 <p className="min-w-0 truncate font-medium">
                   <span className="mr-1.5 text-emerald-700">✓</span>
                   {a.profile.name}
+                  {a.late && <LateBadge />}
                 </p>
                 <form action={toggleAttendance.bind(null, a.profileId, session.id)}>
                   <CheckInButton attended />
