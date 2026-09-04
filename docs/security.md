@@ -51,15 +51,15 @@ How personal data is protected today, plus a prioritized list of gaps and recomm
 - **Leaver workflow**: deactivation revokes access immediately, cancels future bookings, retains data for 7 years, then an automated scheduler permanently purges it. Admins can reactivate before purge, or permanently delete immediately (requires typing the person's exact name).
 - Permanent deletion removes the account, profile, bookings, attendance, posts, comments, waivers, PINs, and uploaded photos; audit history of the deletion itself is preserved.
 - **Audit log**: every admin/coach mutation (account changes, memberships, resets, impersonation, deactivation/deletion, content edits, photo changes) is recorded with actor, target, and timestamp — visible in Admin → Audit history.
-- **Backups**: nightly automated backups to the Railway volume (`/data/backups`), restore procedure documented and tested in `docs/backup-restore.md`.
+- **Backups**: nightly automated backups to the Railway volume (`/data/backups`), AES-256-GCM encrypted when `BACKUP_ENCRYPTION_KEY` is set, with an optional mirror to S3-compatible off-site storage (`BACKUP_S3_*`). Restore procedure documented and tested in `docs/backup-restore.md`.
 
 ### Secrets
-- All secrets (`SESSION_SECRET`, `DATABASE_URL`, Resend API key) live in Railway environment variables — none are in the repository or logs.
+- All secrets (`SESSION_SECRET`, `DATABASE_URL`, Resend API key, `BACKUP_ENCRYPTION_KEY`, off-site storage keys) live in Railway environment variables — none are in the repository or logs. Keep an off-Railway copy of `BACKUP_ENCRYPTION_KEY` (e.g. in a password manager): without it, encrypted backups cannot be restored.
 
 ## Gaps & recommended hardening (prioritized)
 
 1. **Destroy session cookies on deactivation** — a leaver's stale cookie is correctly rejected (they can't access anything), but the cookie itself isn't cleared until they hit the site. Cosmetic — access is already fully revoked.
-2. **Backup encryption/off-site copy** — nightly backups are unencrypted JSON on the same Railway volume as the app. If Railway storage were compromised, backups go with it. Recommend encrypting backups and/or pushing a copy to separate storage (e.g. S3/R2 bucket).
+2. ~~**Backup encryption/off-site copy**~~ — done: backups are AES-256-GCM encrypted and mirrored to S3-compatible off-site storage when configured (see `docs/backup-restore.md`).
 3. **Rate limiting is in-memory** — resets on each deploy and is per-instance. Fine for the current single-instance deployment (noted in code); needs a shared store (e.g. Redis) only if we scale to multiple instances.
 4. **Admin 2FA** — admin accounts are the crown jewels (they can see everyone). Worth adding TOTP two-factor for admin/coach accounts before wide launch.
 5. **Session lifetime** — sessions currently use the iron-session default (~2 weeks). Consider a shorter lifetime for admin sessions specifically.

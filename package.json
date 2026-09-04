@@ -15,12 +15,14 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:export": "tsx scripts/export-data.ts",
-    "db:import": "tsx scripts/import-data.ts"
+    "db:import": "tsx scripts/import-data.ts",
+    "backup:decrypt": "tsx scripts/decrypt-backup.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1120.0",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "iron-session": "^8.0.4",
