@@ -93,8 +93,12 @@ export function corsHeaders(request: Request): Record<string, string> | null {
   const origin = request.headers.get("origin");
   if (!origin) return {};
   const allowed = allowedOrigins();
-  // Nothing configured means local development: allow it rather than making the widget look broken.
-  if (allowed.length === 0) return { "Access-Control-Allow-Origin": origin, Vary: "Origin" };
+  // An unconfigured allowlist is a development convenience, never a production one: in production
+  // it would let any site on the internet embed the widget and spend the studio's model budget.
+  if (allowed.length === 0) {
+    if (process.env.NODE_ENV === "production") return null;
+    return { "Access-Control-Allow-Origin": origin, Vary: "Origin" };
+  }
   if (!allowed.includes(origin.replace(/\/$/, ""))) return null;
   return {
     "Access-Control-Allow-Origin": origin,

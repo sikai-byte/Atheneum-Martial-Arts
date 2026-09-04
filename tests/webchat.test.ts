@@ -301,6 +301,21 @@ describe("CORS allowlist", () => {
   it("treats a same-origin request (the embed page) as fine", () => {
     expect(corsHeaders(new Request("https://portal.example/api/chat"))).toEqual({});
   });
+
+  it("refuses every other site in production when the allowlist was never configured", () => {
+    vi.stubEnv("WEB_CHAT_ORIGINS", "");
+    vi.stubEnv("PUBLIC_BASE_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    const request = new Request("https://portal.example/api/chat", {
+      headers: { origin: "https://scraper.example" },
+    });
+    expect(corsHeaders(request)).toBeNull();
+
+    // Same missing configuration in development stays permissive, so the widget still works locally.
+    vi.stubEnv("NODE_ENV", "development");
+    expect(corsHeaders(request)).not.toBeNull();
+    vi.unstubAllEnvs();
+  });
 });
 
 describe("daily model budget", () => {

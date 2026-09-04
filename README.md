@@ -122,7 +122,9 @@ than a `channel` flag on the agent:
 - **The endpoint is public.** `POST /api/chat` is the only route the internet reaches without a
   login, so it has a `WEB_CHAT_ORIGINS` allowlist, database-counted per-IP limits (5 chats and 40
   messages an hour), a per-conversation turn cap, and a daily model-reply cap. Past the cap — or with
-  no LLM key at all — the bot offers a coach instead of erroring.
+  no LLM key at all — the bot offers a coach instead of erroring. Leaving `WEB_CHAT_ORIGINS` unset is
+  a local-development convenience only: in production an unset allowlist refuses every cross-origin
+  request rather than allowing all of them, so the widget goes quiet until you configure it.
 
 ### Running the dispatcher
 
