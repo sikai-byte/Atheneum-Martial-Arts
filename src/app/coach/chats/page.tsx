@@ -160,12 +160,12 @@ export default async function WebChatsPage({
                   <p className="text-sm text-slate-500">{formatRelative(chat.updatedAt)}</p>
                 </div>
                 {chat.messages[0] && (
-                  <p className="mt-2 line-clamp-2 text-sm text-slate-600">
+                  <p className="mt-2 line-clamp-2 break-words text-sm text-slate-600">
                     {chat.messages[0].role === "VISITOR" ? "They said: " : "Bot: "}
                     {chat.messages[0].body}
                   </p>
                 )}
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 break-words text-xs text-slate-500">
                   {chat.messageCount} message{chat.messageCount === 1 ? "" : "s"}
                   {chat.interest ? ` · ${chat.interest}` : ""}
                   {chat.pageUrl ? ` · ${chat.pageUrl}` : ""}

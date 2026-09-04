@@ -89,7 +89,8 @@ export default async function WebChatPage({ params }: { params: { id: string } }
                   : "ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-brand px-3 py-2 text-sm text-white"
               }
             >
-              <p className="whitespace-pre-wrap">{message.body}</p>
+              {/* A visitor can paste a thousand characters with no spaces in them. */}
+              <p className="whitespace-pre-wrap break-words">{message.body}</p>
               <p
                 className={`mt-1 text-[11px] ${
                   message.role === "VISITOR" ? "text-slate-500" : "text-blue-100"
