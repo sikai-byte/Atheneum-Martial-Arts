@@ -57,6 +57,12 @@ export type CreateLeadInput = {
   notes?: string;
   submittedAt?: Date;
   sequenceKey?: string;
+  /**
+   * Whether this lead consented to texts. Form and Facebook leads tick a consent box before they
+   * reach us, so it defaults to true. The website chat bot can produce a lead who never did, and
+   * such a lead must be created without being enrolled in any texting cadence.
+   */
+  smsConsent?: boolean;
 };
 
 export class LeadInputError extends Error {}
@@ -111,6 +117,15 @@ export async function intakeLead(input: CreateLeadInput) {
 
   if (lead.optedOutAt) {
     await logEvent(lead.id, "PAUSED", "Follow-up not started: this number opted out of texts");
+    return { lead, enrolled: false };
+  }
+  if (input.smsConsent === false) {
+    await logEvent(
+      lead.id,
+      "PAUSED",
+      "Follow-up not started: this lead has not consented to texts",
+      "Call them, or get consent before any automated texting.",
+    );
     return { lead, enrolled: false };
   }
 
@@ -525,7 +540,11 @@ function keywordAcknowledgement(
  * not answer — so a live conversation is not left waiting on someone checking the inbox. Quiet
  * hours do not apply: this goes to staff, not to a lead.
  */
-async function alertCoach(leadId: string, reason: string, config: BotSettings): Promise<boolean> {
+export async function alertCoach(
+  leadId: string,
+  reason: string,
+  config: BotSettings,
+): Promise<boolean> {
   const to = normalizePhone(config.coachAlertPhone);
   if (!to) return false;
 

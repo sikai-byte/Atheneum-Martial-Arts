@@ -338,10 +338,15 @@ export async function updateBotConfigAction(
       agentPersona: String(formData.get("agentPersona") ?? "").trim() || undefined,
       coachAlertPhone: String(formData.get("coachAlertPhone") ?? "").trim(),
       coachAlertHours: Math.min(168, Math.max(0, Number(formData.get("coachAlertHours")) || 0)),
+      webChatEnabled: formData.get("webChatEnabled") === "on",
+      webChatGreeting: String(formData.get("webChatGreeting") ?? "").trim() || undefined,
+      webChatDailyCap: Math.min(10_000, Math.max(0, Number(formData.get("webChatDailyCap")) || 0)),
+      webChatMaxTurns: Math.min(200, Math.max(1, Number(formData.get("webChatMaxTurns")) || 30)),
     },
     create: { id: "default" },
   });
   revalidatePath("/coach/leads");
   revalidatePath("/coach/leads/settings");
+  revalidatePath("/coach/chats");
   return { message: "Saved." };
 }
