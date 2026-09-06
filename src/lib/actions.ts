@@ -1241,3 +1241,62 @@ export async function resolveFeedback(feedbackId: string, formData: FormData) {
   });
   revalidatePath("/admin/feedback");
 }
+
+export async function logPrivateSession(formData: FormData) {
+  const coach = await requireCoach();
+
+  const profileId = String(formData.get("profileId") ?? "");
+  const heldAtRaw = String(formData.get("heldAt") ?? "");
+  const notes = String(formData.get("notes") ?? "").trim();
+  if (!profileId) throw new Error("Please pick a member.");
+  const heldAt = heldAtRaw ? new Date(heldAtRaw) : new Date();
+  if (Number.isNaN(heldAt.getTime())) throw new Error("Please enter a valid date and time.");
+
+  const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+  if (profile.deactivatedAt) throw new Error("This member is deactivated.");
+
+  const photo = formData.get("photo");
+  let photoType = "";
+  let photoBuffer: Buffer | null = null;
+  if (photo instanceof Blob && photo.size > 0) {
+    if (photo.size > 8 * 1024 * 1024) throw new Error("Photo is too large — please use one under 8 MB.");
+    if (!PHOTO_TYPES.includes(photo.type)) throw new Error("Please use a JPEG, PNG, or WebP photo.");
+    photoType = photo.type;
+    photoBuffer = Buffer.from(await photo.arrayBuffer());
+  }
+
+  const session = await prisma.privateSession.create({
+    data: { profileId, heldAt, notes, photoType, recordedBy: coach.name },
+  });
+  if (photoBuffer) {
+    await ensureUploadsDir();
+    await fs.writeFile(path.join(uploadsDir(), `private-${session.id}`), photoBuffer);
+  }
+
+  await recordAudit(coach, "PRIVATE_SESSION_LOGGED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Private session logged for ${profile.name} (${formatDay(heldAt)})`,
+  });
+
+  revalidatePath("/coach/private-sessions");
+  revalidatePath("/progress");
+}
+
+export async function deletePrivateSession(sessionId: string) {
+  const coach = await requireCoach();
+  const session = await prisma.privateSession.delete({
+    where: { id: sessionId },
+    include: { profile: { select: { name: true } } },
+  });
+  if (session.photoType) {
+    await fs.unlink(path.join(uploadsDir(), `private-${sessionId}`)).catch(() => {});
+  }
+  await recordAudit(coach, "PRIVATE_SESSION_DELETED", {
+    targetType: "MemberProfile",
+    targetId: session.profileId,
+    summary: `Private session removed for ${session.profile.name} (${formatDay(session.heldAt)})`,
+  });
+  revalidatePath("/coach/private-sessions");
+  revalidatePath("/progress");
+}

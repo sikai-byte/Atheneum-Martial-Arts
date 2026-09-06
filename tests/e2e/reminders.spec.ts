@@ -89,6 +89,8 @@ test.describe("trial class reminder emails", () => {
       where: { id: kid.id },
       data: { membershipType: "TRIAL", membershipRenewsAt: inDays(7), trialStartedAt: new Date() },
     });
+    // Drop seeded bookings so only this test's booking is in the reminder window.
+    await db.booking.deleteMany({ where: { profileId: kid.id } });
     const session = await makeSession(20);
     const booking = await db.booking.create({
       data: { profileId: kid.id, sessionId: session.id },

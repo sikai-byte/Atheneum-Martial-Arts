@@ -26,6 +26,11 @@ export async function purgeProfileData(profileId: string): Promise<string | null
   });
   if (!profile) return null;
 
+  const privateSessionsWithPhotos = await prisma.privateSession.findMany({
+    where: { profileId, photoType: { not: "" } },
+    select: { id: true },
+  });
+
   const posts = profile.user
     ? await prisma.post.findMany({
         where: { authorId: profile.user.id, photoType: { not: "" } },
@@ -37,6 +42,7 @@ export async function purgeProfileData(profileId: string): Promise<string | null
     await tx.booking.deleteMany({ where: { profileId } });
     await tx.attendance.deleteMany({ where: { profileId } });
     await tx.milestone.deleteMany({ where: { profileId } });
+    await tx.privateSession.deleteMany({ where: { profileId } });
     await tx.waiverSignature.deleteMany({ where: { profileId } });
     await tx.telemetryEvent.deleteMany({ where: { profileId } });
 
@@ -62,6 +68,9 @@ export async function purgeProfileData(profileId: string): Promise<string | null
   });
 
   await fs.unlink(path.join(uploadsDir(), profileId)).catch(() => {});
+  for (const ps of privateSessionsWithPhotos) {
+    await fs.unlink(path.join(uploadsDir(), `private-${ps.id}`)).catch(() => {});
+  }
   for (const post of posts) {
     await fs.unlink(path.join(uploadsDir(), `post-${post.id}`)).catch(() => {});
   }

@@ -78,6 +78,7 @@ model MemberProfile {
   bookings           Booking[]
   attendances        Attendance[]
   milestones         Milestone[]
+  privateSessions    PrivateSession[]
   waiver             WaiverSignature?
 }
 
@@ -173,6 +174,19 @@ model Attendance {
   session     ClassSession  @relation(fields: [sessionId], references: [id])
 
   @@unique([profileId, sessionId])
+}
+
+model PrivateSession {
+  id         String        @id @default(cuid())
+  heldAt     DateTime      @default(now())
+  notes      String        @default("")
+  photoType  String        @default("") // mime type of attached photo; empty = none
+  recordedBy String
+  createdAt  DateTime      @default(now())
+  profileId  String
+  profile    MemberProfile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, heldAt])
 }
 
 model Milestone {

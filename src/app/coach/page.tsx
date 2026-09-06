@@ -103,6 +103,27 @@ export default async function CoachTodayPage() {
         )}
       </section>
 
+      <section aria-labelledby="private-training">
+        <h2 id="private-training" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Private training
+        </h2>
+        <Link
+          href="/coach/private-sessions"
+          className="mt-2 block rounded-xl border border-stone-200 bg-white p-4 shadow-sm hover:border-stone-400"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">Log a private session</p>
+              <p className="mt-1 text-sm text-stone-600">
+                Competition training and one-on-ones that aren&apos;t on the schedule — with notes
+                and a photo.
+              </p>
+            </div>
+            <span className="shrink-0 text-sm font-semibold text-emerald-700">Open &rarr;</span>
+          </div>
+        </Link>
+      </section>
+
       <section aria-labelledby="upcoming-classes">
         <h2 id="upcoming-classes" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
           Upcoming

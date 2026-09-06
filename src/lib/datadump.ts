@@ -16,7 +16,9 @@ export interface DataDump {
     household: Prisma.HouseholdCreateManyInput[];
     user: Prisma.UserCreateManyInput[];
     passwordResetToken: Prisma.PasswordResetTokenCreateManyInput[];
+    feedback?: Prisma.FeedbackCreateManyInput[];
     memberProfile: Prisma.MemberProfileCreateManyInput[];
+    waiverSignature?: Prisma.WaiverSignatureCreateManyInput[];
     coachProfile: Prisma.CoachProfileCreateManyInput[];
     program: Prisma.ProgramCreateManyInput[];
     classTemplate: Prisma.ClassTemplateCreateManyInput[];
@@ -25,7 +27,9 @@ export interface DataDump {
     booking: Prisma.BookingCreateManyInput[];
     attendance: Prisma.AttendanceCreateManyInput[];
     milestone: Prisma.MilestoneCreateManyInput[];
+    privateSession?: Prisma.PrivateSessionCreateManyInput[];
     product: Prisma.ProductCreateManyInput[];
+    productImage?: Prisma.ProductImageCreateManyInput[];
     order: Prisma.OrderCreateManyInput[];
     post: Prisma.PostCreateManyInput[];
     comment: Prisma.CommentCreateManyInput[];
@@ -40,7 +44,9 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
     household,
     user,
     passwordResetToken,
+    feedback,
     memberProfile,
+    waiverSignature,
     coachProfile,
     program,
     classTemplate,
@@ -49,7 +55,9 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
     booking,
     attendance,
     milestone,
+    privateSession,
     product,
+    productImage,
     order,
     post,
     comment,
@@ -60,7 +68,9 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
     prisma.household.findMany(),
     prisma.user.findMany(),
     prisma.passwordResetToken.findMany(),
+    prisma.feedback.findMany(),
     prisma.memberProfile.findMany(),
+    prisma.waiverSignature.findMany(),
     prisma.coachProfile.findMany(),
     prisma.program.findMany(),
     prisma.classTemplate.findMany(),
@@ -69,7 +79,9 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
     prisma.booking.findMany(),
     prisma.attendance.findMany(),
     prisma.milestone.findMany(),
+    prisma.privateSession.findMany(),
     prisma.product.findMany(),
+    prisma.productImage.findMany(),
     prisma.order.findMany(),
     prisma.post.findMany(),
     prisma.comment.findMany(),
@@ -85,7 +97,9 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
       household,
       user,
       passwordResetToken,
+      feedback,
       memberProfile,
+      waiverSignature,
       coachProfile,
       program,
       classTemplate,
@@ -94,7 +108,9 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
       booking,
       attendance,
       milestone,
+      privateSession,
       product,
+      productImage,
       order,
       post,
       comment,
@@ -119,7 +135,9 @@ export async function importAll(prisma: PrismaClient, dump: DataDump): Promise<v
     prisma.comment.deleteMany(),
     prisma.post.deleteMany(),
     prisma.order.deleteMany(),
+    prisma.productImage.deleteMany(),
     prisma.product.deleteMany(),
+    prisma.privateSession.deleteMany(),
     prisma.milestone.deleteMany(),
     prisma.attendance.deleteMany(),
     prisma.booking.deleteMany(),
@@ -128,7 +146,9 @@ export async function importAll(prisma: PrismaClient, dump: DataDump): Promise<v
     prisma.classTemplate.deleteMany(),
     prisma.program.deleteMany(),
     prisma.coachProfile.deleteMany(),
+    prisma.waiverSignature.deleteMany(),
     prisma.memberProfile.deleteMany(),
+    prisma.feedback.deleteMany(),
     prisma.passwordResetToken.deleteMany(),
     prisma.user.deleteMany(),
     prisma.household.deleteMany(),
@@ -136,7 +156,9 @@ export async function importAll(prisma: PrismaClient, dump: DataDump): Promise<v
     prisma.household.createMany({ data: t.household }),
     prisma.user.createMany({ data: t.user }),
     prisma.passwordResetToken.createMany({ data: t.passwordResetToken }),
+    prisma.feedback.createMany({ data: t.feedback ?? [] }),
     prisma.memberProfile.createMany({ data: t.memberProfile }),
+    prisma.waiverSignature.createMany({ data: t.waiverSignature ?? [] }),
     prisma.coachProfile.createMany({ data: t.coachProfile }),
     prisma.program.createMany({ data: t.program }),
     prisma.classTemplate.createMany({ data: t.classTemplate }),
@@ -145,7 +167,9 @@ export async function importAll(prisma: PrismaClient, dump: DataDump): Promise<v
     prisma.booking.createMany({ data: t.booking }),
     prisma.attendance.createMany({ data: t.attendance }),
     prisma.milestone.createMany({ data: t.milestone }),
+    prisma.privateSession.createMany({ data: t.privateSession ?? [] }),
     prisma.product.createMany({ data: t.product }),
+    prisma.productImage.createMany({ data: t.productImage ?? [] }),
     prisma.order.createMany({ data: t.order }),
     prisma.post.createMany({ data: t.post }),
     prisma.comment.createMany({ data: t.comment }),

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
@@ -17,7 +18,7 @@ export default async function ProgressPage({
     profiles.find((p) => !p.isChild) ??
     profiles[0];
 
-  const [attendances, milestones] = await Promise.all([
+  const [attendances, milestones, privateSessions] = await Promise.all([
     prisma.attendance.findMany({
       where: { profileId: selected.id },
       include: { session: { include: { template: { include: { program: true } } } } },
@@ -27,6 +28,11 @@ export default async function ProgressPage({
     prisma.milestone.findMany({
       where: { profileId: selected.id },
       orderBy: { awardedAt: "desc" },
+    }),
+    prisma.privateSession.findMany({
+      where: { profileId: selected.id },
+      orderBy: { heldAt: "desc" },
+      take: 20,
     }),
   ]);
 
@@ -89,6 +95,34 @@ export default async function ProgressPage({
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {privateSessions.length > 0 && (
+        <section aria-labelledby="private-sessions">
+          <h2 id="private-sessions" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Private sessions
+          </h2>
+          <ul className="mt-2 space-y-2">
+            {privateSessions.map((s) => (
+              <li key={s.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                <p className="font-medium">Private training session</p>
+                <p className="mt-1 text-sm text-stone-600">
+                  {formatDay(s.heldAt)} at {formatTime(s.heldAt)} · {s.recordedBy}
+                </p>
+                {s.notes && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-stone-700">{s.notes}</p>
+                )}
+                {s.photoType && (
+                  <img
+                    src={`/api/private-session-photo/${s.id}`}
+                    alt="Private training session"
+                    className="mt-3 max-h-64 rounded-lg border border-stone-200 object-cover"
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
