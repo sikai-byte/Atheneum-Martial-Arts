@@ -6,5 +6,7 @@ export async function register() {
     startRetentionSchedule();
     const { startReminderSchedule } = await import("./lib/reminders");
     startReminderSchedule();
+    const { startFeedbackDigestSchedule } = await import("./lib/feedbackDigest");
+    startFeedbackDigestSchedule();
   }
 }
