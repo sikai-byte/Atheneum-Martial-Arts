@@ -8,7 +8,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getSession } from "./session";
-import { requireAdmin, requireCoach, requireUser } from "./auth";
+import { getCurrentUser, requireAdmin, requireCoach, requireUser } from "./auth";
+import { parseBirthDateInput } from "./age";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
 import { formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
@@ -807,6 +808,43 @@ export async function adminBookPrivateTrial(profileId: string, formData: FormDat
     memberPath,
     `Booked a ${duration}-minute private trial on ${formatDay(startsAt)} at ${formatTime(startsAt)}.${emailed ? " A confirmation email is on its way." : ""}`
   );
+}
+
+/**
+ * A parent records dates of birth for the children in their household.
+ * Uses getCurrentUser (not requireUser) so the required-birthday gate
+ * doesn't redirect away from the page that satisfies it.
+ */
+export async function saveChildBirthdays(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!user.householdId) redirect("/");
+  const from = String(formData.get("from") ?? "") === "account" ? "account" : "gate";
+  const errorPath =
+    from === "account" ? "/account?birthdayError=1" : "/household/birthdays?error=1";
+
+  const children = await prisma.memberProfile.findMany({
+    where: { householdId: user.householdId, isChild: true, deactivatedAt: null },
+  });
+  const updates: { id: string; birthDate: Date }[] = [];
+  for (const child of children) {
+    const raw = String(formData.get(`birthdate-${child.id}`) ?? "").trim();
+    if (!raw) continue;
+    const birthDate = parseBirthDateInput(raw);
+    if (!birthDate) redirect(errorPath);
+    updates.push({ id: child.id, birthDate });
+  }
+  for (const update of updates) {
+    await prisma.memberProfile.update({
+      where: { id: update.id },
+      data: { birthDate: update.birthDate, birthYear: update.birthDate.getUTCFullYear() },
+    });
+  }
+
+  revalidatePath("/account");
+  revalidatePath("/household/birthdays");
+  if (from === "account") redirect("/account?birthdaysSaved=1");
+  redirect("/");
 }
 
 export async function addChildProfile(householdId: string, formData: FormData) {

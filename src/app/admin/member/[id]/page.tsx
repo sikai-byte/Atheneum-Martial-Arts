@@ -16,6 +16,7 @@ import {
 import { purgeDueAt, RETENTION_YEARS } from "@/lib/leavers";
 import { adminRecordWaiver, adminSetPin } from "@/lib/kiosk-actions";
 import { formatDay, formatTime } from "@/lib/format";
+import { ageFromBirthDate, formatBirthDate } from "@/lib/age";
 import { appUrl } from "@/lib/email";
 import CopyButton from "@/components/CopyButton";
 import MembershipFields from "@/components/MembershipFields";
@@ -112,6 +113,11 @@ export default async function AdminMemberPage({
             ? " · child profile"
             : profile.user
               ? ` · ${profile.user.email} (${profile.user.role.toLowerCase()})`
+              : ""}
+          {profile.birthDate
+            ? ` · born ${formatBirthDate(profile.birthDate)} (age ${ageFromBirthDate(profile.birthDate)})`
+            : profile.isChild
+              ? " · birthday not on file yet"
               : ""}
         </p>
         {profile.deactivatedAt && (

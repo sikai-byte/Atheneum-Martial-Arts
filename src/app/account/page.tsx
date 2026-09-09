@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { changeOwnPassword } from "@/lib/actions";
+import { changeOwnPassword, saveChildBirthdays } from "@/lib/actions";
 import { setOwnPin, signOwnWaiver } from "@/lib/kiosk-actions";
+import { ageFromBirthDate, formatBirthDate } from "@/lib/age";
 import { WAIVER_PARAGRAPHS, WAIVER_TITLE } from "@/lib/waiver";
 import SubmitButton from "@/components/SubmitButton";
 
@@ -17,6 +18,8 @@ export default async function AccountPage({
     pinSaved?: string;
     waiverError?: string;
     waiverSigned?: string;
+    birthdaysSaved?: string;
+    birthdayError?: string;
   };
 }) {
   const user = await requireUser();
@@ -105,6 +108,64 @@ export default async function AccountPage({
               </form>
             ))}
           </div>
+        </section>
+      )}
+
+      {profiles.some((p) => p.isChild) && (
+        <section className="rounded-xl border border-stone-200 bg-white p-5">
+          <h2 className="text-lg font-semibold">Kids&apos; birthdays</h2>
+          <p className="mt-1 text-sm text-stone-600">
+            Ages are calculated automatically from each child&apos;s date of birth.
+          </p>
+          {searchParams.birthdaysSaved && (
+            <p className="mt-2 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800" role="status">
+              Birthdays saved.
+            </p>
+          )}
+          {searchParams.birthdayError && (
+            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              One of the dates didn&apos;t look right — please double-check and try again.
+            </p>
+          )}
+          <form action={saveChildBirthdays} className="mt-4 space-y-4">
+            <input type="hidden" name="from" value="account" />
+            {profiles
+              .filter((p) => p.isChild)
+              .map((p) => (
+                <div
+                  key={p.id}
+                  className="flex flex-wrap items-end gap-3 border-t border-stone-100 pt-4 first:border-t-0 first:pt-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{p.name}</p>
+                    <p className="text-xs text-stone-500">
+                      {p.birthDate
+                        ? `${formatBirthDate(p.birthDate)} — age ${ageFromBirthDate(p.birthDate)}`
+                        : "No birthday on file yet."}
+                    </p>
+                  </div>
+                  <div>
+                    <label htmlFor={`birthdate-${p.id}`} className="mb-1 block text-xs font-medium">
+                      Date of birth
+                    </label>
+                    <input
+                      id={`birthdate-${p.id}`}
+                      name={`birthdate-${p.id}`}
+                      type="date"
+                      defaultValue={p.birthDate ? p.birthDate.toISOString().slice(0, 10) : ""}
+                      max={new Date().toISOString().slice(0, 10)}
+                      className="rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              ))}
+            <SubmitButton
+              pendingLabel="Saving…"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+            >
+              Save birthdays
+            </SubmitButton>
+          </form>
         </section>
       )}
 

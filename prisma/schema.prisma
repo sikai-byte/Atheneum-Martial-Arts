@@ -57,6 +57,7 @@ model MemberProfile {
   name               String
   isChild            Boolean          @default(false)
   birthYear          Int?
+  birthDate          DateTime? // full date of birth; age is always derived from this
   experienceLevel    String           @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
   weeklyGoal         Int              @default(3)
   membershipPlan     String? // e.g. "Adult Unlimited", "Kids Monthly", "10-Class Punch Pass"

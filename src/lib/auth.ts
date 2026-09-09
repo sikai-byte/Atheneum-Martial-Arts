@@ -21,7 +21,15 @@ export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (childBirthdaysMissing(user)) redirect("/household/birthdays");
   return user;
+}
+
+/** Parents must record every child's date of birth before using the rest of the app. */
+export function childBirthdaysMissing(user: CurrentUser): boolean {
+  if (user.role !== "PARENT") return false;
+  const profiles = user.household?.profiles ?? [];
+  return profiles.some((p) => p.isChild && !p.deactivatedAt && !p.birthDate);
 }
 
 export async function requireCoach(): Promise<CurrentUser> {
