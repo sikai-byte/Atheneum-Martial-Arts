@@ -829,7 +829,10 @@ export async function saveChildBirthdays(formData: FormData) {
   const updates: { id: string; birthDate: Date }[] = [];
   for (const child of children) {
     const raw = String(formData.get(`birthdate-${child.id}`) ?? "").trim();
-    if (!raw) continue;
+    if (!raw) {
+      if (!child.birthDate) redirect(errorPath);
+      continue;
+    }
     const birthDate = parseBirthDateInput(raw);
     if (!birthDate) redirect(errorPath);
     updates.push({ id: child.id, birthDate });
