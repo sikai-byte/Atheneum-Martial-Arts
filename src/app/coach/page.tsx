@@ -16,7 +16,10 @@ export default async function CoachTodayPage() {
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const [todaySessions, upcomingSessions, announcements] = await Promise.all([
+  const pastWindow = new Date(dayStart);
+  pastWindow.setDate(pastWindow.getDate() - 14);
+
+  const [todaySessions, upcomingSessions, pastSessions, announcements] = await Promise.all([
     prisma.classSession.findMany({
       where: { startsAt: { gte: dayStart, lt: dayEnd } },
       include: {
@@ -35,6 +38,16 @@ export default async function CoachTodayPage() {
       },
       orderBy: { startsAt: "asc" },
       take: 8,
+    }),
+    prisma.classSession.findMany({
+      where: { startsAt: { gte: pastWindow, lt: dayStart } },
+      include: {
+        template: { include: { program: true } },
+        bookings: { where: { status: { in: ["BOOKED", "WAITLISTED"] } } },
+        attendances: true,
+      },
+      orderBy: { startsAt: "desc" },
+      take: 10,
     }),
     prisma.announcement.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
@@ -129,6 +142,23 @@ export default async function CoachTodayPage() {
           Upcoming
         </h2>
         <div className="mt-2 space-y-3">{upcomingSessions.map((s) => renderSession(s, true))}</div>
+      </section>
+
+      <section aria-labelledby="past-classes">
+        <h2 id="past-classes" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Past classes (last 2 weeks)
+        </h2>
+        <p className="mt-1 text-sm text-stone-500">
+          Forgot to check someone in? Open a past class to add members or record attendance
+          retroactively.
+        </p>
+        {pastSessions.length === 0 ? (
+          <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-stone-600">
+            No classes in the last two weeks.
+          </p>
+        ) : (
+          <div className="mt-2 space-y-3">{pastSessions.map((s) => renderSession(s, true))}</div>
+        )}
       </section>
 
       <section aria-labelledby="post-update">

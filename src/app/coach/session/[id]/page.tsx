@@ -112,6 +112,13 @@ export default async function RosterPage({
         <p className="mt-1 text-stone-600">
           {formatDay(session.startsAt)} at {formatTime(session.startsAt)} · {session.instructor}
         </p>
+        {new Date() >
+          new Date(session.startsAt.getTime() + session.template.durationMin * 60000) && (
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            This class has ended — anyone you add or check in is recorded retroactively (not
+            marked late).
+          </p>
+        )}
         <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
           <div className="flex items-center justify-between text-sm font-semibold text-emerald-900">
             <span>

@@ -30,5 +30,7 @@ test.describe("weekly feedback digest", () => {
       data: { createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) },
     });
     expect(await runFeedbackDigestPass(db)).toBe(true);
+
+    await db.feedback.deleteMany({ where: { message: "Digest test feedback" } });
   });
 });

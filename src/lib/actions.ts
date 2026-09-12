@@ -13,7 +13,7 @@ import { parseBirthDateInput } from "./age";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
 import { formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
-import { isLateCheckIn } from "./attendance";
+import { isBackfillCheckIn, isLateCheckIn } from "./attendance";
 import { trialEndOfDay } from "./trial";
 import { trackEvent } from "./telemetry";
 import { recordAudit } from "./audit";
@@ -186,7 +186,11 @@ export async function bookClass(
   revalidatePath("/schedule");
 }
 
-async function bookProfileIntoSession(profileId: string, sessionId: string) {
+async function bookProfileIntoSession(
+  profileId: string,
+  sessionId: string,
+  opts: { allowStarted?: boolean } = {}
+) {
   return prisma.$transaction(async (tx) => {
     const bookingProfile = await tx.memberProfile.findUniqueOrThrow({
       where: { id: profileId },
@@ -201,10 +205,12 @@ async function bookProfileIntoSession(profileId: string, sessionId: string) {
       include: { template: true, bookings: { where: { status: "BOOKED" } } },
     });
     if (classSession.status === "CANCELLED") throw new Error("This class has been cancelled.");
-    if (classSession.startsAt < new Date()) throw new Error("This class has already started.");
+    const started = classSession.startsAt < new Date();
+    if (started && !opts.allowStarted) throw new Error("This class has already started.");
 
+    // Retroactive roster additions record who was actually there, so they skip the waitlist.
     const isFull = classSession.bookings.length >= bookingLimit(classSession.template.capacity);
-    const status = isFull ? "WAITLISTED" : "BOOKED";
+    const status = isFull && !started ? "WAITLISTED" : "BOOKED";
 
     await tx.booking.upsert({
       where: { profileId_sessionId: { profileId, sessionId } },
@@ -268,7 +274,10 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
       where: { profileId_sessionId: { profileId, sessionId } },
     });
     const profile = await tx.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
-    const classSession = await tx.classSession.findUniqueOrThrow({ where: { id: sessionId } });
+    const classSession = await tx.classSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: { template: true },
+    });
     const isPunchPass = profile.membershipType === "PUNCH_PASS";
     if (existing) {
       await tx.attendance.delete({ where: { id: existing.id } });
@@ -280,8 +289,14 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
       }
       return { verb: "removed", memberName: profile.name };
     }
+    const backfill = isBackfillCheckIn(classSession.startsAt, classSession.template.durationMin);
     await tx.attendance.create({
-      data: { profileId, sessionId, recordedBy: coach.name, late: isLateCheckIn(classSession.startsAt) },
+      data: {
+        profileId,
+        sessionId,
+        recordedBy: coach.name,
+        late: !backfill && isLateCheckIn(classSession.startsAt),
+      },
     });
     if (isPunchPass) {
       await tx.memberProfile.update({
@@ -332,7 +347,7 @@ export async function coachAddToRoster(sessionId: string, formData: FormData) {
 
   let status: string;
   try {
-    status = await bookProfileIntoSession(profileId, sessionId);
+    status = await bookProfileIntoSession(profileId, sessionId, { allowStarted: true });
   } catch (err) {
     failTo(sessionPath, err instanceof Error ? err.message : "Couldn't add that member.");
   }
