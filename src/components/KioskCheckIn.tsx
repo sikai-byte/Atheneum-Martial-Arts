@@ -23,12 +23,19 @@ function PinSubmit() {
   );
 }
 
+export type KioskWalkInCandidate = {
+  profileId: string;
+  displayName: string;
+};
+
 export default function KioskCheckIn({
   sessionId,
   roster,
+  walkInCandidates,
 }: {
   sessionId: string;
   roster: KioskRosterEntry[];
+  walkInCandidates: KioskWalkInCandidate[];
 }) {
   const [state, formAction] = useFormState<KioskCheckInState, FormData>(
     kioskCheckIn.bind(null, sessionId),
@@ -36,6 +43,12 @@ export default function KioskCheckIn({
   );
   const [selected, setSelected] = useState<KioskRosterEntry | null>(null);
   const [walkIn, setWalkIn] = useState(false);
+  const [nameQuery, setNameQuery] = useState("");
+
+  const query = nameQuery.trim().toLowerCase();
+  const suggestions = query
+    ? walkInCandidates.filter((c) => c.displayName.toLowerCase().includes(query)).slice(0, 6)
+    : [];
 
   if (state.success) {
     return (
@@ -105,16 +118,46 @@ export default function KioskCheckIn({
           ) : (
             <div>
               <label htmlFor="kiosk-name" className="mb-1 block text-lg font-medium">
-                Your full name
+                Your name
               </label>
               <input
                 id="kiosk-name"
                 name="name"
                 required
                 autoComplete="off"
-                placeholder="e.g. Jordan Lee"
+                placeholder="Start typing your name…"
+                value={nameQuery}
+                onChange={(e) => setNameQuery(e.target.value)}
                 className="w-full rounded-xl border border-stone-300 px-4 py-3.5 text-lg"
               />
+              {suggestions.length > 0 && (
+                <ul className="mt-2 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+                  {suggestions.map((c) => (
+                    <li key={c.profileId} className="border-b border-stone-100 last:border-b-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelected({
+                            profileId: c.profileId,
+                            displayName: c.displayName,
+                            checkedIn: false,
+                          });
+                          setWalkIn(false);
+                          setNameQuery("");
+                        }}
+                        className="w-full px-4 py-3.5 text-left text-lg font-medium active:bg-stone-50"
+                      >
+                        {c.displayName}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {query.length > 0 && suggestions.length === 0 && (
+                <p className="mt-2 text-stone-500">
+                  No matching members — finish typing your full name and check in, or ask a coach.
+                </p>
+              )}
             </div>
           )}
           <div>
@@ -145,6 +188,7 @@ export default function KioskCheckIn({
             onClick={() => {
               setSelected(null);
               setWalkIn(false);
+              setNameQuery("");
             }}
             className="w-full rounded-xl border border-stone-300 px-6 py-3.5 text-lg text-stone-700 hover:bg-stone-50"
           >

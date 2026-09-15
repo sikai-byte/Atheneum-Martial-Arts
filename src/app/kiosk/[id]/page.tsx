@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { isKioskEnabled } from "@/lib/kiosk";
 import { formatTime } from "@/lib/format";
-import KioskCheckIn, { KioskRosterEntry } from "@/components/KioskCheckIn";
+import { classEligibilityError } from "@/lib/eligibility";
+import KioskCheckIn, { KioskRosterEntry, KioskWalkInCandidate } from "@/components/KioskCheckIn";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,21 @@ export default async function KioskClassPage({ params }: { params: { id: string 
   );
   const checkedInCount = roster.filter((r) => r.checkedIn).length;
 
+  const candidates = await prisma.memberProfile.findMany({
+    where: { id: { notIn: Array.from(entries.keys()) }, deactivatedAt: null },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      isChild: true,
+      membershipType: true,
+      user: { select: { role: true } },
+    },
+  });
+  const walkInCandidates: KioskWalkInCandidate[] = candidates
+    .filter((c) => classEligibilityError(c, session.template) === null)
+    .map((c) => ({ profileId: c.id, displayName: c.name }));
+
   return (
     <div className="space-y-6 py-4">
       <Link href="/kiosk" className="text-lg text-stone-500 active:text-stone-800">
@@ -62,7 +78,7 @@ export default async function KioskClassPage({ params }: { params: { id: string 
         </p>
       </section>
 
-      <KioskCheckIn sessionId={session.id} roster={roster} />
+      <KioskCheckIn sessionId={session.id} roster={roster} walkInCandidates={walkInCandidates} />
     </div>
   );
 }
