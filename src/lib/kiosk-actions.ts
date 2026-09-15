@@ -337,6 +337,7 @@ export async function kioskRegister(
 <p><strong>Your member portal:</strong> <a href="${appUrl()}">${appUrl()}</a><br/>
 To set your password: on the login page tap <strong>Forgot password?</strong>, enter this email, and follow the link we send you.</p>
 <p>In the portal you can see the class schedule, book classes, track your attendance, and join the community board.</p>
+<p><strong>Make it an app:</strong> on iPhone, open the link in Safari, tap the Share button, then <strong>Add to Home Screen</strong>; on Android, open it in Chrome, tap the three-dot menu, then <strong>Add to Home screen</strong>. Then open it from your home screen and turn on class reminders from <strong>My account &rarr; Notifications</strong> to get a heads-up 24 hours and 2 hours before every booked class.</p>
 <p>At the gym, check in on the front-desk iPad with ${isChild ? `${childName.split(" ")[0]}'s name` : "your name"} and your 4-digit PIN.</p>
 <p>See you on the mats!<br/>Atheneum Martial Arts</p>
 `

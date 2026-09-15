@@ -5,7 +5,15 @@ export const dynamic = "force-dynamic";
 
 type Step = { title: string; body: string; href: string; linkLabel: string };
 
+const installStep: Step = {
+  title: "Install the app and turn on reminders",
+  body: "Add the portal to your phone's home screen so it works like an app \u2014 iPhone: open it in Safari, tap Share, then Add to Home Screen; Android: open it in Chrome, tap the three-dot menu, then Add to Home screen. Then open it from your home screen and turn on class reminders (My account \u2192 Notifications) to get a heads-up 24 hours and 2 hours before every booked class.",
+  href: "/account",
+  linkLabel: "Turn on notifications",
+};
+
 const memberSteps: Step[] = [
+  installStep,
   {
     title: "Book your first class",
     body: "Browse the weekly schedule, tap a class that fits, and book your spot. If a class is full you'll join the waitlist and get moved in automatically when a spot opens.",
@@ -45,6 +53,7 @@ const memberSteps: Step[] = [
 ];
 
 const parentSteps: Step[] = [
+  installStep,
   {
     title: "Book your kids into classes",
     body: "The schedule has a Kids view — pick a class, choose which child is going, and book. Full classes use a waitlist that promotes automatically.",

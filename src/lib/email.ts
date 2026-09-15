@@ -59,7 +59,8 @@ export async function sendTrialWelcomeEmail(
         <a href="${appUrl()}/login" style="background:#0039b7;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Sign in to the portal</a>
       </p>
       <p>Login: <strong>${to}</strong><br/>Temporary password: <strong>${password}</strong></p>
-      <p style="color:#666;font-size:14px">After signing in, you can change your password from the My account page. See you on the mats!</p>`
+      <p style="color:#666;font-size:14px">After signing in, you can change your password from the My account page.</p>
+      <p style="color:#666;font-size:14px"><strong>Make it an app:</strong> on iPhone, open the portal in Safari, tap Share, then <strong>Add to Home Screen</strong>; on Android, open it in Chrome, tap the three-dot menu, then <strong>Add to Home screen</strong>. Then open it from your home screen and turn on class reminders from <strong>My account &rarr; Notifications</strong>. See you on the mats!</p>`
     )
   );
 }
