@@ -14,6 +14,7 @@ import { appUrl, sendEmail } from "./email";
 import { WAIVER_VERSION } from "./waiver";
 import { isLockedOut, rateLimit, recordFailure } from "./rateLimit";
 import { isLateCheckIn } from "./attendance";
+import { classEligibilityError } from "./eligibility";
 
 const KIOSK_ACTOR = { id: "kiosk", name: "Front-desk kiosk", role: "KIOSK" };
 
@@ -127,10 +128,12 @@ export async function kioskCheckIn(
   if (profileId) {
     profile = await prisma.memberProfile.findFirst({
       where: { id: profileId, deactivatedAt: null },
+      include: { user: { select: { role: true } } },
     });
   } else {
     const matches = await prisma.memberProfile.findMany({
       where: { name: { equals: typedName, mode: "insensitive" }, deactivatedAt: null },
+      include: { user: { select: { role: true } } },
     });
     if (matches.length > 1) {
       return { error: "More than one member has that name — ask a coach to check you in." };
@@ -149,6 +152,8 @@ export async function kioskCheckIn(
     recordFailure("kiosk-pin", 5 * 60 * 1000);
     return { error: "That PIN doesn't match — try again or ask a coach for help." };
   }
+  const eligibilityError = classEligibilityError(profile, session.template);
+  if (eligibilityError) return { error: eligibilityError };
 
   const targetProfileId = profile.id;
   const result = await prisma.$transaction(async (tx) => {

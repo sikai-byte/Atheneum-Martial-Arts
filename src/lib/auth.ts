@@ -9,7 +9,9 @@ export async function getCurrentUser() {
     where: { id: session.userId },
     include: {
       profile: true,
-      household: { include: { profiles: true } },
+      household: {
+        include: { profiles: { include: { user: { select: { role: true } } } } },
+      },
     },
   });
   if (user?.deactivatedAt) return null;
@@ -45,6 +47,8 @@ export async function requireAdmin(): Promise<CurrentUser> {
 }
 
 export function householdProfiles(user: CurrentUser) {
-  const profiles = user.household?.profiles ?? (user.profile ? [user.profile] : []);
+  const profiles =
+    user.household?.profiles ??
+    (user.profile ? [{ ...user.profile, user: { role: user.role } }] : []);
   return profiles.filter((p) => !p.deactivatedAt);
 }

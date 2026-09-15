@@ -2,8 +2,9 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDay, formatTime } from "@/lib/format";
-import { createPost, deletePost, addComment, deleteComment } from "@/lib/actions";
+import { deletePost, addComment, deleteComment } from "@/lib/actions";
 import SubmitButton from "@/components/SubmitButton";
+import NewPostForm from "@/components/NewPostForm";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function CommunityPage() {
   const posts = await prisma.post.findMany({
     include: {
       author: { select: { id: true, name: true, role: true } },
+      media: { orderBy: { position: "asc" } },
       comments: {
         include: { author: { select: { id: true, name: true, role: true } } },
         orderBy: { createdAt: "asc" },
@@ -48,68 +50,7 @@ export default async function CommunityPage() {
         <h2 id="new-post" className="text-lg font-semibold">
           Start a post
         </h2>
-        <form action={createPost} className="mt-4 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="post-title" className="mb-1 block text-sm font-medium">
-                Title (optional)
-              </label>
-              <input
-                id="post-title"
-                name="title"
-                maxLength={120}
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
-                placeholder="e.g. Great rolls this morning!"
-              />
-            </div>
-            <div>
-              <label htmlFor="post-category" className="mb-1 block text-sm font-medium">
-                Category
-              </label>
-              <select
-                id="post-category"
-                name="category"
-                className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
-              >
-                <option value="GENERAL">General</option>
-                <option value="QUESTION">Question</option>
-                <option value="NEWS">News</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label htmlFor="post-body" className="mb-1 block text-sm font-medium">
-              Message
-            </label>
-            <textarea
-              id="post-body"
-              name="body"
-              required
-              rows={3}
-              maxLength={4000}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
-              placeholder="Share something with the community…"
-            />
-          </div>
-          <div>
-            <label htmlFor="post-photo" className="mb-1 block text-sm font-medium">
-              Photo (optional)
-            </label>
-            <input
-              id="post-photo"
-              name="photo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="block w-full text-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-stone-700"
-            />
-          </div>
-          <SubmitButton
-            pendingLabel="Posting…"
-            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
-          >
-            Post to community
-          </SubmitButton>
-        </form>
+        <NewPostForm />
       </section>
 
       <section aria-labelledby="feed">
@@ -168,6 +109,38 @@ export default async function CommunityPage() {
                       alt={post.title || "Community post photo"}
                       className="mt-3 max-h-96 w-full rounded-lg object-cover"
                     />
+                  )}
+
+                  {post.media.length > 0 && (
+                    <div
+                      className={`mt-3 grid gap-2 ${
+                        post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                      }`}
+                    >
+                      {post.media.map((m) =>
+                        m.kind === "VIDEO" ? (
+                          <video
+                            key={m.id}
+                            src={`/api/post-media/${m.id}`}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            className={`max-h-96 w-full rounded-lg bg-black ${
+                              post.media.length === 1 ? "" : "h-48 object-cover"
+                            }`}
+                          />
+                        ) : (
+                          <img
+                            key={m.id}
+                            src={`/api/post-media/${m.id}`}
+                            alt={post.title || "Community post photo"}
+                            className={`w-full rounded-lg object-cover ${
+                              post.media.length === 1 ? "max-h-96" : "h-48"
+                            }`}
+                          />
+                        )
+                      )}
+                    </div>
                   )}
 
                   <div className="mt-4 border-t border-stone-100 pt-3">

@@ -38,6 +38,13 @@ export async function purgeProfileData(profileId: string): Promise<string | null
       })
     : [];
 
+  const postMedia = profile.user
+    ? await prisma.postMedia.findMany({
+        where: { post: { authorId: profile.user.id } },
+        select: { id: true },
+      })
+    : [];
+
   await prisma.$transaction(async (tx) => {
     await tx.booking.deleteMany({ where: { profileId } });
     await tx.attendance.deleteMany({ where: { profileId } });
@@ -73,6 +80,9 @@ export async function purgeProfileData(profileId: string): Promise<string | null
   }
   for (const post of posts) {
     await fs.unlink(path.join(uploadsDir(), `post-${post.id}`)).catch(() => {});
+  }
+  for (const media of postMedia) {
+    await fs.unlink(path.join(uploadsDir(), `postmedia-${media.id}`)).catch(() => {});
   }
   return profile.name;
 }

@@ -237,15 +237,27 @@ model Order {
 }
 
 model Post {
-  id        String    @id @default(cuid())
-  title     String    @default("")
+  id        String      @id @default(cuid())
+  title     String      @default("")
   body      String
-  category  String    @default("GENERAL") // GENERAL | QUESTION | NEWS
-  photoType String    @default("") // mime type of attached photo; empty = none
-  createdAt DateTime  @default(now())
+  category  String      @default("GENERAL") // GENERAL | QUESTION | NEWS
+  photoType String      @default("") // mime type of attached photo; empty = none (legacy single photo)
+  createdAt DateTime    @default(now())
   authorId  String
-  author    User      @relation(fields: [authorId], references: [id])
+  author    User        @relation(fields: [authorId], references: [id])
   comments  Comment[]
+  media     PostMedia[]
+}
+
+model PostMedia {
+  id       String @id @default(cuid())
+  kind     String // IMAGE | VIDEO
+  mimeType String
+  position Int    @default(0)
+  postId   String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, position])
 }
 
 model Comment {

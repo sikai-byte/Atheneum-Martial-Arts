@@ -1,0 +1,83 @@
+import "./env-setup";
+import { test, expect } from "@playwright/test";
+import bcrypt from "bcryptjs";
+import { createMember, db, login, PASSWORD } from "./helpers";
+
+async function makeSession(ageGroup: string, name: string) {
+  const program = await db.program.upsert({
+    where: { name: "Eligibility Test Program" },
+    update: {},
+    create: { name: "Eligibility Test Program", description: "test" },
+  });
+  const template = await db.classTemplate.create({
+    data: { name, description: "test", programId: program.id, ageGroup },
+  });
+  return db.classSession.create({
+    data: {
+      templateId: template.id,
+      startsAt: new Date(Date.now() + 60 * 60 * 1000),
+      instructor: "Coach Test",
+    },
+  });
+}
+
+async function createParentWithKid(email: string, name: string, kidName: string) {
+  const passwordHash = await bcrypt.hash(PASSWORD, 10);
+  const household = await db.household.create({ data: { name: `${name} Household` } });
+  const user = await db.user.create({
+    data: { email, passwordHash, name, role: "PARENT", householdId: household.id },
+  });
+  const parentProfile = await db.memberProfile.create({
+    data: { name, userId: user.id, householdId: household.id },
+  });
+  const kidProfile = await db.memberProfile.create({
+    data: {
+      name: kidName,
+      isChild: true,
+      householdId: household.id,
+      birthDate: new Date("2016-05-01"),
+    },
+  });
+  return { user, parentProfile, kidProfile };
+}
+
+test.describe("class eligibility rules", () => {
+  test("kids class picker only offers youth members", async ({ page }) => {
+    await createMember("elig-adult@test.local", "Elig Adult");
+    await createParentWithKid("elig-parent@test.local", "Elig Parent", "Elig Kid");
+    const session = await makeSession("KIDS", "Eligibility Kids Class");
+
+    await login(page, "coach@example.com");
+    await page.goto(`/coach/session/${session.id}`);
+    const options = await page.locator("#add-member option").allTextContents();
+    expect(options.join("|")).toContain("Elig Kid");
+    expect(options.join("|")).not.toContain("Elig Adult");
+    expect(options.join("|")).not.toContain("Elig Parent");
+  });
+
+  test("adult class picker excludes kids and non-member parents", async ({ page }) => {
+    await createMember("elig-adult2@test.local", "Elig AdultTwo");
+    await createParentWithKid("elig-parent2@test.local", "Elig ParentTwo", "Elig KidTwo");
+    const session = await makeSession("ADULTS", "Eligibility Adults Class");
+
+    await login(page, "coach@example.com");
+    await page.goto(`/coach/session/${session.id}`);
+    const options = await page.locator("#add-member option").allTextContents();
+    expect(options.join("|")).toContain("Elig AdultTwo");
+    expect(options.join("|")).not.toContain("Elig KidTwo");
+    expect(options.join("|")).not.toContain("Elig ParentTwo");
+  });
+
+  test("non-member parent has no booking control for themselves on adult classes", async ({
+    page,
+  }) => {
+    await createParentWithKid("elig-parent3@test.local", "Elig ParentThree", "Elig KidThree");
+    await makeSession("ADULTS", "Eligibility Adults Class Three");
+
+    await login(page, "elig-parent3@test.local");
+    await page.goto("/schedule?view=adults");
+    const card = page.locator("article", { hasText: "Eligibility Adults Class Three" });
+    await expect(card).toBeVisible();
+    await expect(card.getByRole("button", { name: /Book|Join waitlist/ })).toHaveCount(0);
+  });
+});

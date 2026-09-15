@@ -11,9 +11,19 @@ import { getSession } from "./session";
 import { getCurrentUser, requireAdmin, requireCoach, requireUser } from "./auth";
 import { parseBirthDateInput } from "./age";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
+import {
+  MAX_IMAGE_BYTES,
+  MAX_POST_MEDIA,
+  MAX_VIDEO_BYTES,
+  MAX_VIDEO_SECONDS,
+  POST_IMAGE_TYPES,
+  POST_VIDEO_TYPES,
+  videoDurationSeconds,
+} from "./media";
 import { formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
 import { isBackfillCheckIn, isLateCheckIn } from "./attendance";
+import { classEligibilityError } from "./eligibility";
 import { trialEndOfDay } from "./trial";
 import { trackEvent } from "./telemetry";
 import { recordAudit } from "./audit";
@@ -194,6 +204,7 @@ async function bookProfileIntoSession(
   return prisma.$transaction(async (tx) => {
     const bookingProfile = await tx.memberProfile.findUniqueOrThrow({
       where: { id: profileId },
+      include: { user: { select: { role: true } } },
     });
     if (bookingProfile.deactivatedAt) {
       throw new Error("This account is deactivated and can't be booked into classes.");
@@ -205,6 +216,8 @@ async function bookProfileIntoSession(
       include: { template: true, bookings: { where: { status: "BOOKED" } } },
     });
     if (classSession.status === "CANCELLED") throw new Error("This class has been cancelled.");
+    const eligibilityError = classEligibilityError(bookingProfile, classSession.template);
+    if (eligibilityError) throw new Error(eligibilityError);
     const started = classSession.startsAt < new Date();
     if (started && !opts.allowStarted) throw new Error("This class has already started.");
 
@@ -273,7 +286,10 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
     const existing = await tx.attendance.findUnique({
       where: { profileId_sessionId: { profileId, sessionId } },
     });
-    const profile = await tx.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+    const profile = await tx.memberProfile.findUniqueOrThrow({
+      where: { id: profileId },
+      include: { user: { select: { role: true } } },
+    });
     const classSession = await tx.classSession.findUniqueOrThrow({
       where: { id: sessionId },
       include: { template: true },
@@ -289,6 +305,8 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
       }
       return { verb: "removed", memberName: profile.name };
     }
+    const eligibilityError = classEligibilityError(profile, classSession.template);
+    if (eligibilityError) throw new Error(eligibilityError);
     const backfill = isBackfillCheckIn(classSession.startsAt, classSession.template.durationMin);
     await tx.attendance.create({
       data: {
@@ -327,6 +345,18 @@ export async function coachWalkInCheckIn(sessionId: string, formData: FormData) 
   if (existing) {
     redirect(`/coach/session/${sessionId}`);
   }
+  const [walkInProfile, walkInSession] = await Promise.all([
+    prisma.memberProfile.findUniqueOrThrow({
+      where: { id: profileId },
+      include: { user: { select: { role: true } } },
+    }),
+    prisma.classSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      include: { template: true },
+    }),
+  ]);
+  const eligibilityError = classEligibilityError(walkInProfile, walkInSession.template);
+  if (eligibilityError) failTo(`/coach/session/${sessionId}`, eligibilityError);
   await toggleAttendance(profileId, sessionId);
   redirect(`/coach/session/${sessionId}`);
 }
@@ -989,22 +1019,51 @@ export async function createPost(formData: FormData) {
   if (!body) throw new Error("Please write something to post.");
   if (!["GENERAL", "QUESTION", "NEWS"].includes(category)) throw new Error("Invalid category.");
 
-  const photo = formData.get("photo");
-  let photoType = "";
-  let photoBuffer: Buffer | null = null;
-  if (photo instanceof Blob && photo.size > 0) {
-    if (photo.size > 8 * 1024 * 1024) throw new Error("Photo is too large — please use one under 8 MB.");
-    if (!PHOTO_TYPES.includes(photo.type)) throw new Error("Please use a JPEG, PNG, or WebP photo.");
-    photoType = photo.type;
-    photoBuffer = Buffer.from(await photo.arrayBuffer());
+  const mediaEntries = formData
+    .getAll("media")
+    .filter((f): f is File => f instanceof Blob && f.size > 0);
+  if (mediaEntries.length > MAX_POST_MEDIA) {
+    throw new Error(`You can attach up to ${MAX_POST_MEDIA} photos/videos per post.`);
+  }
+
+  const prepared: { kind: string; mimeType: string; buffer: Buffer }[] = [];
+  for (const file of mediaEntries) {
+    if (POST_IMAGE_TYPES.includes(file.type)) {
+      if (file.size > MAX_IMAGE_BYTES) {
+        throw new Error("Photo is too large — please use one under 8 MB.");
+      }
+      prepared.push({
+        kind: "IMAGE",
+        mimeType: file.type,
+        buffer: Buffer.from(await file.arrayBuffer()),
+      });
+    } else if (POST_VIDEO_TYPES.includes(file.type)) {
+      if (file.size > MAX_VIDEO_BYTES) {
+        throw new Error("Video is too large — please use one under 100 MB.");
+      }
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const duration = videoDurationSeconds(buffer);
+      if (duration !== null && duration > MAX_VIDEO_SECONDS + 0.5) {
+        throw new Error("Videos must be 1 minute or shorter.");
+      }
+      prepared.push({ kind: "VIDEO", mimeType: file.type, buffer });
+    } else {
+      throw new Error("Please attach JPEG/PNG/WebP photos or MP4/MOV/WebM videos.");
+    }
   }
 
   const post = await prisma.post.create({
-    data: { title, body, category, photoType, authorId: user.id },
+    data: { title, body, category, authorId: user.id },
   });
-  if (photoBuffer) {
+  if (prepared.length > 0) {
     await ensureUploadsDir();
-    await fs.writeFile(path.join(uploadsDir(), `post-${post.id}`), photoBuffer);
+    for (let i = 0; i < prepared.length; i++) {
+      const item = prepared[i];
+      const media = await prisma.postMedia.create({
+        data: { postId: post.id, kind: item.kind, mimeType: item.mimeType, position: i },
+      });
+      await fs.writeFile(path.join(uploadsDir(), `postmedia-${media.id}`), item.buffer);
+    }
   }
 
   revalidatePath("/community");
@@ -1012,7 +1071,10 @@ export async function createPost(formData: FormData) {
 
 export async function deletePost(postId: string) {
   const user = await requireUser();
-  const post = await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+  const post = await prisma.post.findUniqueOrThrow({
+    where: { id: postId },
+    include: { media: { select: { id: true } } },
+  });
   const isStaff = user.role === "COACH" || user.role === "ADMIN";
   if (post.authorId !== user.id && !isStaff) {
     throw new Error("You can only delete your own posts.");
@@ -1021,6 +1083,9 @@ export async function deletePost(postId: string) {
   await prisma.post.delete({ where: { id: postId } });
   if (post.photoType) {
     await fs.unlink(path.join(uploadsDir(), `post-${postId}`)).catch(() => {});
+  }
+  for (const media of post.media) {
+    await fs.unlink(path.join(uploadsDir(), `postmedia-${media.id}`)).catch(() => {});
   }
   if (isStaff && post.authorId !== user.id) {
     await recordAudit(user, "POST_MODERATED", {

@@ -9,6 +9,7 @@ import {
   toggleAttendance,
 } from "@/lib/actions";
 import { formatDay, formatTime } from "@/lib/format";
+import { classEligibilityError } from "@/lib/eligibility";
 import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
@@ -81,14 +82,23 @@ export default async function RosterPage({
   );
   const checkedInCount = session.attendances.length;
   const rosterIds = new Set(session.bookings.map((b) => b.profileId));
-  const otherMembers = await prisma.memberProfile.findMany({
+  const candidates = await prisma.memberProfile.findMany({
     where: {
       id: { notIn: Array.from(rosterIds).concat(Array.from(attendedIds)) },
       deactivatedAt: null,
     },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, isChild: true },
+    select: {
+      id: true,
+      name: true,
+      isChild: true,
+      membershipType: true,
+      user: { select: { role: true } },
+    },
   });
+  const otherMembers = candidates.filter(
+    (m) => classEligibilityError(m, session.template) === null
+  );
 
   return (
     <div className="space-y-6">
