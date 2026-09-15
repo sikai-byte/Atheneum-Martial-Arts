@@ -66,6 +66,20 @@ test.describe("class eligibility rules", () => {
     expect(options.join("|")).toContain("Elig AdultTwo");
     expect(options.join("|")).not.toContain("Elig KidTwo");
     expect(options.join("|")).not.toContain("Elig ParentTwo");
+    expect(options.join("|")).not.toContain("Coach Sam");
+  });
+
+  test("picker search narrows the member list", async ({ page }) => {
+    await createMember("elig-search1@test.local", "Searchable Alpha");
+    await createMember("elig-search2@test.local", "Searchable Bravo");
+    const session = await makeSession("ADULTS", "Eligibility Search Class");
+
+    await login(page, "coach@example.com");
+    await page.goto(`/coach/session/${session.id}`);
+    await page.getByLabel("Search: Book a member into this class").fill("Searchable Alpha");
+    const options = await page.locator("#add-member option").allTextContents();
+    expect(options.join("|")).toContain("Searchable Alpha");
+    expect(options.join("|")).not.toContain("Searchable Bravo");
   });
 
   test("non-member parent has no booking control for themselves on adult classes", async ({

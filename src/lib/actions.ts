@@ -335,6 +335,56 @@ export async function toggleAttendance(profileId: string, sessionId: string) {
   revalidatePath("/");
 }
 
+export async function coachCheckInAll(sessionId: string) {
+  const coach = await requireCoach();
+  const sessionPath = `/coach/session/${sessionId}`;
+  const session = await prisma.classSession.findUniqueOrThrow({
+    where: { id: sessionId },
+    include: {
+      template: true,
+      bookings: { where: { status: "BOOKED" }, include: { profile: true } },
+      attendances: true,
+    },
+  });
+  const attended = new Set(session.attendances.map((a) => a.profileId));
+  const pending = session.bookings.filter((b) => !attended.has(b.profileId));
+  if (pending.length === 0) {
+    succeedTo(sessionPath, "Everyone booked is already checked in.");
+  }
+  const backfill = isBackfillCheckIn(session.startsAt, session.template.durationMin);
+  const late = !backfill && isLateCheckIn(session.startsAt);
+  let checkedIn = 0;
+  for (const b of pending) {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "MemberProfile" WHERE id = ${b.profileId} FOR UPDATE`;
+      const existing = await tx.attendance.findUnique({
+        where: { profileId_sessionId: { profileId: b.profileId, sessionId } },
+      });
+      if (existing) return;
+      await tx.attendance.create({
+        data: { profileId: b.profileId, sessionId, recordedBy: coach.name, late },
+      });
+      if (b.profile.membershipType === "PUNCH_PASS") {
+        await tx.memberProfile.update({
+          where: { id: b.profileId },
+          data: { punchPassUsed: { increment: 1 } },
+        });
+      }
+      checkedIn += 1;
+    });
+  }
+  await recordAudit(coach, "ATTENDANCE_TOGGLED", {
+    targetType: "ClassSession",
+    targetId: sessionId,
+    summary: `Checked in all booked members (${checkedIn}) for ${session.template.name}`,
+  });
+  revalidatePath(sessionPath);
+  revalidatePath("/coach");
+  revalidatePath("/progress");
+  revalidatePath("/");
+  succeedTo(sessionPath, `Checked in ${checkedIn} member${checkedIn === 1 ? "" : "s"}.`);
+}
+
 export async function coachWalkInCheckIn(sessionId: string, formData: FormData) {
   await requireCoach();
   const profileId = String(formData.get("profileId") ?? "");

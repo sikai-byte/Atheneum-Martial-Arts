@@ -63,4 +63,27 @@ test.describe("late check-in flag", () => {
     });
     expect(attendance.late).toBe(false);
   });
+
+  test("check in all checks in every booked member at once", async ({ page }) => {
+    const { profile: p1 } = await createMember("bulk1@test.local", "Bulk One");
+    const { profile: p2 } = await createMember("bulk2@test.local", "Bulk Two");
+    const { profile: p3 } = await createMember("bulk3@test.local", "Bulk Three");
+    const session = await makeSession(-2); // started 2 minutes ago — inside the buffer
+    for (const p of [p1, p2, p3]) {
+      await db.booking.create({ data: { profileId: p.id, sessionId: session.id } });
+    }
+
+    await login(page, "coach@example.com");
+    await page.goto(`/coach/session/${session.id}`);
+    await page.getByRole("button", { name: "Check in all" }).click();
+    await expect(page.getByText("Checked in 3 members.")).toBeVisible();
+    await expect(page.getByText("3 of 3 checked in")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Check in all" })).toHaveCount(0);
+
+    const attendances = await db.attendance.findMany({
+      where: { sessionId: session.id },
+    });
+    expect(attendances).toHaveLength(3);
+    expect(attendances.every((a) => !a.late)).toBe(true);
+  });
 });

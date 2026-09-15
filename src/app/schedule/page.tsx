@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
 import { formatDay, formatTime, programColors } from "@/lib/format";
 import { bookingLimit } from "@/lib/capacity";
-import { isNonMemberParent } from "@/lib/eligibility";
+import { isNonMemberParentOrStaff } from "@/lib/eligibility";
 import { ensureUpcomingSessions } from "@/lib/scheduleGen";
 import BookingControls from "@/components/BookingControls";
 
@@ -168,7 +168,7 @@ export default async function SchedulePage({
                 const spotsLeft = Math.max(0, s.template.capacity - booked);
                 const willWaitlist = booked >= bookingLimit(s.template.capacity);
                 const eligible = profiles.filter((p) => {
-                  if (isNonMemberParent(p)) return false;
+                  if (isNonMemberParentOrStaff(p)) return false;
                   if (s.template.ageGroup === "KIDS") return p.isChild;
                   if (s.template.ageGroup === "ADULTS") return !p.isChild;
                   return view === "kids" ? p.isChild : view === "adults" ? !p.isChild : true;

@@ -4,9 +4,12 @@ type EligibilityProfile = {
   user?: { role: string } | null;
 };
 
-/** Parent profiles can only join classes if they hold their own membership. */
-export function isNonMemberParent(profile: EligibilityProfile): boolean {
-  return profile.user?.role === "PARENT" && !profile.membershipType;
+const NON_MEMBER_ROLES = ["PARENT", "COACH", "ADMIN"];
+
+/** Parent and staff profiles can only join classes if they hold their own membership. */
+export function isNonMemberParentOrStaff(profile: EligibilityProfile): boolean {
+  const role = profile.user?.role;
+  return role !== undefined && role !== null && NON_MEMBER_ROLES.includes(role) && !profile.membershipType;
 }
 
 export function matchesAgeGroup(profile: { isChild: boolean }, ageGroup: string): boolean {
@@ -24,8 +27,10 @@ export function classEligibilityError(
       ? "Kids classes are for youth members only."
       : "Adult classes are for adult members only.";
   }
-  if (isNonMemberParent(profile)) {
-    return "Parents need their own membership to join classes.";
+  if (isNonMemberParentOrStaff(profile)) {
+    return profile.user?.role === "PARENT"
+      ? "Parents need their own membership to join classes."
+      : "Staff need their own membership to join classes.";
   }
   return null;
 }

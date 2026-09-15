@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireCoach } from "@/lib/auth";
 import {
   coachAddToRoster,
+  coachCheckInAll,
   coachRemoveFromRoster,
   coachWalkInCheckIn,
   toggleAttendance,
@@ -11,6 +12,7 @@ import {
 import { formatDay, formatTime } from "@/lib/format";
 import { classEligibilityError } from "@/lib/eligibility";
 import SubmitButton from "@/components/SubmitButton";
+import MemberSelect from "@/components/MemberSelect";
 
 export const dynamic = "force-dynamic";
 
@@ -96,9 +98,18 @@ export default async function RosterPage({
       user: { select: { role: true } },
     },
   });
-  const otherMembers = candidates.filter(
-    (m) => classEligibilityError(m, session.template) === null
-  );
+  const attendanceCounts = await prisma.attendance.groupBy({
+    by: ["profileId"],
+    _count: { profileId: true },
+  });
+  const countByProfile = new Map(attendanceCounts.map((c) => [c.profileId, c._count.profileId]));
+  const otherMembers = candidates
+    .filter((m) => classEligibilityError(m, session.template) === null)
+    .sort(
+      (a, b) =>
+        (countByProfile.get(b.id) ?? 0) - (countByProfile.get(a.id) ?? 0) ||
+        a.name.localeCompare(b.name)
+    );
 
   return (
     <div className="space-y-6">
@@ -150,9 +161,21 @@ export default async function RosterPage({
       </section>
 
       <section aria-labelledby="roster">
-        <h2 id="roster" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
-          Check in booked members
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="roster" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Check in booked members
+          </h2>
+          {booked.some((b) => !attendanceByProfile.has(b.profileId)) && (
+            <form action={coachCheckInAll.bind(null, session.id)}>
+              <SubmitButton
+                pendingLabel="Checking in…"
+                className="shrink-0 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+              >
+                Check in all
+              </SubmitButton>
+            </form>
+          )}
+        </div>
         {booked.length === 0 ? (
           <p className="mt-2 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-stone-600">
             No bookings yet — use “Check in anyone else” below for walk-ins.
@@ -268,25 +291,11 @@ export default async function RosterPage({
           action={coachAddToRoster.bind(null, session.id)}
           className="mt-2 flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
         >
-          <div className="min-w-52 flex-1">
-            <label htmlFor="add-member" className="mb-1 block text-sm font-medium">
-              Book a member into this class
-            </label>
-            <select
-              id="add-member"
-              name="profileId"
-              required
-              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
-            >
-              <option value="">Pick a member…</option>
-              {otherMembers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                  {m.isChild ? " (youth)" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          <MemberSelect
+            id="add-member"
+            label="Book a member into this class"
+            members={otherMembers}
+          />
           <SubmitButton
             pendingLabel="Adding…"
             className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
@@ -307,25 +316,11 @@ export default async function RosterPage({
           action={coachWalkInCheckIn.bind(null, session.id)}
           className="mt-2 flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
         >
-          <div className="min-w-52 flex-1">
-            <label htmlFor="walkin-member" className="mb-1 block text-sm font-medium">
-              Member not on the roster
-            </label>
-            <select
-              id="walkin-member"
-              name="profileId"
-              required
-              className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
-            >
-              <option value="">Pick a member…</option>
-              {otherMembers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                  {m.isChild ? " (youth)" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          <MemberSelect
+            id="walkin-member"
+            label="Member not on the roster"
+            members={otherMembers}
+          />
           <SubmitButton
             pendingLabel="Checking in…"
             className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"

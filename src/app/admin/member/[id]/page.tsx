@@ -15,6 +15,7 @@ import {
 } from "@/lib/actions";
 import { purgeDueAt, RETENTION_YEARS } from "@/lib/leavers";
 import { adminRecordWaiver, adminSetPin } from "@/lib/kiosk-actions";
+import { classEligibilityError } from "@/lib/eligibility";
 import { formatDay, formatTime } from "@/lib/format";
 import { ageFromBirthDate, formatBirthDate } from "@/lib/age";
 import { appUrl } from "@/lib/email";
@@ -45,15 +46,17 @@ export default async function AdminMemberPage({
 
   const now = new Date();
   const twoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-  const upcomingSessions = await prisma.classSession.findMany({
-    where: {
-      status: "SCHEDULED",
-      startsAt: { gt: now, lt: twoWeeks },
-      template: { name: { not: { startsWith: "Private Trial" } } },
-    },
-    include: { template: true },
-    orderBy: { startsAt: "asc" },
-  });
+  const upcomingSessions = (
+    await prisma.classSession.findMany({
+      where: {
+        status: "SCHEDULED",
+        startsAt: { gt: now, lt: twoWeeks },
+        template: { name: { not: { startsWith: "Private Trial" } } },
+      },
+      include: { template: true },
+      orderBy: { startsAt: "asc" },
+    })
+  ).filter((s) => classEligibilityError(profile, s.template) === null);
   const upcomingBookings = await prisma.booking.findMany({
     where: {
       profileId: profile.id,
