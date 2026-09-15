@@ -6,6 +6,8 @@ import { setOwnPin, signOwnWaiver } from "@/lib/kiosk-actions";
 import { ageFromBirthDate, formatBirthDate } from "@/lib/age";
 import { WAIVER_PARAGRAPHS, WAIVER_TITLE } from "@/lib/waiver";
 import SubmitButton from "@/components/SubmitButton";
+import PushNotificationsCard from "@/components/PushNotificationsCard";
+import { vapidPublicKey } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,8 @@ export default async function AccountPage({
           </Link>
         </p>
       </section>
+
+      <PushNotificationsCard vapidPublicKey={vapidPublicKey()} />
 
       {profiles.length > 0 && (
         <section className="rounded-xl border border-stone-200 bg-white p-5">

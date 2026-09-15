@@ -28,6 +28,10 @@ export default defineConfig({
       SESSION_SECRET: "playwright-test-session-secret-at-least-32-chars",
       UPLOAD_DIR: "./test-uploads",
       APP_URL: `http://localhost:${PORT}`,
+      // Test-only VAPID pair so the notifications card renders; never used to send.
+      VAPID_PUBLIC_KEY:
+        "BKxYeiA4JU3s5exGIJWoprEkvvxqnkOeCSH0_XX1g_basJmk3T4kebTU_DDEJczucG2zINA7BJOkNLIQcZKdApI",
+      VAPID_PRIVATE_KEY: "lLrvC8gIH436HET9ZKYjPvJqkWuI3Nv-3ry8pmXg5ls",
     },
   },
 });

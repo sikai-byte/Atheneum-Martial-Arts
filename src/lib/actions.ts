@@ -1147,6 +1147,29 @@ export async function toggleReaction(postId: string, emoji: string) {
   revalidatePath("/");
 }
 
+export async function savePushSubscription(subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}) {
+  const user = await requireUser();
+  const endpoint = String(subscription?.endpoint ?? "");
+  const p256dh = String(subscription?.keys?.p256dh ?? "");
+  const auth = String(subscription?.keys?.auth ?? "");
+  if (!endpoint.startsWith("https://") || !p256dh || !auth) {
+    throw new Error("Invalid push subscription.");
+  }
+  await prisma.pushSubscription.upsert({
+    where: { endpoint },
+    update: { p256dh, auth, userId: user.id },
+    create: { endpoint, p256dh, auth, userId: user.id },
+  });
+}
+
+export async function removePushSubscription(endpoint: string) {
+  const user = await requireUser();
+  await prisma.pushSubscription.deleteMany({ where: { endpoint, userId: user.id } });
+}
+
 export async function deletePost(postId: string) {
   const user = await requireUser();
   const post = await prisma.post.findUniqueOrThrow({

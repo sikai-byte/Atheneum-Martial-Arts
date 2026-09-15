@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { prisma } from "./db";
 import { appUrl, sendEmail } from "./email";
 import { formatDay, formatTime } from "./format";
+import { sendPushToUsers, type PushPayload } from "./push";
 
 const HOUR_MS = 60 * 60 * 1000;
 const WINDOW_START_MS = 12 * HOUR_MS;
@@ -91,6 +92,107 @@ export async function runReminderPass(db: PrismaClient = prisma): Promise<number
     }
   }
   return sent;
+}
+
+const CLASS_REMINDER_TICK_MS = 15 * 60 * 1000;
+
+type ReminderWindow = {
+  field: "reminder24SentAt" | "reminder2SentAt";
+  minMs: number;
+  maxMs: number;
+  lead: string;
+};
+
+const REMINDER_WINDOWS: ReminderWindow[] = [
+  { field: "reminder24SentAt", minMs: 20 * HOUR_MS, maxMs: 24 * HOUR_MS, lead: "24 hours" },
+  { field: "reminder2SentAt", minMs: 1 * HOUR_MS, maxMs: 2 * HOUR_MS, lead: "2 hours" },
+];
+
+/**
+ * Sends push reminders for booked classes starting 24 hours and 2 hours from
+ * now. Adults are notified directly; for child profiles the household's
+ * parent accounts are notified instead. Each window fires at most once per
+ * booking.
+ */
+export async function runClassReminderPass(
+  db: PrismaClient = prisma,
+  send: (userIds: string[], payload: PushPayload) => Promise<number> = (userIds, payload) =>
+    sendPushToUsers(userIds, payload, db)
+): Promise<number> {
+  const now = Date.now();
+  let processed = 0;
+
+  for (const window of REMINDER_WINDOWS) {
+    const bookings = await db.booking.findMany({
+      where: {
+        status: "BOOKED",
+        [window.field]: null,
+        session: {
+          status: "SCHEDULED",
+          startsAt: { gt: new Date(now + window.minMs), lte: new Date(now + window.maxMs) },
+        },
+        profile: { deactivatedAt: null },
+      },
+      include: {
+        session: { include: { template: true } },
+        profile: {
+          include: {
+            user: true,
+            household: { include: { users: true } },
+          },
+        },
+      },
+    });
+
+    for (const booking of bookings) {
+      const { profile, session } = booking;
+      const userIds: string[] = [];
+      if (profile.user && !profile.user.deactivatedAt) {
+        userIds.push(profile.user.id);
+      } else if (profile.isChild) {
+        for (const parent of profile.household.users) {
+          if (parent.role === "PARENT" && !parent.deactivatedAt) userIds.push(parent.id);
+        }
+      }
+
+      try {
+        if (userIds.length > 0) {
+          const who = profile.user ? "You're" : `${profile.name.split(" ")[0]} is`;
+          await send(userIds, {
+            title: `Class in ${window.lead}: ${session.template.name}`,
+            body: `${who} booked for ${formatDay(session.startsAt)} at ${formatTime(session.startsAt)}. Need to make a change? Do so right through the app.`,
+            url: "/schedule",
+          });
+        }
+        await db.booking.update({
+          where: { id: booking.id },
+          data: { [window.field]: new Date() },
+        });
+        processed += 1;
+      } catch (err) {
+        console.error(`[reminders] Failed class reminder for booking ${booking.id}:`, err);
+      }
+    }
+  }
+  return processed;
+}
+
+export function startClassReminderSchedule(): void {
+  const globalState = globalThis as unknown as {
+    classReminderTimer?: ReturnType<typeof setInterval>;
+  };
+  if (globalState.classReminderTimer) return;
+
+  const tick = async () => {
+    try {
+      const sent = await runClassReminderPass();
+      if (sent > 0) console.log(`[reminders] Sent ${sent} class push reminder(s)`);
+    } catch (err) {
+      console.error("[reminders] Class reminder pass failed:", err);
+    }
+  };
+  void tick();
+  globalState.classReminderTimer = setInterval(tick, CLASS_REMINDER_TICK_MS);
 }
 
 export function startReminderSchedule(): void {

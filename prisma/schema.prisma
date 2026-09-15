@@ -20,6 +20,7 @@ model User {
   posts                Post[]
   comments             Comment[]
   reactions            PostReaction[]
+  pushSubscriptions    PushSubscription[]
   resetTokens          PasswordResetToken[]
   feedback             Feedback[]
   deactivatedAt        DateTime? // leaver hold: sign-in blocked, data retained
@@ -157,6 +158,8 @@ model Booking {
   status         String        @default("BOOKED") // BOOKED | WAITLISTED | CANCELLED
   createdAt      DateTime      @default(now())
   reminderSentAt DateTime? // day-before trial class reminder email
+  reminder24SentAt DateTime? // 24-hours-before booked-class push reminder
+  reminder2SentAt  DateTime? // 2-hours-before booked-class push reminder
   profileId      String
   profile        MemberProfile @relation(fields: [profileId], references: [id])
   sessionId      String
@@ -249,6 +252,16 @@ model Post {
   comments  Comment[]
   media     PostMedia[]
   reactions PostReaction[]
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PostReaction {

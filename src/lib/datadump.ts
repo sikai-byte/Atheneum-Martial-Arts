@@ -16,6 +16,7 @@ export interface DataDump {
     household: Prisma.HouseholdCreateManyInput[];
     user: Prisma.UserCreateManyInput[];
     passwordResetToken: Prisma.PasswordResetTokenCreateManyInput[];
+    pushSubscription?: Prisma.PushSubscriptionCreateManyInput[];
     feedback?: Prisma.FeedbackCreateManyInput[];
     memberProfile: Prisma.MemberProfileCreateManyInput[];
     waiverSignature?: Prisma.WaiverSignatureCreateManyInput[];
@@ -32,6 +33,8 @@ export interface DataDump {
     productImage?: Prisma.ProductImageCreateManyInput[];
     order: Prisma.OrderCreateManyInput[];
     post: Prisma.PostCreateManyInput[];
+    postMedia?: Prisma.PostMediaCreateManyInput[];
+    postReaction?: Prisma.PostReactionCreateManyInput[];
     comment: Prisma.CommentCreateManyInput[];
     announcement: Prisma.AnnouncementCreateManyInput[];
     telemetryEvent: Prisma.TelemetryEventCreateManyInput[];
@@ -44,6 +47,7 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
     household,
     user,
     passwordResetToken,
+    pushSubscription,
     feedback,
     memberProfile,
     waiverSignature,
@@ -60,6 +64,8 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
     productImage,
     order,
     post,
+    postMedia,
+    postReaction,
     comment,
     announcement,
     telemetryEvent,
@@ -68,6 +74,7 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
     prisma.household.findMany(),
     prisma.user.findMany(),
     prisma.passwordResetToken.findMany(),
+    prisma.pushSubscription.findMany(),
     prisma.feedback.findMany(),
     prisma.memberProfile.findMany(),
     prisma.waiverSignature.findMany(),
@@ -84,6 +91,8 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
     prisma.productImage.findMany(),
     prisma.order.findMany(),
     prisma.post.findMany(),
+    prisma.postMedia.findMany(),
+    prisma.postReaction.findMany(),
     prisma.comment.findMany(),
     prisma.announcement.findMany(),
     prisma.telemetryEvent.findMany(),
@@ -97,6 +106,7 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
       household,
       user,
       passwordResetToken,
+      pushSubscription,
       feedback,
       memberProfile,
       waiverSignature,
@@ -113,6 +123,8 @@ export async function exportAll(prisma: PrismaClient): Promise<DataDump> {
       productImage,
       order,
       post,
+      postMedia,
+      postReaction,
       comment,
       announcement,
       telemetryEvent,
@@ -133,6 +145,8 @@ export async function importAll(prisma: PrismaClient, dump: DataDump): Promise<v
     prisma.telemetryEvent.deleteMany(),
     prisma.announcement.deleteMany(),
     prisma.comment.deleteMany(),
+    prisma.postReaction.deleteMany(),
+    prisma.postMedia.deleteMany(),
     prisma.post.deleteMany(),
     prisma.order.deleteMany(),
     prisma.productImage.deleteMany(),
@@ -150,12 +164,14 @@ export async function importAll(prisma: PrismaClient, dump: DataDump): Promise<v
     prisma.memberProfile.deleteMany(),
     prisma.feedback.deleteMany(),
     prisma.passwordResetToken.deleteMany(),
+    prisma.pushSubscription.deleteMany(),
     prisma.user.deleteMany(),
     prisma.household.deleteMany(),
 
     prisma.household.createMany({ data: t.household }),
     prisma.user.createMany({ data: t.user }),
     prisma.passwordResetToken.createMany({ data: t.passwordResetToken }),
+    prisma.pushSubscription.createMany({ data: t.pushSubscription ?? [] }),
     prisma.feedback.createMany({ data: t.feedback ?? [] }),
     prisma.memberProfile.createMany({ data: t.memberProfile }),
     prisma.waiverSignature.createMany({ data: t.waiverSignature ?? [] }),
@@ -172,6 +188,8 @@ export async function importAll(prisma: PrismaClient, dump: DataDump): Promise<v
     prisma.productImage.createMany({ data: t.productImage ?? [] }),
     prisma.order.createMany({ data: t.order }),
     prisma.post.createMany({ data: t.post }),
+    prisma.postMedia.createMany({ data: t.postMedia ?? [] }),
+    prisma.postReaction.createMany({ data: t.postReaction ?? [] }),
     prisma.comment.createMany({ data: t.comment }),
     prisma.announcement.createMany({ data: t.announcement }),
     prisma.telemetryEvent.createMany({ data: t.telemetryEvent }),
