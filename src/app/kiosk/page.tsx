@@ -89,6 +89,12 @@ export default async function KioskPage() {
           Register as a new member
         </Link>
       </section>
+
+      <p className="text-center">
+        <Link href="/kiosk/exit" className="text-sm text-stone-400 active:text-stone-600">
+          Staff: exit kiosk mode
+        </Link>
+      </p>
     </div>
   );
 }

@@ -54,3 +54,33 @@ test.describe("kiosk walk-in name suggestions", () => {
     expect(attendance).not.toBeNull();
   });
 });
+
+test.describe("kiosk exit", () => {
+  test("staff can exit kiosk mode from the kiosk; members cannot", async ({ page }) => {
+    await createMember("kiosk-member@test.local", "Kiosk Member");
+
+    await login(page, "admin@example.com");
+    await page.goto("/admin/kiosk");
+    await page.getByRole("button", { name: "Turn on kiosk mode & open kiosk" }).click();
+    await page.waitForURL((url) => url.pathname === "/kiosk");
+
+    await page.getByRole("link", { name: "Staff: exit kiosk mode" }).click();
+    await expect(page.getByRole("heading", { name: "Exit kiosk mode" })).toBeVisible();
+
+    await page.getByLabel("Staff email").fill("kiosk-member@test.local");
+    await page.getByLabel("Password").fill("atheneum123");
+    await page.getByRole("button", { name: "Exit kiosk mode" }).click();
+    await expect(page.locator('form p[role="alert"]')).toContainText("doesn't match our records");
+
+    await page.getByLabel("Staff email").fill("admin@example.com");
+    await page.getByLabel("Password").fill("atheneum123");
+    await page.getByRole("button", { name: "Exit kiosk mode" }).click();
+    await page.waitForURL((url) => url.pathname === "/login");
+
+    await page.goto("/kiosk");
+    await expect(page.getByText("This device isn't set up as a kiosk yet")).toBeVisible();
+
+    await page.goto("/admin");
+    await page.waitForURL((url) => url.pathname === "/login");
+  });
+});

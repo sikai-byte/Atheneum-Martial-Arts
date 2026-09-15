@@ -34,6 +34,7 @@ const ACTION_LABELS: Record<string, string> = {
   SLOT_DELETED: "Slot removed",
   SESSION_CANCELLED: "Session cancelled",
   SESSION_RESTORED: "Session restored",
+  KIOSK_MODE_DISABLED: "Kiosk mode exited",
 };
 
 export default async function AuditPage({

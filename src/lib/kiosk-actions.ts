@@ -42,6 +42,36 @@ export async function disableKioskMode() {
   redirect("/admin/kiosk");
 }
 
+/** Exit kiosk mode from the kiosk itself: staff verify their credentials, no session is created. */
+export async function exitKioskMode(formData: FormData) {
+  if (!(await isKioskEnabled())) redirect("/kiosk");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const fail = (message: string) => redirect(`/kiosk/exit?error=${encodeURIComponent(message)}`);
+  if (isLockedOut(`login:${email}`, 10)) {
+    fail("Too many failed attempts. Please wait a few minutes and try again.");
+  }
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (
+    !user ||
+    user.deactivatedAt ||
+    !["ADMIN", "COACH"].includes(user.role) ||
+    !(await bcrypt.compare(password, user.passwordHash))
+  ) {
+    recordFailure(`login:${email}`, 5 * 60 * 1000);
+    fail("That staff email and password combination doesn't match our records.");
+    return;
+  }
+  const kiosk = await getKioskSession();
+  kiosk.destroy();
+  await recordAudit({ id: user.id, name: user.name, role: user.role }, "KIOSK_MODE_DISABLED", {
+    targetType: "Device",
+    targetId: "kiosk",
+    summary: `${user.name} exited kiosk mode from the kiosk`,
+  });
+  redirect("/login");
+}
+
 // ---------- PIN management ----------
 
 export type PinState = { error?: string; success?: string };
