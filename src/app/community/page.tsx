@@ -5,6 +5,7 @@ import { formatDay, formatTime } from "@/lib/format";
 import { deletePost, addComment, deleteComment } from "@/lib/actions";
 import SubmitButton from "@/components/SubmitButton";
 import NewPostForm from "@/components/NewPostForm";
+import ReactionBar from "@/components/ReactionBar";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function CommunityPage() {
     include: {
       author: { select: { id: true, name: true, role: true } },
       media: { orderBy: { position: "asc" } },
+      reactions: { select: { emoji: true, userId: true } },
       comments: {
         include: { author: { select: { id: true, name: true, role: true } } },
         orderBy: { createdAt: "asc" },
@@ -142,6 +144,8 @@ export default async function CommunityPage() {
                       )}
                     </div>
                   )}
+
+                  <ReactionBar postId={post.id} reactions={post.reactions} userId={user.id} />
 
                   <div className="mt-4 border-t border-stone-100 pt-3">
                     {post.comments.length > 0 && (

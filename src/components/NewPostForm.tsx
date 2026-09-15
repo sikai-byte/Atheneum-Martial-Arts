@@ -1,8 +1,9 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useRef, useState } from "react";
-import { createPost } from "@/lib/actions";
+import { useEffect, useRef, useState } from "react";
+import { useFormState } from "react-dom";
+import { createPost, type PostFormState } from "@/lib/actions";
 import SubmitButton from "@/components/SubmitButton";
 import {
   MAX_IMAGE_BYTES,
@@ -33,9 +34,22 @@ function videoDuration(file: File): Promise<number> {
 }
 
 export default function NewPostForm() {
+  const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [state, formAction] = useFormState<PostFormState, FormData>(createPost, {});
   const [error, setError] = useState("");
   const [previews, setPreviews] = useState<Preview[]>([]);
+
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+      setPreviews((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.url));
+        return [];
+      });
+      setError("");
+    }
+  }, [state]);
 
   async function handleFilesChanged() {
     const input = inputRef.current;
@@ -87,7 +101,23 @@ export default function NewPostForm() {
   }
 
   return (
-    <form action={createPost} className="mt-4 space-y-4">
+    <form ref={formRef} action={formAction} className="mt-4 space-y-4">
+      {state.success && (
+        <p
+          role="status"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-800"
+        >
+          {state.success}
+        </p>
+      )}
+      {state.error && (
+        <p
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-800"
+        >
+          {state.error}
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="post-title" className="mb-1 block text-sm font-medium">

@@ -20,6 +20,7 @@ import {
   POST_VIDEO_TYPES,
   videoDurationSeconds,
 } from "./media";
+import { REACTION_EMOJIS } from "./reactions";
 import { formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
 import { isBackfillCheckIn, isLateCheckIn } from "./attendance";
@@ -1061,26 +1062,31 @@ export async function changeOwnPassword(formData: FormData) {
   redirect("/account?updated=1");
 }
 
-export async function createPost(formData: FormData) {
+export type PostFormState = { success?: string; error?: string };
+
+export async function createPost(
+  _prevState: PostFormState,
+  formData: FormData
+): Promise<PostFormState> {
   const user = await requireUser();
   const title = String(formData.get("title") ?? "").trim().slice(0, 120);
   const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
   const category = String(formData.get("category") ?? "GENERAL");
-  if (!body) throw new Error("Please write something to post.");
-  if (!["GENERAL", "QUESTION", "NEWS"].includes(category)) throw new Error("Invalid category.");
+  if (!body) return { error: "Please write something to post." };
+  if (!["GENERAL", "QUESTION", "NEWS"].includes(category)) return { error: "Invalid category." };
 
   const mediaEntries = formData
     .getAll("media")
     .filter((f): f is File => f instanceof Blob && f.size > 0);
   if (mediaEntries.length > MAX_POST_MEDIA) {
-    throw new Error(`You can attach up to ${MAX_POST_MEDIA} photos/videos per post.`);
+    return { error: `You can attach up to ${MAX_POST_MEDIA} photos/videos per post.` };
   }
 
   const prepared: { kind: string; mimeType: string; buffer: Buffer }[] = [];
   for (const file of mediaEntries) {
     if (POST_IMAGE_TYPES.includes(file.type)) {
       if (file.size > MAX_IMAGE_BYTES) {
-        throw new Error("Photo is too large — please use one under 8 MB.");
+        return { error: "Photo is too large — please use one under 8 MB." };
       }
       prepared.push({
         kind: "IMAGE",
@@ -1089,16 +1095,16 @@ export async function createPost(formData: FormData) {
       });
     } else if (POST_VIDEO_TYPES.includes(file.type)) {
       if (file.size > MAX_VIDEO_BYTES) {
-        throw new Error("Video is too large — please use one under 100 MB.");
+        return { error: "Video is too large — please use one under 100 MB." };
       }
       const buffer = Buffer.from(await file.arrayBuffer());
       const duration = videoDurationSeconds(buffer);
       if (duration !== null && duration > MAX_VIDEO_SECONDS + 0.5) {
-        throw new Error("Videos must be 1 minute or shorter.");
+        return { error: "Videos must be 1 minute or shorter." };
       }
       prepared.push({ kind: "VIDEO", mimeType: file.type, buffer });
     } else {
-      throw new Error("Please attach JPEG/PNG/WebP photos or MP4/MOV/WebM videos.");
+      return { error: "Please attach JPEG/PNG/WebP photos or MP4/MOV/WebM videos." };
     }
   }
 
@@ -1117,6 +1123,28 @@ export async function createPost(formData: FormData) {
   }
 
   revalidatePath("/community");
+  revalidatePath("/");
+  return { success: "Your post is live — thanks for sharing with the tribe!" };
+}
+
+export async function toggleReaction(postId: string, emoji: string) {
+  const user = await requireUser();
+  if (!REACTION_EMOJIS.includes(emoji as (typeof REACTION_EMOJIS)[number])) {
+    throw new Error("Invalid reaction.");
+  }
+  await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+
+  const existing = await prisma.postReaction.findUnique({
+    where: { postId_userId_emoji: { postId, userId: user.id, emoji } },
+  });
+  if (existing) {
+    await prisma.postReaction.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.postReaction.create({ data: { postId, userId: user.id, emoji } });
+  }
+
+  revalidatePath("/community");
+  revalidatePath("/");
 }
 
 export async function deletePost(postId: string) {

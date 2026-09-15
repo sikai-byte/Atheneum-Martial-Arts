@@ -19,7 +19,7 @@ export default async function HomePage() {
   const now = new Date();
   const weekStart = startOfWeek(now);
 
-  const [nextBookings, weekAttendance, announcements, recommended] = await Promise.all([
+  const [nextBookings, weekAttendance, announcements, recommended, communityPosts] = await Promise.all([
     prisma.booking.findMany({
       where: {
         profileId: { in: profileIds },
@@ -42,6 +42,15 @@ export default async function HomePage() {
       include: { template: { include: { program: true } }, bookings: { where: { status: "BOOKED" } } },
       orderBy: { startsAt: "asc" },
       take: 30,
+    }),
+    prisma.post.findMany({
+      include: {
+        author: { select: { name: true, role: true } },
+        media: { orderBy: { position: "asc" }, take: 1 },
+        _count: { select: { comments: true, reactions: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 3,
     }),
   ]);
 
@@ -81,6 +90,30 @@ export default async function HomePage() {
       </section>
 
       {!user.startHereDismissedAt && <StartHereBanner />}
+
+      <section aria-label="Quick links" className="grid grid-cols-3 gap-3">
+        <Link
+          href="/schedule"
+          className="rounded-xl border border-stone-200 bg-white p-3 text-center shadow-sm hover:border-stone-400"
+        >
+          <span className="text-xl" aria-hidden>📅</span>
+          <p className="mt-1 text-sm font-semibold">Book classes</p>
+        </Link>
+        <Link
+          href="/community"
+          className="rounded-xl border border-stone-200 bg-white p-3 text-center shadow-sm hover:border-stone-400"
+        >
+          <span className="text-xl" aria-hidden>💬</span>
+          <p className="mt-1 text-sm font-semibold">Community</p>
+        </Link>
+        <Link
+          href="/shop"
+          className="rounded-xl border border-stone-200 bg-white p-3 text-center shadow-sm hover:border-stone-400"
+        >
+          <span className="text-xl" aria-hidden>🛍️</span>
+          <p className="mt-1 text-sm font-semibold">Gear shop</p>
+        </Link>
+      </section>
 
       <section aria-labelledby="next-class">
         <h2 id="next-class" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
@@ -296,6 +329,51 @@ export default async function HomePage() {
                 {a.author} · {formatDay(a.createdAt)}
               </p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="community-posts">
+        <div className="flex items-center justify-between">
+          <h2
+            id="community-posts"
+            className="text-sm font-semibold uppercase tracking-wide text-stone-500"
+          >
+            From the community
+          </h2>
+          <Link href="/community" className="text-sm font-medium text-brand hover:underline">
+            See all
+          </Link>
+        </div>
+        <div className="mt-2 space-y-3">
+          {communityPosts.length === 0 && (
+            <p className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-sm text-stone-600">
+              No posts yet — be the first to share something with the tribe!
+            </p>
+          )}
+          {communityPosts.map((post) => (
+            <Link
+              key={post.id}
+              href="/community"
+              className="block rounded-xl border border-stone-200 bg-white p-4 shadow-sm hover:border-stone-400"
+            >
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold">{post.author.name}</p>
+                {(post.author.role === "COACH" || post.author.role === "ADMIN") && (
+                  <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+                    Staff
+                  </span>
+                )}
+                <p className="text-xs text-stone-400">{formatDay(post.createdAt)}</p>
+              </div>
+              {post.title && <p className="mt-1 font-medium">{post.title}</p>}
+              <p className="mt-1 line-clamp-2 text-sm text-stone-600">{post.body}</p>
+              <p className="mt-2 text-xs text-stone-400">
+                {post._count.reactions > 0 && `${post._count.reactions} reaction${post._count.reactions === 1 ? "" : "s"} · `}
+                {post._count.comments} comment{post._count.comments === 1 ? "" : "s"}
+                {post.media.length > 0 && " · 📷"}
+              </p>
+            </Link>
           ))}
         </div>
       </section>

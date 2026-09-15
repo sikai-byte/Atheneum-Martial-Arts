@@ -19,6 +19,7 @@ model User {
   orders               Order[]
   posts                Post[]
   comments             Comment[]
+  reactions            PostReaction[]
   resetTokens          PasswordResetToken[]
   feedback             Feedback[]
   deactivatedAt        DateTime? // leaver hold: sign-in blocked, data retained
@@ -247,6 +248,19 @@ model Post {
   author    User        @relation(fields: [authorId], references: [id])
   comments  Comment[]
   media     PostMedia[]
+  reactions PostReaction[]
+}
+
+model PostReaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  createdAt DateTime @default(now())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, emoji])
 }
 
 model PostMedia {
