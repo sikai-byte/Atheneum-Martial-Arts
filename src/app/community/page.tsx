@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDay, formatTime } from "@/lib/format";
@@ -6,6 +5,7 @@ import { deletePost, addComment, deleteComment } from "@/lib/actions";
 import SubmitButton from "@/components/SubmitButton";
 import NewPostForm from "@/components/NewPostForm";
 import ReactionBar from "@/components/ReactionBar";
+import PostMediaGallery, { type GalleryItem } from "@/components/PostMediaGallery";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +67,22 @@ export default async function CommunityPage() {
           <div className="mt-2 space-y-4">
             {posts.map((post) => {
               const canDeletePost = isStaff || post.author.id === user.id;
+              const galleryItems: GalleryItem[] = [
+                ...(post.photoType
+                  ? [
+                      {
+                        src: `/api/post-photo/${post.id}`,
+                        kind: "IMAGE" as const,
+                        alt: post.title || "Community post photo",
+                      },
+                    ]
+                  : []),
+                ...post.media.map((m) => ({
+                  src: `/api/post-media/${m.id}`,
+                  kind: m.kind === "VIDEO" ? ("VIDEO" as const) : ("IMAGE" as const),
+                  alt: post.title || "Community post photo",
+                })),
+              ];
               return (
                 <article key={post.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
@@ -105,45 +121,7 @@ export default async function CommunityPage() {
                     )}
                   </div>
 
-                  {post.photoType && (
-                    <img
-                      src={`/api/post-photo/${post.id}`}
-                      alt={post.title || "Community post photo"}
-                      className="mt-3 max-h-96 w-full rounded-lg object-cover"
-                    />
-                  )}
-
-                  {post.media.length > 0 && (
-                    <div
-                      className={`mt-3 grid gap-2 ${
-                        post.media.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                      }`}
-                    >
-                      {post.media.map((m) =>
-                        m.kind === "VIDEO" ? (
-                          <video
-                            key={m.id}
-                            src={`/api/post-media/${m.id}`}
-                            controls
-                            playsInline
-                            preload="metadata"
-                            className={`max-h-96 w-full rounded-lg bg-black ${
-                              post.media.length === 1 ? "" : "h-48 object-cover"
-                            }`}
-                          />
-                        ) : (
-                          <img
-                            key={m.id}
-                            src={`/api/post-media/${m.id}`}
-                            alt={post.title || "Community post photo"}
-                            className={`w-full rounded-lg object-cover ${
-                              post.media.length === 1 ? "max-h-96" : "h-48"
-                            }`}
-                          />
-                        )
-                      )}
-                    </div>
-                  )}
+                  {galleryItems.length > 0 && <PostMediaGallery items={galleryItems} />}
 
                   <ReactionBar postId={post.id} reactions={post.reactions} userId={user.id} />
 

@@ -54,6 +54,40 @@ test.describe("community post media", () => {
     expect(response.headers()["content-type"]).toBe("video/mp4");
   });
 
+  test("clicking a photo expands it in a lightbox", async ({ page }) => {
+    await login(page, "member@example.com");
+    await page.goto("/community");
+
+    const card = page.locator("article", { hasText: "Multi-media test post" }).first();
+    await card.getByRole("button", { name: "Expand photo" }).first().click();
+
+    const dialog = page.getByRole("dialog", { name: "Expanded media" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator("img")).toBeVisible();
+    await expect(dialog.getByText("1 / 4")).toBeVisible();
+
+    await dialog.getByRole("button", { name: "Next" }).click();
+    await expect(dialog.getByText("2 / 4")).toBeVisible();
+
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test("clicking a video expands it in a lightbox", async ({ page }) => {
+    await login(page, "member@example.com");
+    await page.goto("/community");
+
+    const card = page.locator("article", { hasText: "Multi-media test post" }).first();
+    await card.getByRole("button", { name: "Expand video" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Expanded media" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator("video")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+  });
+
   test("more than 5 attachments are rejected before posting", async ({ page }) => {
     await login(page, "member@example.com");
     await page.goto("/community");
