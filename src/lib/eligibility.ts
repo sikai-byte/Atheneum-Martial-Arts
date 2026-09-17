@@ -1,5 +1,6 @@
 type EligibilityProfile = {
   isChild: boolean;
+  adultClassEligible: boolean;
   membershipType: string | null;
   user?: { role: string } | null;
 };
@@ -12,9 +13,12 @@ export function isNonMemberParentOrStaff(profile: EligibilityProfile): boolean {
   return role !== undefined && role !== null && NON_MEMBER_ROLES.includes(role) && !profile.membershipType;
 }
 
-export function matchesAgeGroup(profile: { isChild: boolean }, ageGroup: string): boolean {
+export function matchesAgeGroup(
+  profile: { isChild: boolean; adultClassEligible: boolean },
+  ageGroup: string
+): boolean {
   if (ageGroup === "KIDS") return profile.isChild;
-  if (ageGroup === "ADULTS") return !profile.isChild;
+  if (ageGroup === "ADULTS") return !profile.isChild || profile.adultClassEligible;
   return true;
 }
 

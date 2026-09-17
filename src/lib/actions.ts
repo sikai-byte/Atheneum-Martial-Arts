@@ -1043,6 +1043,31 @@ export async function updateMembership(profileId: string, formData: FormData) {
   succeedTo(`/admin/member/${profileId}`, "Membership saved.");
 }
 
+export async function setAdultClassEligible(profileId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const eligible = formData.get("adultClassEligible") === "on";
+
+  const updated = await prisma.memberProfile.update({
+    where: { id: profileId },
+    data: { adultClassEligible: eligible },
+  });
+
+  await recordAudit(admin, "MEMBERSHIP_UPDATED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `${eligible ? "Allowed" : "Removed"} adult-program classes for ${updated.name}`,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/schedule");
+  succeedTo(
+    `/admin/member/${profileId}`,
+    eligible
+      ? `${updated.name} can now be booked into adult classes too.`
+      : `${updated.name} is limited to kids classes again.`
+  );
+}
+
 export async function changeOwnPassword(formData: FormData) {
   const user = await requireUser();
   const currentPassword = String(formData.get("currentPassword") ?? "");

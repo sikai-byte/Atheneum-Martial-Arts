@@ -69,6 +69,29 @@ test.describe("class eligibility rules", () => {
     expect(options.join("|")).not.toContain("Coach Sam");
   });
 
+  test("adult-program kid appears in both kids and adult class pickers", async ({ page }) => {
+    const { kidProfile } = await createParentWithKid(
+      "elig-parent4@test.local",
+      "Elig ParentFour",
+      "Elig KidFour"
+    );
+    await db.memberProfile.update({
+      where: { id: kidProfile.id },
+      data: { adultClassEligible: true },
+    });
+    const adultSession = await makeSession("ADULTS", "Eligibility Adults Class Four");
+    const kidsSession = await makeSession("KIDS", "Eligibility Kids Class Four");
+
+    await login(page, "coach@example.com");
+    await page.goto(`/coach/session/${adultSession.id}`);
+    let options = await page.locator("#add-member option").allTextContents();
+    expect(options.join("|")).toContain("Elig KidFour");
+
+    await page.goto(`/coach/session/${kidsSession.id}`);
+    options = await page.locator("#add-member option").allTextContents();
+    expect(options.join("|")).toContain("Elig KidFour");
+  });
+
   test("picker search narrows the member list", async ({ page }) => {
     await createMember("elig-search1@test.local", "Searchable Alpha");
     await createMember("elig-search2@test.local", "Searchable Bravo");

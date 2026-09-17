@@ -57,6 +57,7 @@ export default async function KioskClassPage({ params }: { params: { id: string 
       id: true,
       name: true,
       isChild: true,
+      adultClassEligible: true,
       membershipType: true,
       user: { select: { role: true } },
     },

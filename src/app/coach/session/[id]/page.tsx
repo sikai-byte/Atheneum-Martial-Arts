@@ -94,6 +94,7 @@ export default async function RosterPage({
       id: true,
       name: true,
       isChild: true,
+      adultClassEligible: true,
       membershipType: true,
       user: { select: { role: true } },
     },
