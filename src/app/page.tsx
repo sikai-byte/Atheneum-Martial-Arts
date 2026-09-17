@@ -501,11 +501,22 @@ export default async function HomePage() {
                     {p.membershipPlan ?? "No plan on file"}
                   </p>
                 </div>
-                {p.membershipType === "MONTHLY" && p.membershipRenewsAt && (
-                  <p className="mt-1 text-sm text-stone-600">
-                    Renews {formatDay(p.membershipRenewsAt)}
-                  </p>
-                )}
+                {p.membershipType === "MONTHLY" &&
+                  p.membershipRenewsAt &&
+                  (p.membershipRenewsAt < now ? (
+                    <p className="mt-1 text-sm font-medium text-amber-700">
+                      Membership expired {formatDay(p.membershipRenewsAt)} — to re-up, contact
+                      Coach Sikai at{" "}
+                      <a href="tel:6125583765" className="underline">
+                        612-558-3765
+                      </a>
+                      .
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm text-stone-600">
+                      Renews {formatDay(p.membershipRenewsAt)}
+                    </p>
+                  ))}
                 {p.membershipType === "TRIAL" && (
                   <p className="mt-1 text-sm text-stone-600">
                     {p.membershipRenewsAt && !trialExpired(p.membershipRenewsAt) ? (
@@ -543,6 +554,15 @@ export default async function HomePage() {
                         style={{ width: `${(remaining / p.punchPassTotal) * 100}%` }}
                       />
                     </div>
+                    {remaining <= 2 && (
+                      <p className="mt-1 text-sm text-amber-700">
+                        To re-up, contact Coach Sikai at{" "}
+                        <a href="tel:6125583765" className="underline">
+                          612-558-3765
+                        </a>
+                        .
+                      </p>
+                    )}
                   </div>
                 )}
                 {!p.membershipPlan && (
