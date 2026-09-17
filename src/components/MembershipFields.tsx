@@ -36,6 +36,7 @@ export default function MembershipFields({
           <option value="MONTHLY">Monthly (renews on a date)</option>
           <option value="PUNCH_PASS">Punch pass (class count)</option>
           <option value="TRIAL">Trial (ends on a date)</option>
+          <option value="STAFF">Staff (trains free, not a paying member)</option>
         </select>
       </div>
       {type !== "" && (

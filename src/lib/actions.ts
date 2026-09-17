@@ -993,7 +993,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
   const admin = await requireAdmin();
   const membershipPlan = String(formData.get("membershipPlan") ?? "").trim().slice(0, 80) || null;
   const membershipType = String(formData.get("membershipType") ?? "");
-  if (!["", "MONTHLY", "PUNCH_PASS", "TRIAL"].includes(membershipType)) {
+  if (!["", "MONTHLY", "PUNCH_PASS", "TRIAL", "STAFF"].includes(membershipType)) {
     throw new Error("Invalid membership type.");
   }
   const renewsAtRaw = String(formData.get("membershipRenewsAt") ?? "");
