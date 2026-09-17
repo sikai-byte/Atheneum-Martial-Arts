@@ -51,7 +51,7 @@ export default async function KioskClassPage({ params }: { params: { id: string 
   const checkedInCount = roster.filter((r) => r.checkedIn).length;
 
   const candidates = await prisma.memberProfile.findMany({
-    where: { id: { notIn: Array.from(entries.keys()) }, deactivatedAt: null },
+    where: { id: { notIn: Array.from(entries.keys()) }, deactivatedAt: null, inactiveAt: null },
     orderBy: { name: "asc" },
     select: {
       id: true,

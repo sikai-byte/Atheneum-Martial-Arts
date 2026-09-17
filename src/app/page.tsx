@@ -91,7 +91,11 @@ export default async function HomePage() {
   const rankedProfiles =
     monthGrouped.length > 0
       ? await prisma.memberProfile.findMany({
-          where: { id: { in: monthGrouped.map((g) => g.profileId) }, deactivatedAt: null },
+          where: {
+            id: { in: monthGrouped.map((g) => g.profileId) },
+            deactivatedAt: null,
+            inactiveAt: null,
+          },
           select: { id: true, name: true, isChild: true, photoType: true, photoUpdatedAt: true },
         })
       : [];

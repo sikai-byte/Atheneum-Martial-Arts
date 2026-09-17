@@ -82,6 +82,7 @@ export default async function RosterPage({
     where: {
       id: { notIn: Array.from(rosterIds).concat(Array.from(attendedIds)) },
       deactivatedAt: null,
+      inactiveAt: null,
     },
     orderBy: { name: "asc" },
     select: {

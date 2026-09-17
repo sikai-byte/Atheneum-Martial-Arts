@@ -74,6 +74,7 @@ model MemberProfile {
   photoType          String           @default("") // mime type of uploaded photo; empty = none
   photoUpdatedAt     DateTime?
   pinHash            String           @default("") // bcrypt hash of the 4-digit kiosk check-in PIN; empty = not set
+  inactiveAt         DateTime? // archived: hidden from rosters/kiosk/leaderboards, can still sign in; set manually or 30 days after membership lapses
   deactivatedAt      DateTime? // leaver hold: hidden from rosters/kiosk/booking, data retained
   userId             String?          @unique
   user               User?            @relation(fields: [userId], references: [id])

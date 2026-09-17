@@ -210,6 +210,11 @@ async function bookProfileIntoSession(
     if (bookingProfile.deactivatedAt) {
       throw new Error("This account is deactivated and can't be booked into classes.");
     }
+    if (bookingProfile.inactiveAt) {
+      throw new Error(
+        "This membership is inactive — to re-up, contact Coach Sikai at 612-558-3765."
+      );
+    }
     // Lock the session row up front so the capacity check serializes.
     await tx.$queryRaw`SELECT id FROM "ClassSession" WHERE id = ${sessionId} FOR UPDATE`;
     const classSession = await tx.classSession.findUniqueOrThrow({
@@ -1007,13 +1012,18 @@ export async function updateMembership(profileId: string, formData: FormData) {
     (membershipType === "MONTHLY" || membershipType === "PUNCH_PASS");
   const becameTrial = existing.membershipType !== "TRIAL" && membershipType === "TRIAL";
 
+  const effectiveRenewsAt =
+    membershipType === "MONTHLY" || membershipType === "TRIAL" ? membershipRenewsAt : null;
+  const membershipCurrent =
+    membershipType !== "" && (!effectiveRenewsAt || effectiveRenewsAt >= new Date());
+
   const updated = await prisma.memberProfile.update({
     where: { id: profileId },
     data: {
       membershipPlan,
       membershipType: membershipType || null,
-      membershipRenewsAt:
-        membershipType === "MONTHLY" || membershipType === "TRIAL" ? membershipRenewsAt : null,
+      membershipRenewsAt: effectiveRenewsAt,
+      ...(existing.inactiveAt && membershipCurrent ? { inactiveAt: null } : {}),
       punchPassTotal: membershipType === "PUNCH_PASS" ? punchPassTotal ?? 10 : null,
       punchPassUsed: membershipType === "PUNCH_PASS" ? punchPassUsed : 0,
       trialClassType: membershipType === "TRIAL" ? trialClassType : "BOTH",
@@ -1391,6 +1401,72 @@ export async function reactivateAccount(profileId: string) {
   succeedTo(memberPath, `${profile.name} is active again — access restored with all their history intact.`);
 }
 
+export async function archiveMember(profileId: string) {
+  const admin = await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
+  const profile = await prisma.memberProfile.findUniqueOrThrow({
+    where: { id: profileId },
+    include: { user: true },
+  });
+  if (profile.user?.id === admin.id) failTo(memberPath, "You can't archive your own account.");
+  if (profile.inactiveAt) failTo(memberPath, `${profile.name} is already inactive.`);
+  if (profile.deactivatedAt) failTo(memberPath, `${profile.name} is on leaver hold.`);
+
+  const now = new Date();
+  const upcoming = await prisma.booking.findMany({
+    where: {
+      profileId,
+      status: { in: ["BOOKED", "WAITLISTED"] },
+      session: { startsAt: { gt: now } },
+    },
+    select: { sessionId: true },
+  });
+  for (const booking of upcoming) {
+    const promotedProfileId = await cancelProfileBooking(profileId, booking.sessionId);
+    if (promotedProfileId) {
+      await trackEvent("WAITLIST_PROMOTION", { profileId: promotedProfileId });
+    }
+  }
+
+  await prisma.memberProfile.update({
+    where: { id: profileId },
+    data: { inactiveAt: now },
+  });
+
+  await recordAudit(admin, "MEMBER_ARCHIVED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Moved ${profile.name} to inactive (archived — nothing deleted)`,
+  });
+
+  revalidatePath("/admin");
+  succeedTo(
+    memberPath,
+    `${profile.name} is now inactive — hidden from rosters and check-in, all history kept.`
+  );
+}
+
+export async function unarchiveMember(profileId: string) {
+  const admin = await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
+  const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
+  if (!profile.inactiveAt) failTo(memberPath, `${profile.name} is already active.`);
+
+  await prisma.memberProfile.update({
+    where: { id: profileId },
+    data: { inactiveAt: null },
+  });
+
+  await recordAudit(admin, "MEMBER_UNARCHIVED", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Moved ${profile.name} back to active`,
+  });
+
+  revalidatePath("/admin");
+  succeedTo(memberPath, `${profile.name} is active again — back on rosters and check-in.`);
+}
+
 export async function deleteAccountData(profileId: string, formData: FormData) {
   const admin = await requireAdmin();
   const memberPath = `/admin/member/${profileId}`;
@@ -1495,6 +1571,7 @@ export async function logPrivateSession(formData: FormData) {
 
   const profile = await prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } });
   if (profile.deactivatedAt) throw new Error("This member is deactivated.");
+  if (profile.inactiveAt) throw new Error("This member is inactive.");
 
   const photo = formData.get("photo");
   let photoType = "";

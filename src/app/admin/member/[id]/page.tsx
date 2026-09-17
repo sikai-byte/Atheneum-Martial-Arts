@@ -6,15 +6,18 @@ import {
   adminBookClass,
   adminBookPrivateTrial,
   adminCancelBooking,
+  archiveMember,
   deactivateAccount,
   deleteAccountData,
   impersonateUser,
   reactivateAccount,
   resetMemberPassword,
   setAdultClassEligible,
+  unarchiveMember,
   updateMembership,
 } from "@/lib/actions";
 import { purgeDueAt, RETENTION_YEARS } from "@/lib/leavers";
+import { INACTIVE_AFTER_DAYS } from "@/lib/inactive";
 import { adminRecordWaiver, adminSetPin } from "@/lib/kiosk-actions";
 import { classEligibilityError } from "@/lib/eligibility";
 import { formatDay, formatTime } from "@/lib/format";
@@ -129,6 +132,13 @@ export default async function AdminMemberPage({
             <span className="font-semibold">On leaver hold</span> since{" "}
             {formatDay(profile.deactivatedAt)} — access revoked, data retained until{" "}
             {formatDay(purgeDueAt(profile.deactivatedAt))}, then deleted automatically.
+          </p>
+        )}
+        {profile.inactiveAt && !profile.deactivatedAt && (
+          <p className="mt-3 rounded-lg border border-stone-300 bg-stone-100 px-3 py-2 text-sm text-stone-700">
+            <span className="font-semibold">Inactive</span> since {formatDay(profile.inactiveAt)}{" "}
+            — hidden from rosters, check-in, and leaderboards. Nothing is deleted; reactivate
+            below or update the membership to bring them back.
           </p>
         )}
         {profile.user && !profile.deactivatedAt && (
@@ -548,6 +558,44 @@ export default async function AdminMemberPage({
             Account status
           </h2>
           <div className="mt-2 space-y-4 rounded-xl border border-red-200 bg-white p-4 shadow-sm">
+            {!profile.deactivatedAt && (
+              <div className="space-y-3 border-b border-stone-200 pb-4">
+                {profile.inactiveAt ? (
+                  <>
+                    <p className="text-sm text-stone-600">
+                      {firstName} is <span className="font-semibold">inactive</span> since{" "}
+                      {formatDay(profile.inactiveAt)}: hidden from rosters, check-in, and
+                      leaderboards, but they can still sign in and all their history is kept.
+                    </p>
+                    <form action={unarchiveMember.bind(null, profile.id)}>
+                      <SubmitButton
+                        pendingLabel="Reactivating…"
+                        className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                      >
+                        Move {firstName} back to active
+                      </SubmitButton>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-stone-600">
+                      Move {firstName} to <span className="font-semibold">inactive</span>: they
+                      drop off rosters, check-in, and leaderboards, but nothing is deleted and
+                      they can be reactivated any time. This happens automatically {INACTIVE_AFTER_DAYS}{" "}
+                      days after a membership ends.
+                    </p>
+                    <form action={archiveMember.bind(null, profile.id)}>
+                      <SubmitButton
+                        pendingLabel="Archiving…"
+                        className="rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                      >
+                        Move to inactive
+                      </SubmitButton>
+                    </form>
+                  </>
+                )}
+              </div>
+            )}
             {profile.deactivatedAt ? (
               <div className="space-y-3">
                 <p className="text-sm text-stone-600">

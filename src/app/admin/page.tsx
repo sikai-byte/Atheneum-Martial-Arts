@@ -398,6 +398,11 @@ export default async function AdminPage({
                             Leaver hold
                           </span>
                         )}
+                        {p.inactiveAt && !p.deactivatedAt && (
+                          <span className="ml-2 rounded bg-stone-200 px-1.5 py-0.5 text-xs font-semibold text-stone-600">
+                            Inactive
+                          </span>
+                        )}
                       </p>
                       <p className="mt-0.5 text-xs text-stone-500">{membershipSummary(p)}</p>
                     </div>

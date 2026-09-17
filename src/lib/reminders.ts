@@ -37,7 +37,7 @@ export async function runReminderPass(db: PrismaClient = prisma): Promise<number
         status: "SCHEDULED",
         startsAt: { gte: new Date(now + WINDOW_START_MS), lte: new Date(now + WINDOW_END_MS) },
       },
-      profile: { deactivatedAt: null, membershipType: "TRIAL" },
+      profile: { deactivatedAt: null, inactiveAt: null, membershipType: "TRIAL" },
     },
     include: {
       session: { include: { template: true } },
@@ -131,7 +131,7 @@ export async function runClassReminderPass(
           status: "SCHEDULED",
           startsAt: { gt: new Date(now + window.minMs), lte: new Date(now + window.maxMs) },
         },
-        profile: { deactivatedAt: null },
+        profile: { deactivatedAt: null, inactiveAt: null },
       },
       include: {
         session: { include: { template: true } },

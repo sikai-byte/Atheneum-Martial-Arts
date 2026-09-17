@@ -19,7 +19,7 @@ export default async function PrivateSessionsPage() {
 
   const [members, sessions] = await Promise.all([
     prisma.memberProfile.findMany({
-      where: { deactivatedAt: null },
+      where: { deactivatedAt: null, inactiveAt: null },
       orderBy: { name: "asc" },
       select: { id: true, name: true, isChild: true },
     }),

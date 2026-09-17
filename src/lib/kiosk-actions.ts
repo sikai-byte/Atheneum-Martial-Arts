@@ -157,12 +157,12 @@ export async function kioskCheckIn(
   let profile = null;
   if (profileId) {
     profile = await prisma.memberProfile.findFirst({
-      where: { id: profileId, deactivatedAt: null },
+      where: { id: profileId, deactivatedAt: null, inactiveAt: null },
       include: { user: { select: { role: true } } },
     });
   } else {
     const matches = await prisma.memberProfile.findMany({
-      where: { name: { equals: typedName, mode: "insensitive" }, deactivatedAt: null },
+      where: { name: { equals: typedName, mode: "insensitive" }, deactivatedAt: null, inactiveAt: null },
       include: { user: { select: { role: true } } },
     });
     if (matches.length > 1) {
