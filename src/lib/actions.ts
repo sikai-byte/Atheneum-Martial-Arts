@@ -386,37 +386,15 @@ export async function coachCheckInAll(sessionId: string) {
   succeedTo(sessionPath, `Checked in ${checkedIn} member${checkedIn === 1 ? "" : "s"}.`);
 }
 
-export async function coachWalkInCheckIn(sessionId: string, formData: FormData) {
-  await requireCoach();
-  const profileId = String(formData.get("profileId") ?? "");
-  if (!profileId) return;
-  const existing = await prisma.attendance.findUnique({
-    where: { profileId_sessionId: { profileId, sessionId } },
-  });
-  if (existing) {
-    redirect(`/coach/session/${sessionId}`);
-  }
-  const [walkInProfile, walkInSession] = await Promise.all([
-    prisma.memberProfile.findUniqueOrThrow({
-      where: { id: profileId },
-      include: { user: { select: { role: true } } },
-    }),
-    prisma.classSession.findUniqueOrThrow({
-      where: { id: sessionId },
-      include: { template: true },
-    }),
-  ]);
-  const eligibilityError = classEligibilityError(walkInProfile, walkInSession.template);
-  if (eligibilityError) failTo(`/coach/session/${sessionId}`, eligibilityError);
-  await toggleAttendance(profileId, sessionId);
-  redirect(`/coach/session/${sessionId}`);
-}
+export type QuickAddResult = { ok: true; message: string } | { ok: false; error: string };
 
-export async function coachAddToRoster(sessionId: string, formData: FormData) {
+export async function coachQuickAdd(
+  sessionId: string,
+  profileId: string,
+  checkIn: boolean
+): Promise<QuickAddResult> {
   const coach = await requireCoach();
-  const profileId = String(formData.get("profileId") ?? "");
-  const sessionPath = `/coach/session/${sessionId}`;
-  if (!profileId) redirect(sessionPath);
+  if (!profileId) return { ok: false, error: "Pick a member first." };
 
   const [profile, session] = await Promise.all([
     prisma.memberProfile.findUniqueOrThrow({ where: { id: profileId } }),
@@ -430,7 +408,7 @@ export async function coachAddToRoster(sessionId: string, formData: FormData) {
   try {
     status = await bookProfileIntoSession(profileId, sessionId, { allowStarted: true });
   } catch (err) {
-    failTo(sessionPath, err instanceof Error ? err.message : "Couldn't add that member.");
+    return { ok: false, error: err instanceof Error ? err.message : "Couldn't add that member." };
   }
 
   await trackEvent("ADMIN_BOOKING", { userId: coach.id, profileId, metadata: status });
@@ -440,15 +418,31 @@ export async function coachAddToRoster(sessionId: string, formData: FormData) {
     summary: `${status === "WAITLISTED" ? "Waitlisted" : "Added"} ${profile.name} ${status === "WAITLISTED" ? "for" : "to"} ${session.template.name}`,
   });
 
-  revalidatePath(sessionPath);
+  if (checkIn && status === "BOOKED") {
+    try {
+      await toggleAttendance(profileId, sessionId);
+    } catch (err) {
+      return {
+        ok: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : `${profile.name} was added but couldn't be checked in.`,
+      };
+    }
+  }
+
+  revalidatePath(`/coach/session/${sessionId}`);
   revalidatePath("/coach");
   revalidatePath("/schedule");
-  succeedTo(
-    sessionPath,
-    status === "WAITLISTED"
-      ? `Class is full — ${profile.name} was added to the waitlist.`
-      : `${profile.name} added to the class.`
-  );
+
+  if (status === "WAITLISTED") {
+    return { ok: true, message: `Class is full — ${profile.name} was added to the waitlist.` };
+  }
+  return {
+    ok: true,
+    message: checkIn ? `${profile.name} checked in.` : `${profile.name} added to the class.`,
+  };
 }
 
 export async function coachRemoveFromRoster(profileId: string, sessionId: string) {

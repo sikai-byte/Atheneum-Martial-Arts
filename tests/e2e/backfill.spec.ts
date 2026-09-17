@@ -35,19 +35,52 @@ test.describe("retroactive check-in for past classes", () => {
     await page.goto(`/coach/session/${session.id}`);
     await expect(page.getByText("This class has ended")).toBeVisible();
 
-    await page.locator("#add-member").selectOption(profile.id);
-    await page.getByRole("button", { name: "Add to class" }).click();
+    await page.getByLabel("Search members").fill("Frank Forgot");
+    await page
+      .locator('[data-testid="quick-add-results"] li', { hasText: "Frank Forgot" })
+      .getByRole("button", { name: "Add", exact: true })
+      .click();
     await expect(page.getByText("Frank Forgot added to the class.")).toBeVisible();
+    await expect(page.getByLabel("Search members")).toHaveValue("");
 
     const booking = await db.booking.findUniqueOrThrow({
       where: { profileId_sessionId: { profileId: profile.id, sessionId: session.id } },
     });
     expect(booking.status).toBe("BOOKED");
 
-    await page.getByRole("button", { name: "Check in", exact: true }).first().click();
+    const rosterRow = page
+      .locator("li", { hasText: "Frank Forgot" })
+      .filter({ hasText: "Not checked in" });
+    await rosterRow.getByRole("button", { name: "Check in", exact: true }).click();
     await expect(page.getByText("Adult member · Checked in", { exact: true })).toBeVisible();
     await expect(page.getByText("Late", { exact: true })).toHaveCount(0);
 
+    const attendance = await db.attendance.findUniqueOrThrow({
+      where: { profileId_sessionId: { profileId: profile.id, sessionId: session.id } },
+    });
+    expect(attendance.late).toBe(false);
+  });
+
+  test("one tap adds and checks in a member, clearing the search", async ({ page }) => {
+    const { profile } = await createMember("onetap@test.local", "Olivia Onetap");
+    const session = await makePastSession(240);
+
+    await login(page, "coach@example.com");
+    await page.goto(`/coach/session/${session.id}`);
+
+    await page.getByLabel("Search members").fill("Olivia Onetap");
+    await page
+      .locator('[data-testid="quick-add-results"] li', { hasText: "Olivia Onetap" })
+      .getByRole("button", { name: "Check in" })
+      .click();
+    await expect(page.getByText("Olivia Onetap checked in.")).toBeVisible();
+    await expect(page.getByLabel("Search members")).toHaveValue("");
+    await expect(page.getByText("Adult member · Checked in", { exact: true })).toBeVisible();
+
+    const booking = await db.booking.findUniqueOrThrow({
+      where: { profileId_sessionId: { profileId: profile.id, sessionId: session.id } },
+    });
+    expect(booking.status).toBe("BOOKED");
     const attendance = await db.attendance.findUniqueOrThrow({
       where: { profileId_sessionId: { profileId: profile.id, sessionId: session.id } },
     });

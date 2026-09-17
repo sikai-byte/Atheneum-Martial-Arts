@@ -2,17 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireCoach } from "@/lib/auth";
-import {
-  coachAddToRoster,
-  coachCheckInAll,
-  coachRemoveFromRoster,
-  coachWalkInCheckIn,
-  toggleAttendance,
-} from "@/lib/actions";
+import { coachCheckInAll, coachRemoveFromRoster, toggleAttendance } from "@/lib/actions";
 import { formatDay, formatTime } from "@/lib/format";
 import { classEligibilityError } from "@/lib/eligibility";
 import SubmitButton from "@/components/SubmitButton";
-import MemberSelect from "@/components/MemberSelect";
+import QuickAddMember from "@/components/QuickAddMember";
 
 export const dynamic = "force-dynamic";
 
@@ -286,49 +280,18 @@ export default async function RosterPage({
           id="add-to-class"
           className="text-sm font-semibold uppercase tracking-wide text-stone-500"
         >
-          Add someone to this class
+          Add or check in someone else
         </h2>
-        <form
-          action={coachAddToRoster.bind(null, session.id)}
-          className="mt-2 flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
-        >
-          <MemberSelect
-            id="add-member"
-            label="Book a member into this class"
-            members={otherMembers}
+        <p className="mt-1 text-sm text-stone-500">
+          Tap Check in to add them to the roster and check them in at once, or Add to book them
+          without checking in.
+        </p>
+        <div className="mt-2">
+          <QuickAddMember
+            sessionId={session.id}
+            members={otherMembers.map(({ id, name, isChild }) => ({ id, name, isChild }))}
           />
-          <SubmitButton
-            pendingLabel="Adding…"
-            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
-          >
-            Add to class
-          </SubmitButton>
-        </form>
-      </section>
-
-      <section aria-labelledby="walkin-checkin">
-        <h2
-          id="walkin-checkin"
-          className="text-sm font-semibold uppercase tracking-wide text-stone-500"
-        >
-          Check in anyone else
-        </h2>
-        <form
-          action={coachWalkInCheckIn.bind(null, session.id)}
-          className="mt-2 flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
-        >
-          <MemberSelect
-            id="walkin-member"
-            label="Member not on the roster"
-            members={otherMembers}
-          />
-          <SubmitButton
-            pendingLabel="Checking in…"
-            className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"
-          >
-            Check in
-          </SubmitButton>
-        </form>
+        </div>
       </section>
     </div>
   );

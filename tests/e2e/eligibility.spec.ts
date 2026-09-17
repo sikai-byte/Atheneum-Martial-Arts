@@ -41,6 +41,13 @@ async function createParentWithKid(email: string, name: string, kidName: string)
   return { user, parentProfile, kidProfile };
 }
 
+async function quickAddResults(page: import("@playwright/test").Page, query: string) {
+  await page.getByLabel("Search members").fill(query);
+  await page.waitForTimeout(150); // let the client-side filter re-render
+  const items = await page.locator('[data-testid="quick-add-results"] li').allTextContents();
+  return items.join("|");
+}
+
 test.describe("class eligibility rules", () => {
   test("kids class picker only offers youth members", async ({ page }) => {
     await createMember("elig-adult@test.local", "Elig Adult");
@@ -49,10 +56,9 @@ test.describe("class eligibility rules", () => {
 
     await login(page, "coach@example.com");
     await page.goto(`/coach/session/${session.id}`);
-    const options = await page.locator("#add-member option").allTextContents();
-    expect(options.join("|")).toContain("Elig Kid");
-    expect(options.join("|")).not.toContain("Elig Adult");
-    expect(options.join("|")).not.toContain("Elig Parent");
+    expect(await quickAddResults(page, "Elig Kid")).toContain("Elig Kid");
+    expect(await quickAddResults(page, "Elig Adult")).not.toContain("Elig Adult");
+    expect(await quickAddResults(page, "Elig Parent")).not.toContain("Elig Parent");
   });
 
   test("adult class picker excludes kids and non-member parents", async ({ page }) => {
@@ -62,11 +68,10 @@ test.describe("class eligibility rules", () => {
 
     await login(page, "coach@example.com");
     await page.goto(`/coach/session/${session.id}`);
-    const options = await page.locator("#add-member option").allTextContents();
-    expect(options.join("|")).toContain("Elig AdultTwo");
-    expect(options.join("|")).not.toContain("Elig KidTwo");
-    expect(options.join("|")).not.toContain("Elig ParentTwo");
-    expect(options.join("|")).not.toContain("Coach Sam");
+    expect(await quickAddResults(page, "Elig AdultTwo")).toContain("Elig AdultTwo");
+    expect(await quickAddResults(page, "Elig KidTwo")).not.toContain("Elig KidTwo");
+    expect(await quickAddResults(page, "Elig ParentTwo")).not.toContain("Elig ParentTwo");
+    expect(await quickAddResults(page, "Coach Sam")).not.toContain("Coach Sam");
   });
 
   test("adult-program kid appears in both kids and adult class pickers", async ({ page }) => {
@@ -84,12 +89,10 @@ test.describe("class eligibility rules", () => {
 
     await login(page, "coach@example.com");
     await page.goto(`/coach/session/${adultSession.id}`);
-    let options = await page.locator("#add-member option").allTextContents();
-    expect(options.join("|")).toContain("Elig KidFour");
+    expect(await quickAddResults(page, "Elig KidFour")).toContain("Elig KidFour");
 
     await page.goto(`/coach/session/${kidsSession.id}`);
-    options = await page.locator("#add-member option").allTextContents();
-    expect(options.join("|")).toContain("Elig KidFour");
+    expect(await quickAddResults(page, "Elig KidFour")).toContain("Elig KidFour");
   });
 
   test("picker search narrows the member list", async ({ page }) => {
@@ -99,10 +102,9 @@ test.describe("class eligibility rules", () => {
 
     await login(page, "coach@example.com");
     await page.goto(`/coach/session/${session.id}`);
-    await page.getByLabel("Search: Book a member into this class").fill("Searchable Alpha");
-    const options = await page.locator("#add-member option").allTextContents();
-    expect(options.join("|")).toContain("Searchable Alpha");
-    expect(options.join("|")).not.toContain("Searchable Bravo");
+    const results = await quickAddResults(page, "Searchable Alpha");
+    expect(results).toContain("Searchable Alpha");
+    expect(results).not.toContain("Searchable Bravo");
   });
 
   test("non-member parent has no booking control for themselves on adult classes", async ({
