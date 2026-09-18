@@ -77,7 +77,7 @@ export default async function AccountPage({
                 action={setOwnPin.bind(null, p.id)}
                 className="flex flex-wrap items-end gap-3 border-t border-stone-100 pt-4 first:border-t-0 first:pt-0"
               >
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-full sm:basis-0">
                   <p className="text-sm font-medium">
                     {p.name}
                     {p.isChild && <span className="ml-1 text-xs text-stone-500">(child)</span>}

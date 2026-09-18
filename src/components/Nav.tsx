@@ -218,13 +218,13 @@ export default function Nav({ name, role }: { name: string; role: string }) {
             <Image src="/logo.png" alt="Atheneum Martial Arts" width={36} height={37} priority />
             <span className="text-lg font-bold tracking-wide text-brand">ATHENEUM</span>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 xl:gap-4">
             <nav className="hidden gap-1 lg:flex" aria-label="Primary">
               {links.map((l) => (
                 <Link
                   key={l.href}
                   href={l.href}
-                  className={`rounded-md px-2.5 py-2 text-sm font-medium lg:px-3 ${
+                  className={`rounded-md px-2.5 py-2 text-sm font-medium xl:px-3 ${
                     pathname === l.href
                       ? "bg-brand text-white"
                       : "text-stone-600 hover:bg-stone-100"
@@ -237,7 +237,7 @@ export default function Nav({ name, role }: { name: string; role: string }) {
             <div className="flex items-center gap-2">
               <Link
                 href="/account"
-                className={`hidden whitespace-nowrap text-sm lg:inline ${
+                className={`hidden whitespace-nowrap text-sm xl:inline ${
                   pathname === "/account" ? "font-medium text-brand" : "text-stone-500 hover:text-stone-700"
                 }`}
               >
