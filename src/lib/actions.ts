@@ -1199,6 +1199,32 @@ export async function removePushSubscription(endpoint: string) {
   await prisma.pushSubscription.deleteMany({ where: { endpoint, userId: user.id } });
 }
 
+export async function updatePost(
+  postId: string,
+  _prevState: PostFormState,
+  formData: FormData
+): Promise<PostFormState> {
+  const user = await requireUser();
+  const post = await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+  if (post.authorId !== user.id) {
+    return { error: "You can only edit your own posts." };
+  }
+  const title = String(formData.get("title") ?? "").trim().slice(0, 120);
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
+  const category = String(formData.get("category") ?? post.category);
+  if (!body) return { error: "Please write something to post." };
+  if (!["GENERAL", "QUESTION", "NEWS"].includes(category)) return { error: "Invalid category." };
+
+  await prisma.post.update({
+    where: { id: postId },
+    data: { title, body, category, editedAt: new Date() },
+  });
+
+  revalidatePath("/community");
+  revalidatePath("/");
+  return { success: "Post updated." };
+}
+
 export async function deletePost(postId: string) {
   const user = await requireUser();
   const post = await prisma.post.findUniqueOrThrow({
