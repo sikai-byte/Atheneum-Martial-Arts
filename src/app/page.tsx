@@ -4,6 +4,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import ProfilePhotoUploader from "@/components/ProfilePhotoUploader";
 import StartHereBanner from "@/components/StartHereBanner";
+import PunchCard from "@/components/PunchCard";
 import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
 import { formatDay, formatTime, startOfWeek } from "@/lib/format";
@@ -567,6 +568,12 @@ export default async function HomePage() {
                         .
                       </p>
                     )}
+                    <PunchCard
+                      name={p.name}
+                      plan={p.membershipPlan ?? "Punch Pass"}
+                      total={p.punchPassTotal}
+                      used={p.punchPassUsed}
+                    />
                   </div>
                 )}
                 {!p.membershipPlan && (
