@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 
 type Props = {
@@ -61,21 +62,26 @@ export default function PunchCard({ name, plan, total, used }: Props) {
           onClick={close}
         >
           <div
-            className="w-full max-w-sm rounded-3xl border border-stone-700/60 bg-gradient-to-br from-stone-900 via-stone-900 to-stone-800 p-7 text-white shadow-2xl"
+            className="w-full max-w-sm rounded-3xl border border-stone-200 bg-gradient-to-br from-white via-white to-brand-light p-7 text-stone-900 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-lg font-bold uppercase tracking-[0.25em]">Atheneum</p>
-                <p className="text-[10px] font-medium uppercase tracking-[0.45em] text-stone-400">
-                  Martial Arts
-                </p>
+              <div className="flex items-center gap-3">
+                <Image src="/logo.png" alt="Atheneum Martial Arts" width={56} height={57} />
+                <div>
+                  <p className="text-lg font-bold uppercase tracking-[0.2em] text-brand">
+                    Atheneum
+                  </p>
+                  <p className="text-[10px] font-medium uppercase tracking-[0.4em] text-stone-500">
+                    Martial Arts
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={close}
                 aria-label="Close punch card"
-                className="-mr-2 -mt-2 rounded-full p-2 text-stone-400 hover:text-white"
+                className="-mr-2 -mt-2 rounded-full p-2 text-stone-400 hover:text-stone-700"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-5 w-5" aria-hidden="true">
                   <path d="M6 6l12 12M18 6L6 18" />
@@ -85,7 +91,7 @@ export default function PunchCard({ name, plan, total, used }: Props) {
 
             <div className="mt-6">
               <p className="text-base font-semibold">{name}</p>
-              <p className="text-sm text-stone-400">{plan}</p>
+              <p className="text-sm text-stone-500">{plan}</p>
             </div>
 
             <div className="mt-6 grid grid-cols-5 gap-3" data-testid="punch-grid">
@@ -97,8 +103,8 @@ export default function PunchCard({ name, plan, total, used }: Props) {
                     data-testid={punched ? "punch-used" : "punch-left"}
                     className={
                       punched
-                        ? "flex aspect-square items-center justify-center rounded-full bg-brand text-white shadow-inner"
-                        : "flex aspect-square items-center justify-center rounded-full border-2 border-dashed border-stone-600 text-xs font-medium text-stone-500"
+                        ? "flex aspect-square items-center justify-center rounded-full bg-brand text-white shadow"
+                        : "flex aspect-square items-center justify-center rounded-full border-2 border-dashed border-stone-300 bg-white/60 text-xs font-medium text-stone-400"
                     }
                     style={punched ? { transform: `rotate(${((i * 7) % 15) - 7}deg)` } : undefined}
                   >
@@ -108,14 +114,14 @@ export default function PunchCard({ name, plan, total, used }: Props) {
               })}
             </div>
 
-            <div className="mt-7 flex items-end justify-between border-t border-stone-700/60 pt-4">
-              <p className="text-3xl font-bold">
+            <div className="mt-7 flex items-end justify-between border-t border-stone-200 pt-4">
+              <p className="text-3xl font-bold text-brand">
                 {remaining}
-                <span className="ml-1.5 text-sm font-medium text-stone-400">
+                <span className="ml-1.5 text-sm font-medium text-stone-500">
                   {remaining === 1 ? "class" : "classes"} left
                 </span>
               </p>
-              <p className="text-[10px] uppercase tracking-widest text-stone-500">
+              <p className="text-[10px] uppercase tracking-widest text-stone-400">
                 One punch per check-in
               </p>
             </div>
