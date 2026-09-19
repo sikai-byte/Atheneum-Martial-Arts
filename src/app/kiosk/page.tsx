@@ -91,7 +91,7 @@ export default async function KioskPage() {
       </section>
 
       <p className="text-center">
-        <Link href="/kiosk/exit" className="text-sm text-stone-400 active:text-stone-600">
+        <Link href="/kiosk/exit" className="text-sm text-stone-500 active:text-stone-600">
           Staff: exit kiosk mode
         </Link>
       </p>

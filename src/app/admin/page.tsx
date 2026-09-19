@@ -375,7 +375,7 @@ export default async function AdminPage({
             <div key={h.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">{h.name}</p>
-                <p className="text-xs text-stone-400">
+                <p className="text-xs text-stone-500">
                   {h.users.map((u) => `${u.email} (${u.role.toLowerCase()})`).join(", ")}
                 </p>
               </div>

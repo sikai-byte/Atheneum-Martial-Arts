@@ -184,7 +184,7 @@ export default async function AdminActivityPage() {
                       {roleLabel[r.role] ?? r.role} · {r.email}
                     </span>
                   </span>
-                  <span className="text-xs text-stone-400">
+                  <span className="text-xs text-stone-500">
                     account created{" "}
                     {r.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>

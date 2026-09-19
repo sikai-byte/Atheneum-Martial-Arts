@@ -81,7 +81,7 @@ export default function PunchCard({ name, plan, total, used }: Props) {
                 type="button"
                 onClick={close}
                 aria-label="Close punch card"
-                className="-mr-2 -mt-2 rounded-full p-2 text-stone-400 hover:text-stone-700"
+                className="-mr-2 -mt-2 rounded-full p-2 text-stone-500 hover:text-stone-700"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-5 w-5" aria-hidden="true">
                   <path d="M6 6l12 12M18 6L6 18" />
@@ -104,7 +104,7 @@ export default function PunchCard({ name, plan, total, used }: Props) {
                     className={
                       punched
                         ? "flex aspect-square items-center justify-center rounded-full bg-brand text-white shadow"
-                        : "flex aspect-square items-center justify-center rounded-full border-2 border-dashed border-stone-300 bg-white/60 text-xs font-medium text-stone-400"
+                        : "flex aspect-square items-center justify-center rounded-full border-2 border-dashed border-stone-300 bg-white/60 text-xs font-medium text-stone-500"
                     }
                     style={punched ? { transform: `rotate(${((i * 7) % 15) - 7}deg)` } : undefined}
                   >
@@ -121,7 +121,7 @@ export default function PunchCard({ name, plan, total, used }: Props) {
                   {remaining === 1 ? "class" : "classes"} left
                 </span>
               </p>
-              <p className="text-[10px] uppercase tracking-widest text-stone-400">
+              <p className="text-[10px] uppercase tracking-widest text-stone-500">
                 One punch per check-in
               </p>
             </div>

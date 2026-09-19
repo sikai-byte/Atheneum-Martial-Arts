@@ -91,7 +91,7 @@ export default async function AuditPage({
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span className="font-medium text-stone-800">{entry.actorName}</span>{" "}
-                    <span className="text-xs text-stone-400">{entry.actorRole}</span>
+                    <span className="text-xs text-stone-500">{entry.actorRole}</span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-stone-700">
                     {ACTION_LABELS[entry.action] ?? entry.action}

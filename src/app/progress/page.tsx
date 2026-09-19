@@ -89,7 +89,7 @@ export default async function ProgressPage({
               <div key={m.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="font-medium">{m.title}</p>
                 {m.notes && <p className="mt-1 text-sm text-stone-600">{m.notes}</p>}
-                <p className="mt-2 text-xs text-stone-400">
+                <p className="mt-2 text-xs text-stone-500">
                   {m.awardedBy} · {formatDay(m.awardedAt)}
                 </p>
               </div>

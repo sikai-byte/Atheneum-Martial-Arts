@@ -159,6 +159,18 @@ export default function RegisterForm({
         <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-800">{state.error}</p>
       )}
 
+      <p className="text-sm text-stone-600">
+        By registering you{kind === "CHILD" && ", as parent or guardian,"} agree to our{" "}
+        <a href="/terms" target="_blank" className="font-medium text-brand underline">
+          Terms of Service
+        </a>{" "}
+        and{" "}
+        <a href="/privacy" target="_blank" className="font-medium text-brand underline">
+          Privacy Policy
+        </a>
+        .
+      </p>
+
       <Submit />
     </form>
   );

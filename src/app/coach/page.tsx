@@ -211,7 +211,7 @@ export default async function CoachTodayPage() {
                   <div>
                     <p className="font-medium">{a.title}</p>
                     <p className="mt-1 text-sm text-stone-600">{a.body}</p>
-                    <p className="mt-2 text-xs text-stone-400">
+                    <p className="mt-2 text-xs text-stone-500">
                       {a.author} · {formatDay(a.createdAt)}
                     </p>
                   </div>

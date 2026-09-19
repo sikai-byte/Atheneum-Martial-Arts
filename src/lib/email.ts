@@ -1,9 +1,20 @@
 import { trackEvent } from "./telemetry";
+import { BUSINESS_ADDRESS, BUSINESS_NAME, BUSINESS_PHONE } from "./legal";
 
 const FROM = process.env.EMAIL_FROM ?? "Atheneum Martial Arts <onboarding@resend.dev>";
 
 export function appUrl(): string {
   return process.env.APP_URL ?? "http://localhost:3000";
+}
+
+/** Appended to every outbound email: sender identity and notification preferences. */
+function emailFooter(): string {
+  return `<div style="font-family:sans-serif;max-width:480px;margin:16px auto 0;padding-top:12px;border-top:1px solid #e7e5e4;color:#78716c;font-size:12px;line-height:1.5">
+    <p style="margin:0">${BUSINESS_NAME} · ${BUSINESS_ADDRESS} · ${BUSINESS_PHONE}</p>
+    <p style="margin:6px 0 0">You're receiving this because you have an account on our member portal.
+      Manage notifications from <a href="${appUrl()}/account" style="color:#78716c">My account</a> ·
+      <a href="${appUrl()}/privacy" style="color:#78716c">Privacy Policy</a></p>
+  </div>`;
 }
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
@@ -24,7 +35,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: FROM, to, subject, html }),
+    body: JSON.stringify({ from: FROM, to, subject, html: html + emailFooter() }),
   });
   if (!res.ok) {
     const detail = await res.text();

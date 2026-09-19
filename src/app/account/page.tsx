@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { changeOwnPassword, saveChildBirthdays } from "@/lib/actions";
+import { changeOwnPassword, requestPrivacyAction, saveChildBirthdays } from "@/lib/actions";
 import { setOwnPin, signOwnWaiver } from "@/lib/kiosk-actions";
 import { ageFromBirthDate, formatBirthDate } from "@/lib/age";
 import { WAIVER_PARAGRAPHS, WAIVER_TITLE } from "@/lib/waiver";
@@ -22,6 +22,8 @@ export default async function AccountPage({
     waiverSigned?: string;
     birthdaysSaved?: string;
     birthdayError?: string;
+    success?: string;
+    error?: string;
   };
 }) {
   const user = await requireUser();
@@ -287,6 +289,48 @@ export default async function AccountPage({
             Update password
           </SubmitButton>
         </form>
+      </section>
+
+      <section className="rounded-xl border border-stone-200 bg-white p-5">
+        <h2 className="text-lg font-semibold">Privacy &amp; data</h2>
+        <p className="mt-1 text-sm text-stone-600">
+          You can request a copy of the information we hold about you, or ask us to delete your
+          account and data. Signed waivers may be kept where the law requires. See the{" "}
+          <Link href="/privacy" className="font-medium text-brand hover:underline">
+            Privacy Policy
+          </Link>{" "}
+          for details.
+        </p>
+        {searchParams.success && (
+          <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+            {searchParams.success}
+          </p>
+        )}
+        {searchParams.error && (
+          <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {searchParams.error}
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap gap-3">
+          <form action={requestPrivacyAction}>
+            <input type="hidden" name="kind" value="COPY" />
+            <SubmitButton
+              pendingLabel="Sending…"
+              className="rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+            >
+              Request a copy of my data
+            </SubmitButton>
+          </form>
+          <form action={requestPrivacyAction}>
+            <input type="hidden" name="kind" value="DELETE" />
+            <SubmitButton
+              pendingLabel="Sending…"
+              className="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50"
+            >
+              Request account &amp; data deletion
+            </SubmitButton>
+          </form>
+        </div>
       </section>
     </div>
   );

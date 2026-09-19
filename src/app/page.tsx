@@ -320,7 +320,7 @@ export default async function HomePage() {
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           {teamBoards.map(({ title, entries }) => (
             <div key={title} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">{title}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{title}</p>
               {entries.length === 0 ? (
                 <p className="mt-2 text-sm text-stone-600">
                   No check-ins yet — the first class attended starts the race.
@@ -396,14 +396,14 @@ export default async function HomePage() {
                 ) : (
                   <img
                     src={`/api/post-media/${latestPost.media[0].id}`}
-                    alt=""
+                    alt={`Photo from ${latestPost.author.name}'s community post`}
                     className="h-44 w-full object-cover"
                   />
                 ))}
               {!latestPost.media[0] && latestPost.photoType && (
                 <img
                   src={`/api/post-photo/${latestPost.id}`}
-                  alt=""
+                  alt={`Photo from ${latestPost.author.name}'s community post`}
                   className="h-44 w-full object-cover"
                 />
               )}
@@ -415,11 +415,11 @@ export default async function HomePage() {
                       Staff
                     </span>
                   )}
-                  <p className="text-xs text-stone-400">{formatDay(latestPost.createdAt)}</p>
+                  <p className="text-xs text-stone-500">{formatDay(latestPost.createdAt)}</p>
                 </div>
                 {latestPost.title && <p className="mt-1 font-medium">{latestPost.title}</p>}
                 <p className="mt-1 line-clamp-2 text-sm text-stone-600">{latestPost.body}</p>
-                <p className="mt-2 text-xs text-stone-400">
+                <p className="mt-2 text-xs text-stone-500">
                   {latestPost._count.reactions > 0 &&
                     `${latestPost._count.reactions} reaction${latestPost._count.reactions === 1 ? "" : "s"} · `}
                   {latestPost._count.comments} comment{latestPost._count.comments === 1 ? "" : "s"}
@@ -623,7 +623,7 @@ export default async function HomePage() {
             <div key={a.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
               <p className="font-medium">{a.title}</p>
               <p className="mt-1 text-sm text-stone-600">{a.body}</p>
-              <p className="mt-2 text-xs text-stone-400">
+              <p className="mt-2 text-xs text-stone-500">
                 {a.author} · {formatDay(a.createdAt)}
               </p>
             </div>

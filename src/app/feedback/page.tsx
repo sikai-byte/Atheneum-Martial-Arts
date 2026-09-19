@@ -69,7 +69,7 @@ export default async function FeedbackPage({
             {previous.map((f) => (
               <div key={f.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="whitespace-pre-wrap text-sm text-stone-700">{f.message}</p>
-                <p className="mt-2 text-xs text-stone-400">
+                <p className="mt-2 text-xs text-stone-500">
                   {formatDay(f.createdAt)}
                   {f.resolvedAt && (
                     <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 font-semibold text-green-800">

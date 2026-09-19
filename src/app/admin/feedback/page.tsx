@@ -26,7 +26,7 @@ export default async function AdminFeedbackPage() {
             </span>
           </p>
           <p className="mt-2 whitespace-pre-wrap text-sm text-stone-700">{f.message}</p>
-          <p className="mt-2 text-xs text-stone-400">{formatDay(f.createdAt)}</p>
+          <p className="mt-2 text-xs text-stone-500">{formatDay(f.createdAt)}</p>
         </div>
         <form action={resolveFeedback.bind(null, f.id)}>
           <input type="hidden" name="resolved" value={f.resolvedAt ? "" : "1"} />

@@ -220,7 +220,7 @@ export default async function AnalyticsPage() {
           Portal health at a glance: activity, bookings, attendance, retention, and the staff time
           the portal saves.
           {firstEvent && (
-            <span className="text-stone-400">
+            <span className="text-stone-500">
               {" "}
               Event tracking began {formatDay(firstEvent.createdAt)}.
             </span>
@@ -323,7 +323,7 @@ export default async function AnalyticsPage() {
             </div>
           ))}
         </div>
-        <p className="mt-2 text-xs text-stone-400">
+        <p className="mt-2 text-xs text-stone-500">
           No-shows count past scheduled classes where a booking stayed active but no coach check-in
           was recorded.
         </p>
@@ -359,10 +359,10 @@ export default async function AnalyticsPage() {
             >
               <p className="text-sm font-semibold">
                 {bucket.label}{" "}
-                <span className="font-normal text-stone-400">({bucket.items.length})</span>
+                <span className="font-normal text-stone-500">({bucket.items.length})</span>
               </p>
               <ul className="mt-2 space-y-1.5 text-sm">
-                {bucket.items.length === 0 && <li className="text-stone-400">No one — nice.</li>}
+                {bucket.items.length === 0 && <li className="text-stone-500">No one — nice.</li>}
                 {bucket.items.slice(0, 15).map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-2">
                     <Link
@@ -370,13 +370,13 @@ export default async function AnalyticsPage() {
                       className="truncate font-medium text-brand hover:underline"
                     >
                       {p.name}
-                      {p.isChild && <span className="ml-1 text-xs text-stone-400">(child)</span>}
+                      {p.isChild && <span className="ml-1 text-xs text-stone-500">(child)</span>}
                     </Link>
                     <span className="shrink-0 text-xs text-stone-500">{p.days}d</span>
                   </li>
                 ))}
                 {bucket.items.length > 15 && (
-                  <li className="text-xs text-stone-400">+ {bucket.items.length - 15} more</li>
+                  <li className="text-xs text-stone-500">+ {bucket.items.length - 15} more</li>
                 )}
               </ul>
             </div>
@@ -411,11 +411,11 @@ export default async function AnalyticsPage() {
           <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold">
               Recent conversions{" "}
-              <span className="font-normal text-stone-400">({conversions.length})</span>
+              <span className="font-normal text-stone-500">({conversions.length})</span>
             </p>
             <ul className="mt-2 space-y-1.5 text-sm">
               {recentConversions.length === 0 && (
-                <li className="text-stone-400">No conversions recorded yet.</li>
+                <li className="text-stone-500">No conversions recorded yet.</li>
               )}
               {recentConversions.map((p) => (
                 <li key={p.id} className="flex items-center justify-between gap-2">
@@ -424,7 +424,7 @@ export default async function AnalyticsPage() {
                     className="truncate font-medium text-brand hover:underline"
                   >
                     {p.name}
-                    {p.isChild && <span className="ml-1 text-xs text-stone-400">(child)</span>}
+                    {p.isChild && <span className="ml-1 text-xs text-stone-500">(child)</span>}
                   </Link>
                   <span className="shrink-0 text-xs text-stone-500">
                     {p.membershipPlan ?? p.membershipType}
@@ -438,10 +438,10 @@ export default async function AnalyticsPage() {
           <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold">
               Trials in flight{" "}
-              <span className="font-normal text-stone-400">({activeTrials.length})</span>
+              <span className="font-normal text-stone-500">({activeTrials.length})</span>
             </p>
             <ul className="mt-2 space-y-1.5 text-sm">
-              {activeTrials.length === 0 && <li className="text-stone-400">No active trials.</li>}
+              {activeTrials.length === 0 && <li className="text-stone-500">No active trials.</li>}
               {activeTrials.slice(0, 10).map((p) => (
                 <li key={p.id} className="flex items-center justify-between gap-2">
                   <Link
@@ -449,7 +449,7 @@ export default async function AnalyticsPage() {
                     className="truncate font-medium text-brand hover:underline"
                   >
                     {p.name}
-                    {p.isChild && <span className="ml-1 text-xs text-stone-400">(child)</span>}
+                    {p.isChild && <span className="ml-1 text-xs text-stone-500">(child)</span>}
                   </Link>
                   <span className="shrink-0 text-xs text-stone-500">
                     {p.membershipRenewsAt ? `ends ${formatDay(p.membershipRenewsAt)}` : "no end date"}
@@ -457,17 +457,17 @@ export default async function AnalyticsPage() {
                 </li>
               ))}
               {activeTrials.length > 10 && (
-                <li className="text-xs text-stone-400">+ {activeTrials.length - 10} more</li>
+                <li className="text-xs text-stone-500">+ {activeTrials.length - 10} more</li>
               )}
             </ul>
             {lapsedTrials.length > 0 && (
-              <p className="mt-3 text-xs text-stone-400">
+              <p className="mt-3 text-xs text-stone-500">
                 {lapsedTrials.length} expired trial(s) haven&apos;t converted — worth a follow-up.
               </p>
             )}
           </div>
         </div>
-        <p className="mt-2 text-xs text-stone-400">
+        <p className="mt-2 text-xs text-stone-500">
           Conversion rate counts only trials that reached a decision (converted or expired) —
           trials still in flight aren&apos;t held against it.
         </p>
@@ -488,7 +488,7 @@ export default async function AnalyticsPage() {
                 <li key={r.type} className="flex items-center justify-between gap-2">
                   <span>
                     {r.label}{" "}
-                    <span className="text-xs text-stone-400">
+                    <span className="text-xs text-stone-500">
                       ({MINUTES_SAVED[r.type]} min each)
                     </span>
                   </span>

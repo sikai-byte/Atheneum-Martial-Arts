@@ -17,7 +17,7 @@ const statusStyles: Record<string, string> = {
   PLACED: "bg-stone-100 text-stone-700",
   READY: "bg-green-100 text-green-800",
   PICKED_UP: "bg-blue-100 text-blue-800",
-  CANCELLED: "bg-stone-100 text-stone-400",
+  CANCELLED: "bg-stone-100 text-stone-500",
 };
 
 export default async function ShopPage({

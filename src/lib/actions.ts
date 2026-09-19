@@ -1543,6 +1543,52 @@ export async function submitFeedback(formData: FormData) {
   succeedTo("/feedback", "Thanks — your feedback is on its way to the team!");
 }
 
+export async function requestPrivacyAction(formData: FormData) {
+  const user = await requireUser();
+  if (!rateLimit("privacy-request", 3, 60 * 60 * 1000)) {
+    failTo("/account", "Too many privacy requests — please wait an hour and try again.");
+  }
+  const kind = String(formData.get("kind") ?? "");
+  if (kind !== "COPY" && kind !== "DELETE") failTo("/account", "Choose a request type.");
+  const label = kind === "DELETE" ? "delete my account and data" : "send me a copy of my data";
+
+  await recordAudit(user, "PRIVACY_REQUEST", {
+    targetType: "User",
+    targetId: user.id,
+    summary: `${user.name} requested: ${label}`,
+  });
+
+  try {
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", deactivatedAt: null },
+      select: { email: true },
+    });
+    await Promise.all(
+      admins.map((a) =>
+        sendEmail(
+          a.email,
+          `Privacy request from ${user.name}`,
+          `<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+            <h2 style="color:#0039b7">Atheneum Martial Arts</h2>
+            <p><strong>${user.name}</strong> (${user.email}) submitted a privacy request:</p>
+            <p style="border-left:3px solid #0039b7;margin:0;padding:8px 12px;background:#f5f5f4">${label}</p>
+            <p>Handle it from the <a href="${appUrl()}/admin">admin dashboard</a> (member page &rarr; leaver hold / delete all data).</p>
+          </div>`
+        )
+      )
+    );
+  } catch (err) {
+    console.error("Privacy request notification email failed:", err);
+  }
+
+  succeedTo(
+    "/account",
+    kind === "DELETE"
+      ? "Deletion request sent — the gym will confirm with you before anything is removed."
+      : "Request sent — we'll email you a copy of your data soon."
+  );
+}
+
 export async function resolveFeedback(feedbackId: string, formData: FormData) {
   const admin = await requireAdmin();
   const resolved = String(formData.get("resolved") ?? "") === "1";

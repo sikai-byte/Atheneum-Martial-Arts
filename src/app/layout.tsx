@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import Nav from "@/components/Nav";
 import PwaRegister from "@/components/PwaRegister";
+import SiteFooter from "@/components/SiteFooter";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -50,6 +51,7 @@ export default async function RootLayout({
         <main className="mx-auto w-full max-w-3xl px-4 pb-24 pt-6 lg:pb-10">
           {children}
         </main>
+        <SiteFooter />
       </body>
     </html>
   );

@@ -105,15 +105,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </form>
-      <div className="mt-8 rounded-lg border border-stone-200 bg-white p-4 text-sm text-stone-600">
-        <p className="font-semibold text-stone-800">Sample accounts (password: atheneum123)</p>
-        <ul className="mt-2 space-y-1">
-          <li>member@example.com — adult member</li>
-          <li>parent@example.com — parent with two kids</li>
-          <li>coach@example.com — coach tools</li>
-          <li>admin@example.com — admin &amp; member management</li>
-        </ul>
-      </div>
     </div>
   );
 }

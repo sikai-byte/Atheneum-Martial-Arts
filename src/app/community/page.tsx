@@ -101,7 +101,7 @@ export default async function CommunityPage() {
                             Staff
                           </span>
                         )}
-                        <p className="text-xs text-stone-400">
+                        <p className="text-xs text-stone-500">
                           {formatDay(post.createdAt)} · {formatTime(post.createdAt)}
                         </p>
                       </div>
@@ -113,7 +113,7 @@ export default async function CommunityPage() {
                         <SubmitButton
                           pendingLabel="Deleting…"
                           ariaLabel="Delete post"
-                          className="text-xs text-stone-400 hover:text-red-600"
+                          className="text-xs text-stone-500 hover:text-red-600"
                         >
                           Delete
                         </SubmitButton>
@@ -141,7 +141,7 @@ export default async function CommunityPage() {
                                   <SubmitButton
                                     pendingLabel="Deleting…"
                                     ariaLabel="Delete comment"
-                                    className="text-xs text-stone-400 hover:text-red-600"
+                                    className="text-xs text-stone-500 hover:text-red-600"
                                   >
                                     Delete
                                   </SubmitButton>
