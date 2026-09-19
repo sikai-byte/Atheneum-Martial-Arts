@@ -71,7 +71,7 @@ test.describe("class eligibility rules", () => {
     expect(await quickAddResults(page, "Elig AdultTwo")).toContain("Elig AdultTwo");
     expect(await quickAddResults(page, "Elig KidTwo")).not.toContain("Elig KidTwo");
     expect(await quickAddResults(page, "Elig ParentTwo")).not.toContain("Elig ParentTwo");
-    expect(await quickAddResults(page, "Coach Sam")).not.toContain("Coach Sam");
+    expect(await quickAddResults(page, "Coach Sam")).toContain("Coach Sam");
   });
 
   test("adult-program kid appears in both kids and adult class pickers", async ({ page }) => {

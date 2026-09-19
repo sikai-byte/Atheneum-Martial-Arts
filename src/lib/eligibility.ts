@@ -5,9 +5,9 @@ type EligibilityProfile = {
   user?: { role: string } | null;
 };
 
-const NON_MEMBER_ROLES = ["PARENT", "COACH", "ADMIN"];
+const NON_MEMBER_ROLES = ["PARENT", "ADMIN"];
 
-/** Parent and staff profiles can only join classes if they hold their own membership. */
+/** Parent and admin profiles can only join classes if they hold their own membership. Coaches are always eligible. */
 export function isNonMemberParentOrStaff(profile: EligibilityProfile): boolean {
   const role = profile.user?.role;
   return role !== undefined && role !== null && NON_MEMBER_ROLES.includes(role) && !profile.membershipType;
