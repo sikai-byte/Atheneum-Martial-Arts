@@ -55,6 +55,28 @@ test.describe("kiosk walk-in name suggestions", () => {
   });
 });
 
+test.describe("kiosk device lockdown", () => {
+  test("a device in kiosk mode hides the nav and blocks sign-in", async ({ page }) => {
+    await login(page, "admin@example.com");
+    await page.goto("/admin/kiosk");
+    await page.getByRole("button", { name: "Turn on kiosk mode & open kiosk" }).click();
+    await page.waitForURL((url) => url.pathname === "/kiosk");
+    await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
+
+    await page.goto("/login");
+    await page.fill('input[name="email"]', "admin@example.com");
+    await page.fill('input[name="password"]', "atheneum123");
+    await page.click('button[type="submit"]');
+    await expect(page.locator('p[role="alert"]')).toContainText("kiosk mode");
+
+    await page.goto("/admin");
+    await page.waitForURL((url) => url.pathname === "/login");
+    await page.goto("/kiosk");
+    await expect(page.getByRole("heading", { name: "Welcome to Atheneum" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
+  });
+});
+
 test.describe("kiosk exit", () => {
   test("staff can exit kiosk mode from the kiosk; members cannot", async ({ page }) => {
     await createMember("kiosk-member@test.local", "Kiosk Member");

@@ -64,6 +64,9 @@ export async function exitKioskMode(formData: FormData) {
   }
   const kiosk = await getKioskSession();
   kiosk.destroy();
+  // Also clear any user session left on the device so exiting never signs anyone in.
+  const session = await getSession();
+  session.destroy();
   await recordAudit({ id: user.id, name: user.name, role: user.role }, "KIOSK_MODE_DISABLED", {
     targetType: "Device",
     targetId: "kiosk",

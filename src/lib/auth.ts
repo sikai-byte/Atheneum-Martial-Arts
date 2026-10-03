@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getSession } from "./session";
+import { isKioskEnabled } from "./kiosk";
 
 export async function getCurrentUser() {
+  // A device in kiosk mode never carries a signed-in session.
+  if (await isKioskEnabled()) return null;
   const session = await getSession();
   if (!session.userId) return null;
   const user = await prisma.user.findUnique({

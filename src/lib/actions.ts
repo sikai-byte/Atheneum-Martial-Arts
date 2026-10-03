@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getSession } from "./session";
 import { getCurrentUser, requireAdmin, requireCoach, requireUser } from "./auth";
+import { isKioskEnabled } from "./kiosk";
 import { parseBirthDateInput } from "./age";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
 import {
@@ -41,6 +42,12 @@ import {
 export type LoginState = { error?: string };
 
 export async function login(_prevState: LoginState, formData: FormData): Promise<LoginState> {
+  if (await isKioskEnabled()) {
+    return {
+      error:
+        "This device is in kiosk mode and can't be signed in to. Staff: use \"Exit kiosk mode\" on the kiosk screen first.",
+    };
+  }
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   if (isLockedOut(`login:${email}`, 10)) {
