@@ -24,6 +24,7 @@ export async function getCurrentUser() {
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 export async function requireUser(): Promise<CurrentUser> {
+  if (await isKioskEnabled()) redirect("/kiosk");
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (childBirthdaysMissing(user)) redirect("/household/birthdays");
