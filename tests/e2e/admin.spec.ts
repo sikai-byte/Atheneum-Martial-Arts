@@ -95,6 +95,21 @@ test.describe("admin tools & audit history", () => {
     await expect(page.getByRole("link", { name: /Connie Convert/ })).toBeVisible();
   });
 
+  test("admin can send an app invite email from a member page", async ({ page }) => {
+    const { user, profile } = await createMember("invite.me@test.local", "Ivy Invitee");
+    await login(page, "admin@example.com");
+    await page.goto(`/admin/member/${profile.id}`);
+    await page
+      .getByRole("button", { name: `Email app invite to ${user.email}` })
+      .click();
+    await expect(page.getByRole("status")).toContainText(/app invite email sent/i);
+
+    const entry = await db.auditLog.findFirst({
+      where: { action: "APP_INVITE_EMAIL_SENT", targetId: profile.id },
+    });
+    expect(entry?.summary).toContain(user.email);
+  });
+
   test("admin membership update is audited", async ({ page }) => {
     const jordan = await db.memberProfile.findFirstOrThrow({ where: { name: "Jordan Lee" } });
     await login(page, "admin@example.com");

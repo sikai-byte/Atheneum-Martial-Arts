@@ -12,6 +12,7 @@ import {
   impersonateUser,
   reactivateAccount,
   resetMemberPassword,
+  sendAppInvite,
   setAdultClassEligible,
   unarchiveMember,
   updateMembership,
@@ -40,7 +41,11 @@ export default async function AdminMemberPage({
 
   const profile = await prisma.memberProfile.findUnique({
     where: { id: params.id },
-    include: { user: true, household: true, waiver: true },
+    include: {
+      user: true,
+      household: { include: { profiles: { include: { user: true } } } },
+      waiver: true,
+    },
   });
   if (!profile) notFound();
 
@@ -77,6 +82,12 @@ export default async function AdminMemberPage({
 
   const nextBooking = upcomingBookings[0];
   const firstName = profile.name.split(" ")[0];
+  const inviteRecipient =
+    profile.user ??
+    profile.household.profiles
+      .map((p) => p.user)
+      .find((u) => u && !u.deactivatedAt && u.role === "PARENT") ??
+    null;
   const inviteText = [
     `Hi ${firstName}! Your ${profile.membershipType === "TRIAL" ? "trial " : ""}class at Atheneum Martial Arts is ${
       nextBooking
@@ -141,16 +152,28 @@ export default async function AdminMemberPage({
             below or update the membership to bring them back.
           </p>
         )}
-        {profile.user && !profile.deactivatedAt && (
-          <form action={impersonateUser.bind(null, profile.user.id)} className="mt-3">
-            <SubmitButton
-              pendingLabel="Switching…"
-              className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
-            >
-              View portal as {firstName}
-            </SubmitButton>
-          </form>
-        )}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {profile.user && !profile.deactivatedAt && (
+            <form action={impersonateUser.bind(null, profile.user.id)}>
+              <SubmitButton
+                pendingLabel="Switching…"
+                className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+              >
+                View portal as {firstName}
+              </SubmitButton>
+            </form>
+          )}
+          {inviteRecipient && !profile.deactivatedAt && (
+            <form action={sendAppInvite.bind(null, profile.id)}>
+              <SubmitButton
+                pendingLabel="Sending…"
+                className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+              >
+                Email app invite to {inviteRecipient.email}
+              </SubmitButton>
+            </form>
+          )}
+        </div>
       </section>
 
       {isTrial && (

@@ -76,6 +76,30 @@ export async function sendTrialWelcomeEmail(
   );
 }
 
+/** Invite a member (or a child's parent) to sign in and install the portal app. */
+export async function sendAppInviteEmail(
+  to: string,
+  firstName: string,
+  memberName?: string
+): Promise<void> {
+  const who = memberName ? `${memberName}'s classes` : "your classes";
+  await sendEmail(
+    to,
+    "Check out the Atheneum Martial Arts app",
+    BRAND_WRAP(
+      `<p>Hi ${firstName},</p>
+      <p>Our member portal makes it easy to book ${who}, track attendance and progress, see the leaderboard, and keep up with the community board.</p>
+      <p style="margin:24px 0">
+        <a href="${appUrl()}/login" style="background:#0039b7;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Sign in to the portal</a>
+      </p>
+      <p><strong>Signing in:</strong> your login is <strong>${to}</strong>. If you haven't set a password yet (or forgot it), tap <strong>Forgot password?</strong> on the login page and follow the link we send you.</p>
+      <p><strong>Make it an app:</strong> on iPhone, open the portal in Safari, tap the Share button, then <strong>Add to Home Screen</strong>; on Android, open it in Chrome, tap the three-dot menu, then <strong>Add to Home screen</strong>.</p>
+      <p><strong>Class reminders:</strong> open the app from your home screen and turn on notifications from <strong>My account &rarr; Notifications</strong> to get a heads-up 24 hours and 2 hours before every booked class.</p>
+      <p>See you on the mats!</p>`
+    )
+  );
+}
+
 export async function sendTrialBookingEmail(
   to: string,
   firstName: string,

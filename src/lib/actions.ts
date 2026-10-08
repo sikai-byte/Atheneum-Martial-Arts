@@ -33,6 +33,7 @@ import { isLockedOut, rateLimit, recordFailure } from "./rateLimit";
 import { RETENTION_YEARS, purgeDueAt, purgeProfileData } from "./leavers";
 import {
   appUrl,
+  sendAppInviteEmail,
   sendEmail,
   sendPasswordResetEmail,
   sendTrialBookingEmail,
@@ -1406,6 +1407,46 @@ export async function reactivateAccount(profileId: string) {
 
   revalidatePath("/admin");
   succeedTo(memberPath, `${profile.name} is active again — access restored with all their history intact.`);
+}
+
+export async function sendAppInvite(profileId: string) {
+  const admin = await requireAdmin();
+  const memberPath = `/admin/member/${profileId}`;
+  const profile = await prisma.memberProfile.findUniqueOrThrow({
+    where: { id: profileId },
+    include: {
+      user: true,
+      household: {
+        include: { profiles: { include: { user: true } } },
+      },
+    },
+  });
+
+  let recipient = profile.user;
+  let memberName: string | undefined;
+  if (!recipient) {
+    recipient =
+      profile.household.profiles
+        .map((p) => p.user)
+        .find((u) => u && !u.deactivatedAt && u.role === "PARENT") ?? null;
+    memberName = profile.name.split(" ")[0];
+  }
+  if (!recipient) {
+    failTo(memberPath, `${profile.name} has no sign-in account or parent account to email.`);
+  }
+  if (recipient.deactivatedAt) {
+    failTo(memberPath, `${recipient.name}'s account is deactivated — reactivate it first.`);
+  }
+
+  await sendAppInviteEmail(recipient.email, recipient.name.split(" ")[0], memberName);
+
+  await recordAudit(admin, "APP_INVITE_EMAIL_SENT", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Sent app invite email to ${recipient.email} for ${profile.name}`,
+  });
+
+  succeedTo(memberPath, `App invite email sent to ${recipient.email}.`);
 }
 
 export async function archiveMember(profileId: string) {
