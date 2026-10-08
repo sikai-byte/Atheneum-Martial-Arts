@@ -8,6 +8,10 @@
 
 # testing
 /coverage
+prisma/test.db*
+/test-uploads
+/test-results
+/playwright-report
 
 # next.js
 /.next/
@@ -26,7 +30,15 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
 .env*.local
+
+# local database
+prisma/dev.db*
+prisma/backups/
+
+# uploaded member photos
+/uploads
 
 # vercel
 .vercel
@@ -34,3 +46,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
