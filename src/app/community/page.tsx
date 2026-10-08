@@ -6,6 +6,8 @@ import SubmitButton from "@/components/SubmitButton";
 import NewPostForm from "@/components/NewPostForm";
 import ReactionBar from "@/components/ReactionBar";
 import PostMediaGallery, { type GalleryItem } from "@/components/PostMediaGallery";
+import EditablePost from "@/components/EditablePost";
+import Linkify from "@/components/Linkify";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +88,7 @@ export default async function CommunityPage() {
               return (
                 <article key={post.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -105,8 +107,18 @@ export default async function CommunityPage() {
                           {formatDay(post.createdAt)} · {formatTime(post.createdAt)}
                         </p>
                       </div>
-                      {post.title && <p className="mt-2 font-semibold">{post.title}</p>}
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-stone-700">{post.body}</p>
+                      <EditablePost
+                        postId={post.id}
+                        title={post.title}
+                        body={post.body}
+                        category={post.category}
+                        canEdit={post.author.id === user.id}
+                        editedLabel={
+                          post.editedAt
+                            ? `Edited ${formatDay(post.editedAt)} · ${formatTime(post.editedAt)}`
+                            : null
+                        }
+                      />
                     </div>
                     {canDeletePost && (
                       <form action={deletePost.bind(null, post.id)}>
@@ -132,9 +144,11 @@ export default async function CommunityPage() {
                           const canDeleteComment = isStaff || c.author.id === user.id;
                           return (
                             <li key={c.id} className="flex items-start justify-between gap-3">
-                              <p className="text-sm">
+                              <p className="min-w-0 flex-1 text-sm">
                                 <span className="font-medium">{c.author.name}</span>{" "}
-                                <span className="text-stone-600">{c.body}</span>
+                                <span className="text-stone-600">
+                                  <Linkify text={c.body} />
+                                </span>
                               </p>
                               {canDeleteComment && (
                                 <form action={deleteComment.bind(null, c.id)}>

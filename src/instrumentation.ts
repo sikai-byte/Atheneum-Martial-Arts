@@ -11,5 +11,7 @@ export async function register() {
     startClassReminderSchedule();
     const { startFeedbackDigestSchedule } = await import("./lib/feedbackDigest");
     startFeedbackDigestSchedule();
+    const { startLoginNudgeSchedule } = await import("./lib/loginNudges");
+    startLoginNudgeSchedule();
   }
 }

@@ -249,6 +249,7 @@ model Post {
   category  String      @default("GENERAL") // GENERAL | QUESTION | NEWS
   photoType String      @default("") // mime type of attached photo; empty = none (legacy single photo)
   createdAt DateTime    @default(now())
+  editedAt  DateTime?
   authorId  String
   author    User        @relation(fields: [authorId], references: [id])
   comments  Comment[]
