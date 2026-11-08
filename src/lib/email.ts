@@ -100,6 +100,32 @@ export async function sendAppInviteEmail(
   );
 }
 
+/** Onboarding email sent once staff finish configuring a new account: set-password link plus what's set up. */
+export async function sendOnboardingEmail(
+  to: string,
+  firstName: string,
+  opts: { setPasswordUrl: string; memberships: string[]; upcomingClasses: string[] }
+): Promise<void> {
+  const list = (items: string[]) =>
+    `<ul style="padding-left:20px;margin:8px 0">${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+  await sendEmail(
+    to,
+    "Welcome to Atheneum Martial Arts — set up your portal login",
+    BRAND_WRAP(
+      `<p>Hi ${firstName}, welcome to the team! Your member portal account is ready — book classes, track attendance and progress, and keep up with the community board.</p>
+      <p style="margin:24px 0">
+        <a href="${opts.setPasswordUrl}" style="background:#0039b7;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Set your password</a>
+      </p>
+      <p>Your login is <strong>${to}</strong>. The button above lets you choose your own password and is good for 7 days — after that, use <strong>Forgot password?</strong> on the <a href="${appUrl()}/login">sign-in page</a>.</p>
+      ${opts.memberships.length ? `<p><strong>Your membership</strong></p>${list(opts.memberships)}` : ""}
+      ${opts.upcomingClasses.length ? `<p><strong>You're booked for</strong></p>${list(opts.upcomingClasses)}` : ""}
+      <p><strong>Make it an app:</strong> on iPhone, open the portal in Safari, tap the Share button, then <strong>Add to Home Screen</strong>; on Android, open it in Chrome, tap the three-dot menu, then <strong>Add to Home screen</strong>.</p>
+      <p><strong>Class reminders:</strong> open the app from your home screen and turn on notifications from <strong>My account &rarr; Notifications</strong> to get a heads-up before every booked class.</p>
+      <p>See you on the mats!</p>`
+    )
+  );
+}
+
 export async function sendTrialBookingEmail(
   to: string,
   firstName: string,

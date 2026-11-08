@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { requireCoach } from "@/lib/auth";
+import { canManageMembers, requireCoach } from "@/lib/auth";
 import { deleteAnnouncement, postAnnouncement } from "@/lib/actions";
 import { formatDay, formatTime } from "@/lib/format";
 import StartHereBanner from "@/components/StartHereBanner";
@@ -99,6 +99,14 @@ export default async function CoachTodayPage() {
         <p className="mt-1 text-stone-600">
           Welcome, {coach.name}. Tap a class to check members in.
         </p>
+        {canManageMembers(coach) && (
+          <Link
+            href="/coach/members"
+            className="mt-3 inline-block rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-brand hover:bg-stone-50"
+          >
+            Add or onboard a member &rarr;
+          </Link>
+        )}
       </section>
 
       {!coach.startHereDismissedAt && <StartHereBanner />}

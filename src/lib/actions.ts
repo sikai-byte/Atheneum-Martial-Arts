@@ -8,7 +8,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getSession } from "./session";
-import { getCurrentUser, requireAdmin, requireCoach, requireUser } from "./auth";
+import {
+  canManageMembers,
+  getCurrentUser,
+  requireAdmin,
+  requireCoach,
+  requireMemberManager,
+  requireUser,
+} from "./auth";
 import { isKioskEnabled } from "./kiosk";
 import { parseBirthDateInput } from "./age";
 import { ensureUploadsDir, uploadsDir } from "./uploads";
@@ -35,6 +42,7 @@ import {
   appUrl,
   sendAppInviteEmail,
   sendEmail,
+  sendOnboardingEmail,
   sendPasswordResetEmail,
   sendTrialBookingEmail,
   sendTrialWelcomeEmail,
@@ -148,11 +156,37 @@ async function assertProfileInHousehold(userId: string, profileId: string) {
     where: { id: userId },
     include: { household: { include: { profiles: true } }, profile: true },
   });
-  const allowed =
-    user.role === "ADMIN" ||
+  const ownHousehold =
     user.profile?.id === profileId ||
-    user.household?.profiles.some((p) => p.id === profileId);
-  if (!allowed) throw new Error("You can only manage bookings for your own household.");
+    !!user.household?.profiles.some((p) => p.id === profileId);
+  if (!ownHousehold && !canManageMembers(user)) {
+    throw new Error("You can only manage bookings for your own household.");
+  }
+  return { ownHousehold, staff: user.role === "ADMIN" || !ownHousehold };
+}
+
+/** Admins manage anyone; coach admins only member/parent households, never staff accounts. */
+async function requireHouseholdManager(where: { profileId: string } | { householdId: string }) {
+  const user = await requireMemberManager();
+  if (user.role === "ADMIN") return user;
+  const householdFilter =
+    "profileId" in where ? { profiles: { some: { id: where.profileId } } } : { id: where.householdId };
+  const staffAccount = await prisma.user.findFirst({
+    where: {
+      role: { in: ["COACH", "ADMIN"] },
+      OR: [
+        ...("profileId" in where ? [{ profile: { id: where.profileId } }] : []),
+        { household: householdFilter },
+      ],
+    },
+    select: { id: true },
+  });
+  if (staffAccount) redirect("/coach/members?error=" + encodeURIComponent("Only admins can manage staff accounts."));
+  return user;
+}
+
+function requireProfileManager(profileId: string) {
+  return requireHouseholdManager({ profileId });
 }
 
 function failTo(path: string, message: string): never {
@@ -169,7 +203,7 @@ export async function bookClass(
   errorPath: string = "/schedule"
 ) {
   const user = await requireUser();
-  await assertProfileInHousehold(user.id, profileId);
+  const { staff } = await assertProfileInHousehold(user.id, profileId);
 
   const target = await prisma.classSession.findUniqueOrThrow({
     where: { id: sessionId },
@@ -195,7 +229,7 @@ export async function bookClass(
 
   const bookedStatus = await bookProfileIntoSession(profileId, sessionId);
 
-  await trackEvent(user.role === "ADMIN" ? "ADMIN_BOOKING" : "SELF_BOOKING", {
+  await trackEvent(staff ? "ADMIN_BOOKING" : "SELF_BOOKING", {
     userId: user.id,
     profileId,
     metadata: bookedStatus,
@@ -276,11 +310,11 @@ async function cancelProfileBooking(profileId: string, sessionId: string) {
 
 export async function cancelBooking(profileId: string, sessionId: string) {
   const user = await requireUser();
-  await assertProfileInHousehold(user.id, profileId);
+  const { staff } = await assertProfileInHousehold(user.id, profileId);
 
   const promotedProfileId = await cancelProfileBooking(profileId, sessionId);
 
-  await trackEvent(user.role === "ADMIN" ? "ADMIN_CANCELLATION" : "SELF_CANCELLATION", {
+  await trackEvent(staff ? "ADMIN_CANCELLATION" : "SELF_CANCELLATION", {
     userId: user.id,
     profileId,
   });
@@ -648,14 +682,17 @@ export async function deleteAnnouncement(announcementId: string) {
 }
 
 export async function createMemberAccount(formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireMemberManager();
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const password = String(formData.get("password") ?? "");
+  // Blank = the member chooses their own password from the onboarding email.
+  const password =
+    String(formData.get("password") ?? "") || crypto.randomBytes(18).toString("base64url");
   const role = String(formData.get("role") ?? "MEMBER");
   if (!name || !email.includes("@")) throw new Error("Please add a name and a valid email.");
   if (password.length < 8) throw new Error("Password must be at least 8 characters.");
-  if (!["MEMBER", "PARENT", "COACH", "ADMIN"].includes(role)) throw new Error("Invalid role.");
+  const allowedRoles = admin.role === "ADMIN" ? ["MEMBER", "PARENT", "COACH", "ADMIN"] : ["MEMBER", "PARENT"];
+  if (!allowedRoles.includes(role)) throw new Error("Invalid role.");
   if (await prisma.user.findUnique({ where: { email } })) {
     throw new Error("An account with that email already exists.");
   }
@@ -713,11 +750,12 @@ export async function createMemberAccount(formData: FormData) {
   });
 
   revalidatePath("/admin");
+  revalidatePath("/coach/members");
   succeedTo(
     `/admin/member/${profile.id}`,
     isTrial
       ? "Account created — the welcome email with sign-in details is on its way. Next: book their first class below."
-      : "Account created. Next: set up their membership below."
+      : "Account created. Next: set up their membership (and optionally book a first class), then send the onboarding email."
   );
 }
 
@@ -748,7 +786,7 @@ async function notifyTrialBooking(
 }
 
 export async function adminBookClass(profileId: string, formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireProfileManager(profileId);
   const memberPath = `/admin/member/${profileId}`;
   const sessionId = String(formData.get("sessionId") ?? "");
   if (!sessionId) failTo(memberPath, "Please pick a class.");
@@ -784,7 +822,7 @@ export async function adminBookClass(profileId: string, formData: FormData) {
 }
 
 export async function adminCancelBooking(profileId: string, sessionId: string) {
-  const admin = await requireAdmin();
+  const admin = await requireProfileManager(profileId);
   const [profile, session] = await Promise.all([
     prisma.memberProfile.findUnique({ where: { id: profileId } }),
     prisma.classSession.findUnique({ where: { id: sessionId }, include: { template: true } }),
@@ -808,7 +846,7 @@ const PRIVATE_TRIAL_OPEN_MIN = 8 * 60; // 8:00 AM
 const PRIVATE_TRIAL_CLOSE_MIN = 20 * 60; // 8:00 PM
 
 export async function adminBookPrivateTrial(profileId: string, formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireProfileManager(profileId);
   const memberPath = `/admin/member/${profileId}`;
   const dateRaw = String(formData.get("date") ?? "");
   const timeRaw = String(formData.get("time") ?? "");
@@ -954,7 +992,7 @@ export async function saveChildBirthdays(formData: FormData) {
 }
 
 export async function addChildProfile(householdId: string, formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireHouseholdManager({ householdId });
   const name = String(formData.get("name") ?? "").trim().slice(0, 80);
   const birthYear = Number(formData.get("birthYear") ?? 0) || null;
   if (!name) throw new Error("Please add the child's name.");
@@ -994,10 +1032,11 @@ export async function addChildProfile(householdId: string, formData: FormData) {
   });
 
   revalidatePath("/admin");
+  revalidatePath("/coach/members");
 }
 
 export async function updateMembership(profileId: string, formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireProfileManager(profileId);
   const membershipPlan = String(formData.get("membershipPlan") ?? "").trim().slice(0, 80) || null;
   const membershipType = String(formData.get("membershipType") ?? "");
   if (!["", "MONTHLY", "PUNCH_PASS", "TRIAL", "STAFF"].includes(membershipType)) {
@@ -1056,7 +1095,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
 }
 
 export async function setAdultClassEligible(profileId: string, formData: FormData) {
-  const admin = await requireAdmin();
+  const admin = await requireProfileManager(profileId);
   const eligible = formData.get("adultClassEligible") === "on";
 
   const updated = await prisma.memberProfile.update({
@@ -1410,7 +1449,7 @@ export async function reactivateAccount(profileId: string) {
 }
 
 export async function sendAppInvite(profileId: string) {
-  const admin = await requireAdmin();
+  const admin = await requireProfileManager(profileId);
   const memberPath = `/admin/member/${profileId}`;
   const profile = await prisma.memberProfile.findUniqueOrThrow({
     where: { id: profileId },
@@ -1447,6 +1486,112 @@ export async function sendAppInvite(profileId: string) {
   });
 
   succeedTo(memberPath, `App invite email sent to ${recipient.email}.`);
+}
+
+export async function setCoachAdmin(userId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const enabled = formData.get("canManageMembers") === "on";
+  const coach = await prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { profile: true } });
+  const memberPath = coach.profile ? `/admin/member/${coach.profile.id}` : "/admin";
+  if (coach.role !== "COACH") failTo(memberPath, "Only coach accounts can be made coach admins.");
+  await prisma.user.update({ where: { id: userId }, data: { canManageMembers: enabled } });
+  await recordAudit(admin, "COACH_ADMIN_UPDATED", {
+    targetType: "User",
+    targetId: userId,
+    summary: `${enabled ? "Gave" : "Removed"} member-account access ${enabled ? "to" : "from"} ${coach.name}`,
+  });
+  revalidatePath(memberPath);
+  succeedTo(
+    memberPath,
+    enabled
+      ? `${coach.name} can now add member accounts and send onboarding emails.`
+      : `${coach.name} can no longer add member accounts.`
+  );
+}
+
+const ONBOARDING_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Emails the account holder a 7-day set-password link plus their membership and booked classes. */
+export async function sendOnboarding(profileId: string) {
+  const admin = await requireProfileManager(profileId);
+  const memberPath = `/admin/member/${profileId}`;
+  const profile = await prisma.memberProfile.findUniqueOrThrow({
+    where: { id: profileId },
+    include: { user: true, household: { include: { profiles: { include: { user: true } } } } },
+  });
+
+  const recipient =
+    profile.user ??
+    profile.household.profiles
+      .map((p) => p.user)
+      .find((u) => u && !u.deactivatedAt && u.role === "PARENT") ??
+    null;
+  if (!recipient) {
+    failTo(memberPath, `${profile.name} has no sign-in account or parent account to email.`);
+  }
+  if (recipient.deactivatedAt) {
+    failTo(memberPath, `${recipient.name}'s account is deactivated — reactivate it first.`);
+  }
+
+  const householdProfiles = profile.household.profiles.filter((p) => !p.deactivatedAt);
+  const forParent = recipient.role === "PARENT";
+  const label = (p: { name: string }) => (forParent ? `${p.name.split(" ")[0]}: ` : "");
+  const memberships = householdProfiles
+    .filter((p) => p.membershipPlan || p.membershipType)
+    .map((p) => {
+      let detail = p.membershipPlan ?? p.membershipType ?? "";
+      if (p.membershipType === "PUNCH_PASS" && p.punchPassTotal) {
+        detail += ` (${Math.max(p.punchPassTotal - p.punchPassUsed, 0)} of ${p.punchPassTotal} classes left)`;
+      } else if (p.membershipRenewsAt) {
+        detail += ` (renews ${formatDay(p.membershipRenewsAt)})`;
+      }
+      return `${label(p)}${detail}`;
+    });
+  const bookings = await prisma.booking.findMany({
+    where: {
+      profileId: { in: householdProfiles.map((p) => p.id) },
+      status: "BOOKED",
+      session: { startsAt: { gt: new Date() } },
+    },
+    include: { profile: true, session: { include: { template: true } } },
+    orderBy: { session: { startsAt: "asc" } },
+    take: 5,
+  });
+  const upcomingClasses = bookings.map(
+    (b) =>
+      `${label(b.profile)}${b.session.template.name} — ${formatDay(b.session.startsAt)} at ${formatTime(b.session.startsAt)}`
+  );
+
+  const token = crypto.randomBytes(32).toString("base64url");
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  await prisma.passwordResetToken.deleteMany({ where: { userId: recipient.id, usedAt: null } });
+  await prisma.passwordResetToken.create({
+    data: { tokenHash, userId: recipient.id, expiresAt: new Date(Date.now() + ONBOARDING_LINK_TTL_MS) },
+  });
+
+  try {
+    await sendOnboardingEmail(recipient.email, recipient.name.split(" ")[0], {
+      setPasswordUrl: `${appUrl()}/reset-password?token=${token}&welcome=1`,
+      memberships,
+      upcomingClasses,
+    });
+  } catch (err) {
+    console.error("[email] onboarding email failed:", err);
+    failTo(memberPath, "We couldn't send the onboarding email right now. Please try again in a few minutes.");
+  }
+
+  await prisma.user.update({
+    where: { id: recipient.id },
+    data: { onboardingEmailSentAt: new Date() },
+  });
+  await recordAudit(admin, "ONBOARDING_EMAIL_SENT", {
+    targetType: "MemberProfile",
+    targetId: profileId,
+    summary: `Sent onboarding email to ${recipient.email} for ${profile.name}`,
+  });
+
+  revalidatePath(memberPath);
+  succeedTo(memberPath, `Onboarding email sent to ${recipient.email}.`);
 }
 
 export async function archiveMember(profileId: string) {

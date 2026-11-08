@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireMemberManager } from "@/lib/auth";
 import {
   adminBookClass,
   adminBookPrivateTrial,
@@ -13,6 +13,8 @@ import {
   reactivateAccount,
   resetMemberPassword,
   sendAppInvite,
+  sendOnboarding,
+  setCoachAdmin,
   setAdultClassEligible,
   unarchiveMember,
   updateMembership,
@@ -37,7 +39,8 @@ export default async function AdminMemberPage({
   params: { id: string };
   searchParams: { error?: string; success?: string };
 }) {
-  const admin = await requireAdmin();
+  const admin = await requireMemberManager();
+  const isAdmin = admin.role === "ADMIN";
 
   const profile = await prisma.memberProfile.findUnique({
     where: { id: params.id },
@@ -48,6 +51,12 @@ export default async function AdminMemberPage({
     },
   });
   if (!profile) notFound();
+  const staffHousehold = profile.household.profiles.some(
+    (p) => p.user && (p.user.role === "COACH" || p.user.role === "ADMIN")
+  );
+  if (!isAdmin && (staffHousehold || profile.user?.role === "COACH" || profile.user?.role === "ADMIN")) {
+    notFound();
+  }
 
   const renewsAtValue = profile.membershipRenewsAt
     ? profile.membershipRenewsAt.toISOString().slice(0, 10)
@@ -88,6 +97,28 @@ export default async function AdminMemberPage({
       .map((p) => p.user)
       .find((u) => u && !u.deactivatedAt && u.role === "PARENT") ??
     null;
+  const activeHouseholdProfiles = profile.household.profiles.filter((p) => !p.deactivatedAt);
+  const [recipientHasSignedIn, householdBookingCount] = await Promise.all([
+    inviteRecipient
+      ? prisma.telemetryEvent
+          .findFirst({ where: { type: "LOGIN", userId: inviteRecipient.id }, select: { id: true } })
+          .then(Boolean)
+      : false,
+    prisma.booking.count({
+      where: {
+        profileId: { in: activeHouseholdProfiles.map((p) => p.id) },
+        status: "BOOKED",
+        session: { startsAt: { gt: now } },
+      },
+    }),
+  ]);
+  const showOnboarding =
+    !isTrial && !!inviteRecipient && !profile.deactivatedAt && !recipientHasSignedIn;
+  const membershipConfigured = activeHouseholdProfiles.some(
+    (p) => p.membershipPlan || p.membershipType
+  );
+  const onboardingSentAt = inviteRecipient?.onboardingEmailSentAt ?? null;
+
   const inviteText = [
     `Hi ${firstName}! Your ${profile.membershipType === "TRIAL" ? "trial " : ""}class at Atheneum Martial Arts is ${
       nextBooking
@@ -105,8 +136,8 @@ export default async function AdminMemberPage({
   return (
     <div className="space-y-8">
       <section>
-        <Link href="/admin" className="text-sm text-brand hover:underline">
-          &larr; Back to Admin
+        <Link href={isAdmin ? "/admin" : "/coach/members"} className="text-sm text-brand hover:underline">
+          &larr; {isAdmin ? "Back to Admin" : "Back to Members"}
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight">{profile.name}</h1>
         {searchParams.error && (
@@ -153,7 +184,7 @@ export default async function AdminMemberPage({
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
-          {profile.user && !profile.deactivatedAt && (
+          {isAdmin && profile.user && !profile.deactivatedAt && (
             <form action={impersonateUser.bind(null, profile.user.id)}>
               <SubmitButton
                 pendingLabel="Switching…"
@@ -175,6 +206,75 @@ export default async function AdminMemberPage({
           )}
         </div>
       </section>
+
+      {showOnboarding && inviteRecipient && (
+        <section aria-labelledby="onboarding">
+          <h2 id="onboarding" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Onboarding
+          </h2>
+          <div className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-sm">
+            <ol className="space-y-1.5">
+              {[
+                { done: true, label: `Account created for ${inviteRecipient.email}` },
+                {
+                  done: membershipConfigured,
+                  label: membershipConfigured
+                    ? "Membership set up"
+                    : inviteRecipient.role === "PARENT"
+                      ? "Add their kids and set up each child's membership"
+                      : "Set up their membership below",
+                },
+                {
+                  done: householdBookingCount > 0,
+                  label:
+                    householdBookingCount > 0
+                      ? `First class booked (${householdBookingCount} upcoming)`
+                      : "Optional: book their first class below",
+                },
+                {
+                  done: !!onboardingSentAt,
+                  label: onboardingSentAt
+                    ? `Onboarding email sent ${formatDay(onboardingSentAt)} at ${formatTime(onboardingSentAt)} — waiting for them to sign in`
+                    : "Send the onboarding email",
+                },
+              ].map((step, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <span
+                    aria-hidden
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      step.done ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-500"
+                    }`}
+                  >
+                    {step.done ? "\u2713" : i + 1}
+                  </span>
+                  <span className={step.done ? "text-stone-700" : "text-stone-600"}>{step.label}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="text-xs text-stone-500">
+              The email includes a link to choose their own password (good for 7 days), their
+              membership, any booked classes, and how to add the app to their home screen.
+            </p>
+            {!membershipConfigured && !onboardingSentAt && (
+              <p className="text-xs text-amber-700">
+                Tip: set up the membership first so it&apos;s included in the email.
+              </p>
+            )}
+            <form action={sendOnboarding.bind(null, profile.id)}>
+              <SubmitButton
+                pendingLabel="Sending…"
+                className={
+                  onboardingSentAt
+                    ? "rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                    : "rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark"
+                }
+              >
+                {onboardingSentAt ? "Resend onboarding email" : "Send onboarding email"}
+              </SubmitButton>
+            </form>
+          </div>
+        </section>
+      )}
 
       {isTrial && (
         <section aria-labelledby="trial-setup">
@@ -419,6 +519,40 @@ export default async function AdminMemberPage({
         )}
       </section>
 
+      {isAdmin && profile.user?.role === "COACH" && (
+        <section aria-labelledby="coach-admin">
+          <h2 id="coach-admin" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+            Coach admin
+          </h2>
+          <form
+            action={setCoachAdmin.bind(null, profile.user.id)}
+            className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
+          >
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="canManageMembers"
+                defaultChecked={profile.user.canManageMembers}
+                className="mt-0.5 h-4 w-4 rounded border-stone-300"
+              />
+              <span>
+                <span className="font-medium">Can add member accounts</span>
+                <span className="block text-xs text-stone-500">
+                  Lets {firstName} create member and parent accounts, add kids, set memberships,
+                  book classes for them, and send onboarding emails from Members. Admin-only tools
+                  (deactivating, deleting, password resets, staff accounts) stay with admins.
+                </span>
+              </span>
+            </label>
+            <SubmitButton className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-dark">
+              Save coach admin access
+            </SubmitButton>
+          </form>
+        </section>
+      )}
+
+      {isAdmin && (
+        <>
       <section aria-labelledby="kiosk-checkin">
         <h2
           id="kiosk-checkin"
@@ -516,7 +650,10 @@ export default async function AdminMemberPage({
         </div>
       </section>
 
-      {profile.user && (
+        </>
+      )}
+
+      {isAdmin && profile.user && (
         <section aria-labelledby="invite-text">
           <h2 id="invite-text" className="text-sm font-semibold uppercase tracking-wide text-stone-500">
             Sign-in text for your lead bot
@@ -533,7 +670,7 @@ export default async function AdminMemberPage({
         </section>
       )}
 
-      {profile.user && (
+      {isAdmin && profile.user && (
         <section aria-labelledby="reset-password">
           <h2
             id="reset-password"
@@ -572,7 +709,7 @@ export default async function AdminMemberPage({
         </section>
       )}
 
-      {profile.user?.id !== admin.id && (
+      {isAdmin && profile.user?.id !== admin.id && (
         <section aria-labelledby="account-status">
           <h2
             id="account-status"

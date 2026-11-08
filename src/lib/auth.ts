@@ -50,6 +50,17 @@ export async function requireAdmin(): Promise<CurrentUser> {
   return user;
 }
 
+/** Admins, plus coaches an admin has made "coach admins". */
+export function canManageMembers(user: { role: string; canManageMembers: boolean }): boolean {
+  return user.role === "ADMIN" || (user.role === "COACH" && user.canManageMembers);
+}
+
+export async function requireMemberManager(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!canManageMembers(user)) redirect("/");
+  return user;
+}
+
 export function householdProfiles(user: CurrentUser) {
   const profiles =
     user.household?.profiles ??

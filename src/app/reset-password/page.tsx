@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { resetPassword, type ResetPasswordState } from "@/lib/actions";
 
-function SubmitButton() {
+function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -15,13 +15,15 @@ function SubmitButton() {
       disabled={pending}
       className="w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white hover:bg-brand-dark disabled:opacity-60"
     >
-      {pending ? "Updating…" : "Set new password"}
+      {pending ? "Updating…" : label}
     </button>
   );
 }
 
 function ResetPasswordForm() {
-  const token = useSearchParams().get("token") ?? "";
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
+  const welcome = searchParams.get("welcome") === "1";
   const [state, formAction] = useFormState<ResetPasswordState, FormData>(resetPassword, {});
 
   if (!token) {
@@ -59,9 +61,13 @@ function ResetPasswordForm() {
           {state.error}
         </p>
       )}
-      <SubmitButton />
+      <SubmitButton label={welcome ? "Set password" : "Set new password"} />
     </form>
   );
+}
+
+function ResetHeading() {
+  return useSearchParams().get("welcome") === "1" ? "Welcome! Choose your password" : "Set a new password";
 }
 
 export default function ResetPasswordPage() {
@@ -76,7 +82,9 @@ export default function ResetPasswordPage() {
         className="mx-auto"
       />
       <h1 className="mt-3 text-center text-2xl font-bold tracking-tight text-brand">
-        Set a new password
+        <Suspense fallback="Set a new password">
+          <ResetHeading />
+        </Suspense>
       </h1>
       <Suspense>
         <ResetPasswordForm />
