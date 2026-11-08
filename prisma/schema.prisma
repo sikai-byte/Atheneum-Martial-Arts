@@ -25,6 +25,8 @@ model User {
   feedback             Feedback[]
   deactivatedAt        DateTime? // leaver hold: sign-in blocked, data retained
   startHereDismissedAt DateTime? // "Start here" home banner dismissed
+  onboardingEmailSentAt DateTime? // last staff-sent set-password onboarding email
+  canManageMembers     Boolean              @default(false) // coach admin: may add and onboard member accounts
   createdAt            DateTime             @default(now())
 }
 

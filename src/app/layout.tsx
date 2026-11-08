@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { getCurrentUser } from "@/lib/auth";
+import { canManageMembers, getCurrentUser } from "@/lib/auth";
 import { getSession } from "@/lib/session";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import Nav from "@/components/Nav";
@@ -47,7 +47,9 @@ export default async function RootLayout({
       >
         <PwaRegister />
         {impersonating && user && <ImpersonationBanner name={user.name} />}
-        {user && <Nav name={user.name} role={user.role} />}
+        {user && (
+          <Nav name={user.name} role={user.role} canManageMembers={canManageMembers(user)} />
+        )}
         <main className="mx-auto w-full max-w-3xl px-4 pb-24 pt-6 lg:pb-10">
           {children}
         </main>

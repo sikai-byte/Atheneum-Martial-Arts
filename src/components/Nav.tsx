@@ -195,14 +195,27 @@ const desktopLinks: Record<string, { href: string; label: string }[]> = {
   ],
 };
 
-export default function Nav({ name, role }: { name: string; role: string }) {
+const membersLink = { href: "/coach/members", label: "Members", icon: "users" } as const;
+
+export default function Nav({
+  name,
+  role,
+  canManageMembers = false,
+}: {
+  name: string;
+  role: string;
+  canManageMembers?: boolean;
+}) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const links = desktopLinks[role] ?? desktopLinks.MEMBER;
+  const coachAdmin = role === "COACH" && canManageMembers;
+  const baseLinks = desktopLinks[role] ?? desktopLinks.MEMBER;
+  const links = coachAdmin ? [...baseLinks.slice(0, 1), membersLink, ...baseLinks.slice(1)] : baseLinks;
   const primary =
     role === "ADMIN" ? adminPrimary : role === "COACH" ? coachPrimary : memberPrimary;
-  const more = role === "ADMIN" ? adminMore : role === "COACH" ? coachMore : memberMore;
+  const baseMore = role === "ADMIN" ? adminMore : role === "COACH" ? coachMore : memberMore;
+  const more = coachAdmin ? [membersLink, ...baseMore] : baseMore;
 
   useEffect(() => {
     setMoreOpen(false);
