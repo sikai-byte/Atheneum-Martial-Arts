@@ -124,8 +124,14 @@ test.describe("admin tools & audit history", () => {
 
     await page.selectOption('select[name="membershipType"]', "MONTHLY");
     await page.fill('input[name="membershipPlan"]', "Adult Unlimited");
+    await page.selectOption('select[name="billingPeriod"]', "QUARTERLY");
     await page.getByRole("button", { name: "Save membership" }).click();
     await expect(onboarding).toContainText("Membership set up");
+    await expect(page.locator('select[name="billingPeriod"]')).toHaveValue("QUARTERLY");
+    const quarterly = await db.memberProfile.findFirstOrThrow({
+      where: { user: { email: "olive.onboard@test.local" } },
+    });
+    expect(quarterly.billingPeriod).toBe("QUARTERLY");
 
     await page.getByRole("button", { name: "Send onboarding email" }).click();
     await expect(page.getByRole("status")).toContainText(/onboarding email sent to olive.onboard@test.local/i);

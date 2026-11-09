@@ -324,6 +324,7 @@ export default async function AdminMemberPage({
             membershipPlan={profile.membershipPlan ?? ""}
             membershipType={profile.membershipType ?? ""}
             renewsAtValue={renewsAtValue}
+            billingPeriod={profile.billingPeriod ?? ""}
             trialClassType={profile.trialClassType}
             punchPassTotal={profile.punchPassTotal}
             punchPassUsed={profile.punchPassUsed}

@@ -6,6 +6,7 @@ export default function MembershipFields({
   membershipPlan,
   membershipType,
   renewsAtValue,
+  billingPeriod,
   trialClassType,
   punchPassTotal,
   punchPassUsed,
@@ -13,6 +14,7 @@ export default function MembershipFields({
   membershipPlan: string;
   membershipType: string;
   renewsAtValue: string;
+  billingPeriod: string;
   trialClassType: string;
   punchPassTotal: number | null;
   punchPassUsed: number;
@@ -33,7 +35,7 @@ export default function MembershipFields({
           className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
         >
           <option value="">None</option>
-          <option value="MONTHLY">Monthly (renews on a date)</option>
+          <option value="MONTHLY">Membership (renews on a date)</option>
           <option value="PUNCH_PASS">Punch pass (class count)</option>
           <option value="TRIAL">Trial (ends on a date)</option>
           <option value="STAFF">Staff (trains free, not a paying member)</option>
@@ -72,6 +74,24 @@ export default function MembershipFields({
             defaultValue={renewsAtValue}
             className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
           />
+        </div>
+      )}
+      {type === "MONTHLY" && (
+        <div>
+          <label htmlFor="membership-billing" className="mb-1 block text-sm font-medium">
+            Paid
+          </label>
+          <select
+            id="membership-billing"
+            name="billingPeriod"
+            defaultValue={billingPeriod || "MONTHLY"}
+            className="w-full rounded-lg border border-stone-300 px-3 py-2.5 text-sm"
+          >
+            <option value="MONTHLY">Monthly</option>
+            <option value="QUARTERLY">Quarterly (3 months)</option>
+            <option value="SEMIANNUAL">Every 6 months</option>
+            <option value="ANNUAL">Annually</option>
+          </select>
         </div>
       )}
       {type === "TRIAL" && (

@@ -29,7 +29,7 @@ import {
   videoDurationSeconds,
 } from "./media";
 import { REACTION_EMOJIS } from "./reactions";
-import { formatDay, formatTime } from "./format";
+import { BILLING_PERIODS, billingPeriodLabel, formatDay, formatTime } from "./format";
 import { bookingLimit } from "./capacity";
 import { isBackfillCheckIn, isLateCheckIn } from "./attendance";
 import { classEligibilityError } from "./eligibility";
@@ -1048,6 +1048,11 @@ export async function updateMembership(profileId: string, formData: FormData) {
     throw new Error("Please enter the renewal date as YYYY-MM-DD.");
   }
   const membershipRenewsAt = parsedRenewsAt;
+  const billingPeriodRaw = String(formData.get("billingPeriod") ?? "");
+  if (billingPeriodRaw && !(billingPeriodRaw in BILLING_PERIODS)) {
+    throw new Error("Invalid billing period.");
+  }
+  const billingPeriod = membershipType === "MONTHLY" ? billingPeriodRaw || "MONTHLY" : null;
   const punchPassTotal = Number(formData.get("punchPassTotal") ?? 0) || null;
   const punchPassUsed = Math.max(Number(formData.get("punchPassUsed") ?? 0) || 0, 0);
   const trialClassType = String(formData.get("trialClassType") ?? "BOTH");
@@ -1070,6 +1075,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
       membershipPlan,
       membershipType: membershipType || null,
       membershipRenewsAt: effectiveRenewsAt,
+      billingPeriod,
       ...(existing.inactiveAt && membershipCurrent ? { inactiveAt: null } : {}),
       punchPassTotal: membershipType === "PUNCH_PASS" ? punchPassTotal ?? 10 : null,
       punchPassUsed: membershipType === "PUNCH_PASS" ? punchPassUsed : 0,
@@ -1086,7 +1092,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
   await recordAudit(admin, "MEMBERSHIP_UPDATED", {
     targetType: "MemberProfile",
     targetId: profileId,
-    summary: `Set ${updated.name}'s membership to ${membershipType || "none"}${membershipPlan ? ` (${membershipPlan})` : ""}`,
+    summary: `Set ${updated.name}'s membership to ${membershipType || "none"}${membershipPlan ? ` (${membershipPlan})` : ""}${billingPeriod ? `, ${BILLING_PERIODS[billingPeriod].toLowerCase()}` : ""}`,
   });
 
   revalidatePath("/admin");
@@ -1542,8 +1548,12 @@ export async function sendOnboarding(profileId: string) {
       let detail = p.membershipPlan ?? p.membershipType ?? "";
       if (p.membershipType === "PUNCH_PASS" && p.punchPassTotal) {
         detail += ` (${Math.max(p.punchPassTotal - p.punchPassUsed, 0)} of ${p.punchPassTotal} classes left)`;
-      } else if (p.membershipRenewsAt) {
-        detail += ` (renews ${formatDay(p.membershipRenewsAt)})`;
+      } else {
+        const notes = [
+          billingPeriodLabel(p)?.toLowerCase(),
+          p.membershipRenewsAt && `renews ${formatDay(p.membershipRenewsAt)}`,
+        ].filter(Boolean);
+        if (notes.length) detail += ` (${notes.join(", ")})`;
       }
       return `${label(p)}${detail}`;
     });

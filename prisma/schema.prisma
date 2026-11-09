@@ -67,6 +67,7 @@ model MemberProfile {
   membershipPlan     String? // e.g. "Adult Unlimited", "Kids Monthly", "10-Class Punch Pass"
   membershipType     String? // MONTHLY | PUNCH_PASS | TRIAL | STAFF
   membershipRenewsAt DateTime?
+  billingPeriod      String? // MONTHLY | QUARTERLY | SEMIANNUAL | ANNUAL — how often a renewing membership is paid
   punchPassTotal     Int?
   punchPassUsed      Int              @default(0)
   adultClassEligible Boolean          @default(false) // youth profiles who also train in the adult program

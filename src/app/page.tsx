@@ -7,7 +7,7 @@ import StartHereBanner from "@/components/StartHereBanner";
 import PunchCard from "@/components/PunchCard";
 import { prisma } from "@/lib/db";
 import { requireUser, householdProfiles } from "@/lib/auth";
-import { formatDay, formatTime, startOfWeek } from "@/lib/format";
+import { billingPeriodLabel, formatDay, formatTime, startOfWeek } from "@/lib/format";
 import { trialExpired } from "@/lib/trial";
 
 export const dynamic = "force-dynamic";
@@ -502,9 +502,14 @@ export default async function HomePage() {
                       )}
                     </p>
                   </div>
-                  <p className="text-sm font-medium text-stone-700">
-                    {p.membershipPlan ?? "No plan on file"}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-stone-700">
+                      {p.membershipPlan ?? "No plan on file"}
+                    </p>
+                    {billingPeriodLabel(p) && (
+                      <p className="text-xs text-stone-500">{billingPeriodLabel(p)}</p>
+                    )}
+                  </div>
                 </div>
                 {p.membershipType === "MONTHLY" &&
                   p.membershipRenewsAt &&

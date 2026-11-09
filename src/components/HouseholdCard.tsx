@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { addChildProfile } from "@/lib/actions";
-import { formatDay } from "@/lib/format";
+import { billingPeriodLabel, formatDay } from "@/lib/format";
 import SubmitButton from "@/components/SubmitButton";
 
 export function membershipSummary(p: {
   membershipPlan: string | null;
   membershipType: string | null;
   membershipRenewsAt: Date | null;
+  billingPeriod: string | null;
   punchPassTotal: number | null;
   punchPassUsed: number;
 }) {
@@ -19,10 +20,14 @@ export function membershipSummary(p: {
       ? `Trial · ends ${formatDay(p.membershipRenewsAt)}`
       : "Trial";
   }
-  if (p.membershipRenewsAt) {
-    return `${p.membershipPlan} · renews ${formatDay(p.membershipRenewsAt)}`;
-  }
-  return p.membershipPlan;
+  const billing = billingPeriodLabel(p);
+  return [
+    p.membershipPlan,
+    billing?.toLowerCase(),
+    p.membershipRenewsAt && `renews ${formatDay(p.membershipRenewsAt)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export default function HouseholdCard({

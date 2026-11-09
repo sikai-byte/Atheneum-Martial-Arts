@@ -35,3 +35,18 @@ export const programColors: Record<string, string> = {
   green: "bg-green-100 text-green-800",
   stone: "bg-stone-100 text-stone-800",
 };
+
+export const BILLING_PERIODS: Record<string, string> = {
+  MONTHLY: "Paid monthly",
+  QUARTERLY: "Paid quarterly",
+  SEMIANNUAL: "Paid every 6 months",
+  ANNUAL: "Paid annually",
+};
+
+export function billingPeriodLabel(p: {
+  membershipType: string | null;
+  billingPeriod: string | null;
+}): string | null {
+  if (p.membershipType !== "MONTHLY" || !p.billingPeriod) return null;
+  return BILLING_PERIODS[p.billingPeriod] ?? null;
+}
