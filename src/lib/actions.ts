@@ -1049,7 +1049,7 @@ export async function updateMembership(profileId: string, formData: FormData) {
   }
   const membershipRenewsAt = parsedRenewsAt;
   const billingPeriodRaw = String(formData.get("billingPeriod") ?? "");
-  if (billingPeriodRaw && !(billingPeriodRaw in BILLING_PERIODS)) {
+  if (billingPeriodRaw && !Object.hasOwn(BILLING_PERIODS, billingPeriodRaw)) {
     throw new Error("Invalid billing period.");
   }
   const billingPeriod = membershipType === "MONTHLY" ? billingPeriodRaw || "MONTHLY" : null;
